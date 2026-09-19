@@ -15,7 +15,7 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
           types='feat|fix|docs|refactor|test|chore|ci|perf|build|revert'
-          scopes='repo|deps|agents|docs|core|connector-[a-z0-9-]+|react|vue|svelte|ui|registry|test-utils|bchconnect|create-bch-dapp'
+          scopes='repo|deps|agents|docs|site|core|connector-[a-z0-9-]+|react|vue|svelte|ui|registry|test-utils|bchconnect|create-bch-dapp'
           re="^($types)\(($scopes)\)!?: [^ ].*$"
           if [[ ! "$TITLE" =~ $re ]]; then
             echo "::error::Title must be 'type(scope): summary'. Types: $types. Scopes: $scopes."
