@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm test
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm build
+      - name: publint and arethetypeswrong
+        run: |
+          for dir in packages/*/; do
+            [ -f "${dir}package.json" ] || continue
+            [ "$(jq -r '.private // false' "${dir}package.json")" = "true" ] && continue
+            tgz="$RUNNER_TEMP/package.tgz"
+            (cd "$dir" && pnpm pack --out "$tgz")
+            pnpm exec publint run "$tgz" --strict
+            pnpm exec attw "$tgz"
+          done
+      - name: size-limit
+        run: |
+          for dir in packages/*/; do
+            [ -f "${dir}.size-limit.json" ] || continue
+            (cd "$dir" && pnpm exec size-limit)
+          done
+      - name: API Extractor
+        run: |
+          for dir in packages/*/; do
+            [ -f "${dir}api-extractor.json" ] || continue
+            (cd "$dir" && pnpm exec api-extractor run)
+          done
+
+  changeset:
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no-changeset')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - run: pnpm changeset status --since=origin/main

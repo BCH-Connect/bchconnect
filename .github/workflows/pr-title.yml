@@ -1,0 +1,27 @@
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Conventional Commits title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|docs|refactor|test|chore|ci|perf|build|revert'
+          scopes='repo|deps|agents|docs|core|connector-[a-z0-9-]+|react|vue|svelte|ui|registry|test-utils|bchconnect|create-bch-dapp'
+          re="^($types)\(($scopes)\)!?: [^ ].*$"
+          if [[ ! "$TITLE" =~ $re ]]; then
+            echo "::error::Title must be 'type(scope): summary'. Types: $types. Scopes: $scopes."
+            exit 1
+          fi
+          if (( ${#TITLE} > 72 )); then
+            echo "::error::Title is ${#TITLE} characters; the limit is 72."
+            exit 1
+          fi
