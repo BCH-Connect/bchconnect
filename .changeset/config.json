@@ -1,0 +1,20 @@
+{
+	"changelog": [
+		"@changesets/changelog-github",
+		{ "repo": "BCH-Connect/bchconnect" }
+	],
+	"access": "public",
+	"baseBranch": "main",
+	"updateInternalDependencies": "patch",
+	"fixed": [
+		[
+			"@bchconnect/core",
+			"@bchconnect/react",
+			"@bchconnect/vue",
+			"@bchconnect/svelte",
+			"@bchconnect/ui",
+			"@bchconnect/test-utils",
+			"bchconnect"
+		]
+	]
+}
