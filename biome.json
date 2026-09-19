@@ -5,6 +5,9 @@
 		"clientKind": "git",
 		"useIgnoreFile": true
 	},
+	"files": {
+		"includes": ["**", "!**/routeTree.gen.ts"]
+	},
 	"linter": {
 		"rules": {
 			"preset": "recommended",
@@ -20,5 +23,30 @@
 				"noExplicitAny": "error"
 			}
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["docs/site/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						"useNamingConvention": {
+							"level": "error",
+							"options": {
+								"strictCase": false,
+								"conventions": [
+									{
+										"selector": {
+											"kind": "objectLiteralProperty"
+										},
+										"formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		}
+	]
 }
