@@ -1,0 +1,8 @@
+packages:
+  - "packages/*"
+  - "examples/*"
+  - "docs/site"
+
+strictPeerDependencies: true
+
+allowBuilds: {}

@@ -7,6 +7,9 @@ dist/
 # Test coverage
 coverage/
 
+# TypeScript build info
+*.tsbuildinfo
+
 # Logs
 *.log
 
