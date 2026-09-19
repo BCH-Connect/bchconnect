@@ -1,0 +1,28 @@
+{
+	"include": ["**/*.ts", "**/*.tsx"],
+	"compilerOptions": {
+		"strict": true,
+		"exactOptionalPropertyTypes": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"verbatimModuleSyntax": true,
+		"esModuleInterop": true,
+		"jsx": "react-jsx",
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"lib": ["DOM", "DOM.Iterable", "ES2022"],
+		"types": ["vite/client"],
+		"isolatedModules": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"target": "ES2022",
+		"allowJs": true,
+		"forceConsistentCasingInFileNames": true,
+		"paths": {
+			"@/*": ["./src/*"]
+		},
+		"noEmit": true
+	}
+}
