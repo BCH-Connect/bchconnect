@@ -7,6 +7,9 @@ dist/
 # Test coverage
 coverage/
 
+# API Extractor
+temp/
+
 # TypeScript build info
 *.tsbuildinfo
 
