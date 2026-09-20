@@ -18,6 +18,6 @@ import type { UserConfig } from "tsdown";
  */
 export const baseConfig: UserConfig = {
 	format: ["esm", "cjs"],
-	dts: { generator: "oxc" },
+	dts: { generator: "oxc", sourcemap: false },
 	sourcemap: true,
 };

@@ -9,8 +9,8 @@
 	"scripts": {
 		"typecheck": "tsc -b --noEmit",
 		"lint": "biome check .",
-		"format": "biome format --write .",
-		"test": "vitest run --passWithNoTests",
+		"format": "biome check --write .",
+		"test": "vitest run",
 		"test:types": "vitest run --typecheck.only --passWithNoTests",
 		"build": "pnpm -r --if-present run build",
 		"check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
