@@ -35,6 +35,15 @@
 		"provenance": true
 	},
 	"scripts": {
-		"build": "tsdown"
+		"build": "tsdown",
+		"api": "api-extractor run --local --verbose"
+	},
+	"devDependencies": {
+		"@bch-wc2/interfaces": "0.0.16",
+		"@bitauth/libauth": "3.1.0-next.8",
+		"@cashconnect-js/core": "1.0.0-alpha.31",
+		"@wizardconnect/core": "0.2.4",
+		"libauth-300": "npm:@bitauth/libauth@3.0.0",
+		"wc2-interfaces-008": "npm:@bch-wc2/interfaces@0.0.8"
 	}
 }
