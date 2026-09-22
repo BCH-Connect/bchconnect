@@ -4,6 +4,419 @@
 
 ```ts
 
+// @public
+export interface AbiFunction {
+    readonly inputs: readonly AbiInput[];
+    readonly name: string;
+}
+
+// @public
+export interface AbiInput {
+    readonly name: string;
+    readonly type: string;
+}
+
+// @public
+export interface AppMetadata {
+    description?: string;
+    icon?: string;
+    name: string;
+    url: string;
+}
+
+// @public
+export abstract class BchConnectError extends Error {
+    constructor(message: string, options?: {
+        cause?: unknown;
+        sessionId?: string;
+    });
+    abstract readonly code: BchConnectErrorCode;
+    readonly sessionId?: string;
+}
+
+// @public
+export type BchConnectErrorCode = "REJECTED" | "ABORTED" | "TIMEOUT" | "CAPABILITY_MISSING" | "METHOD_UNSUPPORTED" | "SESSION_MISSING" | "TRANSPORT" | "INVALID_WALLET_RESPONSE" | "NETWORK_MISMATCH" | "CONFIG";
+
+// @public
+export type CapabilityFor<P extends ProtocolDefinition, N extends keyof CapabilityRegistry> = N extends P["capability"] ? CapabilityRegistry[N] | null : null;
+
+// @public
+export interface CapabilityRegistry {
+    "libauth-signing": LibauthSigning;
+    "message-signing": MessageSigning;
+}
+
+// @public
+export interface Client<P extends ProtocolDefinition = ProtocolDefinition> extends ClientLifecycle {
+    readonly "~protocols"?: P;
+    can<S extends SessionOf<P>>(session: S, name: ProtocolFor<P, S>["capability"]): boolean;
+    capability<S extends SessionOf<P>, N extends keyof CapabilityRegistry>(session: S, name: N): CapabilityFor<ProtocolFor<P, S>, N>;
+    connect<K extends P["id"]>(protocol: K, opts?: ConnectOptions): Promise<SessionOf<Extract<P, {
+        id: K;
+    }>>>;
+    readonly current: SessionOf<P> | null;
+    disconnect(session?: SessionOf<P>): Promise<void>;
+    on<E extends keyof LifecycleEvents<P>>(event: E, listener: (payload: LifecycleEvents<P>[E]) => void): () => void;
+    readonly protocols: readonly P["id"][];
+    request<S extends SessionOf<P>, M extends MethodName<ProtocolFor<P, S>>>(session: S, method: M, params: MethodParams<ProtocolFor<P, S>, M>, opts?: RequestOptions): Promise<MethodResult<ProtocolFor<P, S>, M>>;
+    session<K extends P["id"]>(protocol: K): SessionOf<Extract<P, {
+        id: K;
+    }>> | null;
+    readonly sessions: ReadonlyMap<string, SessionOf<P>>;
+    setCurrent(session: SessionOf<P> | null): void;
+    subscribe<S extends SessionOf<P>, E extends EventName<ProtocolFor<P, S>>>(session: S, event: E, listener: (payload: EventPayload<ProtocolFor<P, S>, E>) => void): () => void;
+}
+
+// @public
+export interface ClientConfig<Connectors extends readonly Connector[]> {
+    appMetadata: AppMetadata;
+    connectors: Connectors;
+    defaultTimeoutMs?: {
+        read?: number;
+        userInteraction?: number;
+        connect?: number;
+    };
+    initialState?: ClientSnapshot;
+    logger?: Logger;
+    network: Network;
+    ssr?: boolean;
+    storage?: KeyValueStore;
+}
+
+// @public
+export interface ClientLifecycle {
+    connect(protocol: string, opts?: ConnectOptions): Promise<Session<ProtocolDefinition>>;
+    readonly current: Session<ProtocolDefinition> | null;
+    disconnect(session?: Session<ProtocolDefinition>): Promise<void>;
+    dispose(): Promise<void>;
+    init(): Promise<void>;
+    on<E extends keyof LifecycleEvents>(event: E, listener: (payload: LifecycleEvents[E]) => void): () => void;
+    readonly protocols: readonly string[];
+    readonly sessions: ReadonlyMap<string, Session<ProtocolDefinition>>;
+    setCurrent(session: Session<ProtocolDefinition> | null): void;
+    readonly status: ClientStatus;
+    readonly store: ClientStore;
+}
+
+// @public
+export interface ClientSnapshot {
+    currentSessionId: string | null;
+    sessions: readonly {
+        id: string;
+        protocol: string;
+        wallet: WalletIdentity;
+        network: Network;
+    }[];
+    version: 1;
+}
+
+// @public
+export interface ClientState {
+    currentSessionId: string | null;
+    pendingRequests: ReadonlyMap<string, {
+        sessionId: string;
+        method: string;
+        userInteraction: boolean;
+        startedAt: number;
+    }>;
+    sessions: ReadonlyMap<string, Session<ProtocolDefinition>>;
+    snapshot: ClientSnapshot | null;
+    status: ClientStatus;
+}
+
+// @public
+export type ClientStatus = "idle" | "restoring" | "ready";
+
+// @public
+export interface ClientStore {
+    getState(): ClientState;
+    subscribe(listener: () => void): () => void;
+}
+
+// @public
+export interface ConnectOptions {
+    mode?: "replace" | "add";
+    onPairing?: (pairing: Pairing) => void;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+    wallet?: {
+        id?: string;
+        name?: string;
+        icon?: string;
+    };
+}
+
+// @public
+export interface Connector<P extends ProtocolDefinition = ProtocolDefinition> {
+    capabilitiesOf(session: Session<P>): ReadonlySet<P["capability"]>;
+    connect(opts: {
+        signal?: AbortSignal;
+        onPairing?: (pairing: Pairing) => void;
+        timeoutMs?: number;
+    }): Promise<Session<P>>;
+    disconnect(session: Session<P>): Promise<void>;
+    dispose?(): Promise<void>;
+    readonly protocol: P["id"];
+    request<M extends MethodName<P>>(session: Session<P>, method: M, params: MethodParams<P, M>, opts?: RequestOptions): Promise<MethodResult<P, M>>;
+    restore(): Promise<Session<P>[]>;
+    setup?(ctx: ConnectorContext): Promise<void> | void;
+    subscribe<E extends EventName<P>>(session: Session<P>, event: E, listener: (payload: EventPayload<P, E>) => void): () => void;
+}
+
+// @public
+export interface ConnectorContext {
+    appMetadata: AppMetadata;
+    emit<E extends ConnectorEventName>(event: E, payload: LifecycleEvents[E]): void;
+    logger: Logger;
+    network: Network;
+    storage: KeyValueStore;
+}
+
+// @public
+export type ConnectorEventName = "session:connected" | "session:changed" | "session:disconnected";
+
+// @public
+export interface ContractArtifact {
+    readonly abi: readonly AbiFunction[];
+    readonly bytecode: string;
+    readonly compiler: {
+        readonly name: string;
+        readonly version: string;
+    };
+    readonly constructorInputs: readonly AbiInput[];
+    readonly contractName: string;
+    readonly source: string;
+    readonly updatedAt: string;
+}
+
+// @public
+export interface ContractDisplay {
+    readonly abiFunction: AbiFunction;
+    readonly artifact: Partial<ContractArtifact>;
+    readonly redeemScript: Uint8Array;
+}
+
+// @public
+export type EventName<P extends ProtocolDefinition> = keyof P["events"] & string;
+
+// @public
+export type EventPayload<P extends ProtocolDefinition, E extends EventName<P>> = P["events"][E];
+
+// @public
+export function isBchConnectError<C extends BchConnectErrorCode = BchConnectErrorCode>(error: unknown, code?: C): error is BchConnectError & {
+    readonly code: C;
+};
+
+// @public
+export interface KeyValueStore {
+    delete(key: string): Promise<void>;
+    get(key: string): Promise<string | undefined>;
+    set(key: string, value: string): Promise<void>;
+}
+
+// @public
+export interface LibauthSigning {
+    signTransaction(req: SignTransactionRequest): Promise<SignTransactionResponse>;
+}
+
+// @public
+export interface LifecycleEvents<P extends ProtocolDefinition = ProtocolDefinition> {
+    "client:error": {
+        error: BchConnectError;
+    };
+    "request:pending": {
+        id: string;
+        sessionId: string;
+        method: string;
+        userInteraction: boolean;
+    };
+    "request:settled": {
+        id: string;
+        sessionId: string;
+        outcome: "resolved" | "rejected" | "aborted" | "timeout";
+    };
+    "session:changed": {
+        session: SessionOf<P>;
+        previous: SessionOf<P>;
+    };
+    "session:connected": {
+        session: SessionOf<P>;
+    };
+    "session:disconnected": {
+        sessionId: string;
+        reason: "user" | "wallet" | "expired" | "error";
+    };
+}
+
+// @public
+export interface Logger {
+    debug(msg: string, ...data: unknown[]): void;
+    error(msg: string, ...data: unknown[]): void;
+    info(msg: string, ...data: unknown[]): void;
+    warn(msg: string, ...data: unknown[]): void;
+}
+
+// @public
+export interface MessageSigning {
+    signMessage(req: SignMessageRequest): Promise<SignMessageResponse>;
+}
+
+// @public
+export interface MethodDefinition {
+    params: unknown;
+    result: unknown;
+    timeoutMs?: number;
+    userInteraction?: boolean;
+}
+
+// @public
+export type MethodName<P extends ProtocolDefinition> = keyof P["methods"] & string;
+
+// @public
+export type MethodParams<P extends ProtocolDefinition, M extends MethodName<P>> = Extract<P["methods"][M], MethodDefinition>["params"];
+
+// @public
+export type MethodResult<P extends ProtocolDefinition, M extends MethodName<P>> = Extract<P["methods"][M], MethodDefinition>["result"];
+
+// @public
+export type Network = "mainnet" | "chipnet" | "regtest";
+
+// @public
+export type NonFungibleTokenCapability = "none" | "mutable" | "minting";
+
+// @public
+export type Pairing = {
+    kind: "uri";
+    uri: string;
+    qrUri?: string;
+} | {
+    kind: "none";
+};
+
+// @public
+export interface ProtocolDefinition {
+    capability: string;
+    events: Record<string, unknown>;
+    id: string;
+    methods: Record<string, MethodDefinition>;
+    session: unknown;
+}
+
+// @public
+export type ProtocolFor<P extends ProtocolDefinition, S extends {
+    protocol: string;
+}> = Extract<P, {
+    id: S["protocol"];
+}>;
+
+// @public
+export type ProtocolOf<C> = C extends Connector<infer P> ? P : never;
+
+// @public
+export interface Register {}
+
+// @public
+export type RegisteredClient = Register extends {
+    client: infer C;
+} ? C : Client<ProtocolDefinition>;
+
+// @public
+export type RegisteredSession = RegisteredClient extends Client<infer P> ? SessionOf<P> : Session<ProtocolDefinition>;
+
+// @public
+export interface RequestOptions {
+    id?: string;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+}
+
+// @public
+export interface Session<P extends ProtocolDefinition = ProtocolDefinition> {
+    readonly data: P["session"];
+    readonly id: string;
+    readonly protocol: P["id"];
+    readonly status: SessionStatus;
+    readonly wallet: WalletIdentity;
+}
+
+// @public
+export type SessionOf<P extends ProtocolDefinition> = P extends unknown ? Session<P> : never;
+
+// @public
+export interface SessionStatus {
+    peer: "reachable" | "unreachable" | "unknown";
+    transport: "connected" | "reconnecting" | "disconnected";
+}
+
+// @public
+export interface SignMessageRequest {
+    readonly message: string;
+    readonly userPrompt?: string;
+}
+
+// @public
+export type SignMessageResponse = string;
+
+// @public
+export interface SignTransactionRequest {
+    readonly broadcast?: boolean;
+    readonly sourceOutputs: readonly SourceOutput[];
+    readonly transaction: Transaction | string;
+    readonly userPrompt?: string;
+}
+
+// @public
+export interface SignTransactionResponse {
+    readonly signedTransaction: string;
+    readonly signedTransactionHash: string;
+}
+
+// @public
+export interface SourceOutput extends TransactionInput, TransactionOutput {
+    readonly contract?: ContractDisplay;
+}
+
+// @public
+export interface TokenData {
+    readonly amount: bigint;
+    readonly category: Uint8Array;
+    readonly nft?: {
+        readonly capability: NonFungibleTokenCapability;
+        readonly commitment: Uint8Array;
+    };
+}
+
+// @public
+export interface Transaction {
+    readonly inputs: readonly TransactionInput[];
+    readonly locktime: number;
+    readonly outputs: readonly TransactionOutput[];
+    readonly version: number;
+}
+
+// @public
+export interface TransactionInput {
+    readonly outpointIndex: number;
+    readonly outpointTransactionHash: Uint8Array;
+    readonly sequenceNumber: number;
+    readonly unlockingBytecode: Uint8Array;
+}
+
+// @public
+export interface TransactionOutput {
+    readonly lockingBytecode: Uint8Array;
+    readonly token?: TokenData;
+    readonly valueSatoshis: bigint;
+}
+
+// @public
+export interface WalletIdentity {
+    icon?: string;
+    id?: string;
+    name?: string;
+    source: "protocol" | "selection";
+}
+
 // (No @packageDocumentation comment for this package)
 
 ```

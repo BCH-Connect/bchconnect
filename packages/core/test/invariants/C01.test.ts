@@ -1,3 +1,5 @@
-import { test } from "vitest";
+import { describe, it } from "vitest";
 
-test.todo("C1: a Session object is never mutated after emission");
+describe("C1: sessions are immutable", () => {
+	it.todo("should never mutate a Session object after emission");
+});
