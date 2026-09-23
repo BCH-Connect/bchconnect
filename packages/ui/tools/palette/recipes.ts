@@ -442,6 +442,44 @@ export const RADIUS: Readonly<Record<RadiusPreset, RadiusRow>> = {
 	full: { modal: 36, tile: 28, row: 999, control: 999, pill: 999, media: 12 },
 };
 
+/**
+ * Backdrop blur behind the modal.
+ *
+ * A knob rather than a fixed value because it is the one purely atmospheric
+ * choice in the system: a dapp with a busy page wants the scrim to do more
+ * work, and one with a quiet page wants it to do less. Neither is wrong.
+ */
+export type BlurPreset = "none" | "small" | "large";
+
+export const OVERLAY_BLUR: Readonly<Record<BlurPreset, number>> = {
+	none: 0,
+	small: 8,
+	large: 24,
+};
+
+/**
+ * Font stacks.
+ *
+ * `brand` resolves through `--bchc-font-brand-family`, which the library sets
+ * when it injects its `@font-face` at document level — Shadow DOM cannot
+ * declare fonts, so the face has to be registered outside it. Until a face is
+ * chosen the fallback applies and `brand` renders identically to `system`,
+ * which is deliberate: the layout must survive the fallback anyway, so the
+ * fallback is what gets designed against first.
+ *
+ * The brand face itself is still an open decision.
+ */
+export type FontPreset = "brand" | "system" | "mono";
+
+const SYSTEM_STACK =
+	'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
+export const FONT_STACKS: Readonly<Record<FontPreset, string>> = {
+	brand: `var(--bchc-font-brand-family, ${SYSTEM_STACK})`,
+	system: SYSTEM_STACK,
+	mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+};
+
 /** Where a semantic token gets its value from. */
 export type SemanticSource =
 	| { readonly from: "accent"; readonly step: Step }

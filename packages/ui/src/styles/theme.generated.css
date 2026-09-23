@@ -19,6 +19,45 @@
 	:where(:root, :host) {
 		--bchc-default-accent: green;
 		--bchc-default-neutral: sage;
+		--bchc-accent-1: light-dark(oklch(99.3% 0.0089 165.6), oklch(17.8% 0.0268 165.6));
+		--bchc-accent-2: light-dark(oklch(98.0% 0.0209 165.6), oklch(21.2% 0.0417 165.6));
+		--bchc-accent-3: light-dark(oklch(95.8% 0.0387 165.6), oklch(25.8% 0.0569 161.6));
+		--bchc-accent-4: light-dark(oklch(93.3% 0.0566 165.6), oklch(29.9% 0.0682 159.5));
+		--bchc-accent-5: light-dark(oklch(90.5% 0.0745 165.6), oklch(33.7% 0.0761 160.1));
+		--bchc-accent-6: light-dark(oklch(87.0% 0.0924 165.6), oklch(38.7% 0.0865 160.8));
+		--bchc-accent-7: light-dark(oklch(82.8% 0.1117 165.6), oklch(44.9% 0.0994 161.4));
+		--bchc-accent-8: light-dark(oklch(78.0% 0.1311 165.6), oklch(53.9% 0.1182 162.0));
+		--bchc-accent-9: light-dark(oklch(71.9% 0.1490 165.6), oklch(71.9% 0.1490 165.6));
+		--bchc-accent-10: light-dark(oklch(67.7% 0.1433 164.5), oklch(76.4% 0.1490 165.6));
+		--bchc-accent-11: light-dark(oklch(52.4% 0.1151 161.9), oklch(81.0% 0.1490 165.6));
+		--bchc-accent-12: light-dark(oklch(30.3% 0.0683 160.3), oklch(93.8% 0.0670 165.6));
+		--bchc-accent-foreground: light-dark(oklch(30.3% 0.0683 160.3), oklch(17.8% 0.0268 165.6));
+		--bchc-accent-focus: light-dark(oklch(61.9% 0.1305 164.8), oklch(51.6% 0.1133 161.9));
+		--bchc-neutral-family: sage;
+		--bchc-neutral-1: light-dark(oklch(99.3% 0.0010 165.0), oklch(17.8% 0.0029 165.0));
+		--bchc-neutral-2: light-dark(oklch(98.0% 0.0022 165.0), oklch(21.2% 0.0045 165.0));
+		--bchc-neutral-3: light-dark(oklch(95.8% 0.0042 165.0), oklch(25.3% 0.0070 165.0));
+		--bchc-neutral-4: light-dark(oklch(93.3% 0.0061 165.0), oklch(29.0% 0.0093 165.0));
+		--bchc-neutral-5: light-dark(oklch(90.5% 0.0080 165.0), oklch(32.8% 0.0109 165.0));
+		--bchc-neutral-6: light-dark(oklch(87.0% 0.0099 165.0), oklch(37.8% 0.0122 165.0));
+		--bchc-neutral-7: light-dark(oklch(82.8% 0.0120 165.0), oklch(44.0% 0.0144 165.0));
+		--bchc-neutral-8: light-dark(oklch(78.0% 0.0141 165.0), oklch(53.0% 0.0152 165.0));
+		--bchc-neutral-9: light-dark(oklch(62.0% 0.0160 165.0), oklch(60.0% 0.0160 165.0));
+		--bchc-neutral-10: light-dark(oklch(57.5% 0.0160 165.0), oklch(64.5% 0.0160 165.0));
+		--bchc-neutral-11: light-dark(oklch(52.0% 0.0160 165.0), oklch(81.4% 0.0160 165.0));
+		--bchc-neutral-12: light-dark(oklch(29.9% 0.0088 165.0), oklch(93.1% 0.0072 165.0));
+		--bchc-overlay: light-dark(oklch(29.9% 0.0088 165.0 / 0.55), oklch(93.1% 0.0072 165.0 / 0.65));
+		--bchc-shadow-soft: light-dark(oklch(29.9% 0.0088 165.0 / 0.08), oklch(93.1% 0.0072 165.0 / 0.4));
+		--bchc-shadow-tight: light-dark(oklch(29.9% 0.0088 165.0 / 0.04), oklch(93.1% 0.0072 165.0 / 0.25));
+		--bchc-radius-modal: 28px;
+		--bchc-radius-tile: 24px;
+		--bchc-radius-row: 14px;
+		--bchc-radius-control: 14px;
+		--bchc-radius-pill: 999px;
+		--bchc-radius-media: 10px;
+		--bchc-overlay-blur: 8px;
+		--bchc-font-family: var(--bchc-font-brand-family, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+		color-scheme: light dark;
 	}
 
 	[data-bchc-mode="auto"] {
@@ -249,7 +288,7 @@
 		--bchc-shadow-tight: light-dark(oklch(29.9% 0.0000 0.0 / 0.04), oklch(93.3% 0.0000 0.0 / 0.25));
 	}
 
-	:where([data-bchc-accent]) {
+	:where(:root, :host) {
 		--bchc-warning-1: light-dark(oklch(99.2% 0.0079 81.6), oklch(17.8% 0.0270 70.0));
 		--bchc-warning-2: light-dark(oklch(97.8% 0.0192 77.9), oklch(21.2% 0.0420 70.0));
 		--bchc-warning-3: light-dark(oklch(95.5% 0.0366 75.2), oklch(25.4% 0.0582 62.5));
@@ -276,7 +315,7 @@
 		--bchc-danger-12: light-dark(oklch(30.2% 0.1045 25.0), oklch(91.4% 0.0443 27.1));
 	}
 
-	:where([data-bchc-accent]) {
+	:where(:root, :host, [data-bchc-accent], [data-bchc-neutral]) {
 		--bchc-surface: var(--bchc-neutral-1);
 		--bchc-surface-raised: var(--bchc-neutral-2);
 		--bchc-surface-sunken: var(--bchc-neutral-3);
@@ -348,5 +387,29 @@
 		--bchc-radius-control: 999px;
 		--bchc-radius-pill: 999px;
 		--bchc-radius-media: 12px;
+	}
+
+	[data-bchc-blur="none"] {
+		--bchc-overlay-blur: 0px;
+	}
+
+	[data-bchc-blur="small"] {
+		--bchc-overlay-blur: 8px;
+	}
+
+	[data-bchc-blur="large"] {
+		--bchc-overlay-blur: 24px;
+	}
+
+	[data-bchc-font="brand"] {
+		--bchc-font-family: var(--bchc-font-brand-family, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+	}
+
+	[data-bchc-font="system"] {
+		--bchc-font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	}
+
+	[data-bchc-font="mono"] {
+		--bchc-font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 	}
 }

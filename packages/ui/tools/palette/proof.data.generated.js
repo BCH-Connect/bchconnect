@@ -51,6 +51,16 @@ globalThis.BCHC_THEME = {
 		"large",
 		"full"
 	],
+	"fonts": [
+		"brand",
+		"system",
+		"mono"
+	],
+	"blurs": [
+		"none",
+		"small",
+		"large"
+	],
 	"roles": [
 		"app background",
 		"subtle background",

@@ -21,9 +21,13 @@ import { oklchCoords, type ResolvedScale, resolveScale } from "./palette.ts";
 import {
 	ACCENTS,
 	type AccentRecipe,
+	type BlurPreset,
 	DARK_VEIL,
+	FONT_STACKS,
+	type FontPreset,
 	LIGHT_VEIL,
 	NEUTRALS,
+	OVERLAY_BLUR,
 	RADIUS,
 	type RadiusPreset,
 	type ScaleRecipe,
@@ -87,7 +91,7 @@ function emitVeil(
 	];
 }
 
-function emitAccent(recipe: AccentRecipe): string {
+function accentLines(recipe: AccentRecipe): string[] {
 	const light = resolveScale(recipe, "light");
 	const dark = resolveScale(recipe, "dark");
 	const lines = [
@@ -102,10 +106,10 @@ function emitAccent(recipe: AccentRecipe): string {
 		);
 	}
 	lines.push(`\t--bchc-neutral-family: ${recipe.neutral};`);
-	return `[data-bchc-accent="${recipe.name}"] {\n${lines.join("\n")}\n}`;
+	return lines;
 }
 
-function emitNeutral(recipe: ScaleRecipe): string {
+function neutralLines(recipe: ScaleRecipe): string[] {
 	const light = resolveScale(recipe, "light");
 	const dark = resolveScale(recipe, "dark");
 	const lightInk = light.steps[11];
@@ -115,14 +119,43 @@ function emitNeutral(recipe: ScaleRecipe): string {
 			`Neutral "${recipe.name}" has no step 12 to build its scrim from.`,
 		);
 	}
-	const lines = [
+	return [
 		...emitSteps("neutral", light, dark),
 		...emitVeil(lightInk, darkInk, LIGHT_VEIL, DARK_VEIL),
 	];
-	return `[data-bchc-neutral="${recipe.name}"] {\n${lines.join("\n")}\n}`;
 }
 
-/** Status hues are the same under every accent, so they are emitted once. */
+function emitAccent(recipe: AccentRecipe): string {
+	return `[data-bchc-accent="${recipe.name}"] {\n${accentLines(recipe).join("\n")}\n}`;
+}
+
+function emitNeutral(recipe: ScaleRecipe): string {
+	return `[data-bchc-neutral="${recipe.name}"] {\n${neutralLines(recipe).join("\n")}\n}`;
+}
+
+function emitBlur(): string {
+	return (Object.keys(OVERLAY_BLUR) as BlurPreset[])
+		.map(
+			(preset) =>
+				`[data-bchc-blur="${preset}"] {\n\t--bchc-overlay-blur: ${OVERLAY_BLUR[preset]}px;\n}`,
+		)
+		.join("\n\n");
+}
+
+function emitFont(): string {
+	return (Object.keys(FONT_STACKS) as FontPreset[])
+		.map(
+			(preset) =>
+				`[data-bchc-font="${preset}"] {\n\t--bchc-font-family: ${FONT_STACKS[preset]};\n}`,
+		)
+		.join("\n\n");
+}
+
+/**
+ * Status hues are the same under every accent and never themed, so they are
+ * emitted once. These are literal colours rather than `var()` references, so
+ * unlike the semantic block they inherit correctly from a single declaration.
+ */
 function emitStatus(): string {
 	const lines: string[] = [];
 	for (const recipe of STATUS) {
@@ -134,7 +167,7 @@ function emitStatus(): string {
 			),
 		);
 	}
-	return `:where([data-bchc-accent]) {\n${lines.join("\n")}\n}`;
+	return `:where(:root, :host) {\n${lines.join("\n")}\n}`;
 }
 
 /**
@@ -155,7 +188,12 @@ function emitSemantic(): string {
 		}
 		lines.push(`\t--bchc-${name}: ${value};`);
 	}
-	return `:where([data-bchc-accent]) {\n${lines.join("\n")}\n}`;
+	// Every selector that can carry a scale is listed, because a custom
+	// property's `var()` references are substituted on the element where the
+	// property is *declared*, not where it is used. Declared only on `:host`,
+	// `--bchc-surface` would resolve once against the host's neutral and then
+	// inherit that frozen colour into any descendant that set a different one.
+	return `:where(:root, :host, [data-bchc-accent], [data-bchc-neutral]) {\n${lines.join("\n")}\n}`;
 }
 
 function emitRadius(): string {
@@ -179,18 +217,45 @@ function emitModes(): string {
 }
 
 /**
- * Defaults sit at zero specificity via `:where()`, so any explicit attribute
- * wins without `!important` and without a specificity arms race. Neutral blocks
- * are emitted after the accents that name them, so an explicit
+ * The default theme, emitted in full at zero specificity via `:where()`.
+ *
+ * The full scales are repeated here rather than just naming the default,
+ * because a host with no `data-bchc-*` attribute at all would otherwise resolve
+ * no colour whatsoever — every `var(--bchc-surface)` would fall back to
+ * nothing and the modal would render as unstyled text. The library always sets
+ * the attributes, but a stylesheet that renders nothing on its own is a trap
+ * for anyone reading it, and `:where()` means an explicit attribute still wins
+ * without `!important` or a specificity contest.
+ *
+ * Neutral blocks are emitted after the accents that name them, so an explicit
  * `data-bchc-neutral` overrides an accent's default pairing on source order.
  */
 function emitDefaults(): string {
-	const first = ACCENTS[0];
-	if (first === undefined) throw new Error("No accents defined.");
+	const accent = ACCENTS[0];
+	if (accent === undefined) throw new Error("No accents defined.");
+	const neutral = NEUTRALS.find((entry) => entry.name === accent.neutral);
+	if (neutral === undefined) {
+		throw new Error(
+			`Default accent "${accent.name}" names neutral "${accent.neutral}", which does not exist.`,
+		);
+	}
+	// The Pen prototype's 28px card is this system's `large`, so that is the
+	// default rather than the arithmetic middle of the five presets.
+	const radius: RadiusPreset = "large";
+	const blur: BlurPreset = "small";
+	const font: FontPreset = "brand";
 	return [
 		":where(:root, :host) {",
-		`\t--bchc-default-accent: ${first.name};`,
-		`\t--bchc-default-neutral: ${first.neutral};`,
+		`\t--bchc-default-accent: ${accent.name};`,
+		`\t--bchc-default-neutral: ${accent.neutral};`,
+		...accentLines(accent),
+		...neutralLines(neutral),
+		...Object.entries(RADIUS[radius]).map(
+			([role, value]) => `\t--bchc-radius-${role}: ${value}px;`,
+		),
+		`\t--bchc-overlay-blur: ${OVERLAY_BLUR[blur]}px;`,
+		`\t--bchc-font-family: ${FONT_STACKS[font]};`,
+		"\tcolor-scheme: light dark;",
 		"}",
 	].join("\n");
 }
@@ -233,6 +298,8 @@ async function main(): Promise<void> {
 		emitStatus(),
 		emitSemantic(),
 		emitRadius(),
+		emitBlur(),
+		emitFont(),
 	]
 		.map(indent)
 		.join("\n\n");
@@ -250,6 +317,8 @@ async function main(): Promise<void> {
 		neutrals: NEUTRALS.map((neutral) => neutral.name),
 		status: STATUS.map((status) => status.name),
 		radius: Object.keys(RADIUS),
+		fonts: Object.keys(FONT_STACKS),
+		blurs: Object.keys(OVERLAY_BLUR),
 		roles: STEP_ROLES,
 		semantic: Object.keys(SEMANTIC).map((token) =>
 			token.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`),

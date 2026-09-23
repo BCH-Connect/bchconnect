@@ -5,6 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>BCH Connect palette proof</title>
 		<link rel="stylesheet" href="../../src/styles/theme.generated.css" />
+		<link rel="stylesheet" href="../../src/styles/tokens.css" />
 		<script src="./proof.data.generated.js"></script>
 		<style>
 			/* The page's own chrome is deliberately outside the palette. Judging a
@@ -124,11 +125,16 @@
 				background: var(--page-raised);
 				border-bottom: 1px solid var(--page-line);
 			}
-			/* Inside a pane, the palette takes over completely. */
+			/* Inside a pane, the system takes over completely — colour, type,
+			   spacing, radius and motion all come from tokens. Anything below that
+			   still carries a hardcoded value is a token we forgot to define. */
 			.stage {
-				padding: 22px;
+				padding: var(--bchc-space-6);
 				background: var(--bchc-surface);
 				color: var(--bchc-text);
+				font-family: var(--bchc-font-family);
+				font-size: var(--bchc-text-md);
+				line-height: var(--bchc-leading-normal);
 			}
 
 			.ramp {
@@ -187,9 +193,9 @@
 			.specimens {
 				display: flex;
 				flex-direction: column;
-				gap: 14px;
-				margin-top: 24px;
-				padding-top: 20px;
+				gap: var(--bchc-space-4);
+				margin-top: var(--bchc-space-6);
+				padding-top: var(--bchc-space-5);
 				border-top: 1px solid var(--bchc-border-subtle);
 			}
 			.row-strip {
@@ -200,20 +206,20 @@
 			.wallet-row {
 				display: flex;
 				align-items: center;
-				gap: 11px;
-				height: 46px;
-				padding: 0 11px;
+				gap: var(--bchc-space-3);
+				height: var(--bchc-hit-touch);
+				padding: 0 var(--bchc-space-3);
 				border: 0;
 				border-radius: var(--bchc-radius-row);
 				background: transparent;
 				color: var(--bchc-text);
 				font: inherit;
-				font-weight: 600;
-				font-size: 14px;
+				font-weight: var(--bchc-weight-semibold);
+				font-size: var(--bchc-text-md);
 				text-align: left;
 				width: 100%;
 				cursor: pointer;
-				transition: background 120ms;
+				transition: background var(--bchc-duration-fast) var(--bchc-ease-out);
 			}
 			.wallet-row:hover {
 				background: var(--bchc-surface-hover);
@@ -236,27 +242,27 @@
 			.check {
 				margin-left: auto;
 				color: var(--bchc-accent-text);
-				font-size: 13px;
+				font-size: var(--bchc-text-sm);
 			}
 			.buttons {
 				display: flex;
 				flex-wrap: wrap;
-				gap: 9px;
+				gap: var(--bchc-space-2);
 			}
 			button.solid,
 			button.quiet,
 			button.destructive {
 				font: inherit;
-				font-weight: 600;
-				font-size: 13.5px;
+				font-weight: var(--bchc-weight-semibold);
+				font-size: var(--bchc-text-sm);
 				height: 40px;
-				padding: 0 18px;
+				padding: 0 var(--bchc-space-5);
 				border: 0;
 				border-radius: var(--bchc-radius-control);
 				cursor: pointer;
 				transition:
-					background 120ms,
-					box-shadow 120ms;
+					background var(--bchc-duration-fast) var(--bchc-ease-out),
+					box-shadow var(--bchc-duration-fast) var(--bchc-ease-out);
 			}
 			button.solid {
 				background: var(--bchc-accent);
@@ -282,10 +288,10 @@
 				outline-offset: 2px;
 			}
 			.panel {
-				padding: 12px 14px;
+				padding: var(--bchc-space-3) var(--bchc-space-4);
 				border-radius: var(--bchc-radius-tile);
-				font-size: 13px;
-				line-height: 1.45;
+				font-size: var(--bchc-text-sm);
+				line-height: var(--bchc-leading-snug);
 			}
 			.panel.accent {
 				background: var(--bchc-accent-subtle);
@@ -303,14 +309,15 @@
 				box-shadow: inset 0 0 0 1px var(--bchc-warning-border);
 			}
 			.prose h3 {
-				margin: 0 0 3px;
-				font-size: 17px;
-				font-weight: 650;
-				letter-spacing: -0.01em;
+				margin: 0 0 var(--bchc-space-1);
+				font-size: var(--bchc-text-xl);
+				font-weight: var(--bchc-weight-bold);
+				letter-spacing: var(--bchc-tracking-tight);
+				line-height: var(--bchc-leading-tight);
 			}
 			.prose p {
 				margin: 0;
-				font-size: 13.5px;
+				font-size: var(--bchc-text-md);
 				color: var(--bchc-text-muted);
 			}
 			.prose a {
@@ -322,7 +329,7 @@
 				);
 			}
 			.card {
-				padding: 18px;
+				padding: var(--bchc-space-5);
 				border-radius: var(--bchc-radius-modal);
 				background: var(--bchc-surface-raised);
 				box-shadow:
@@ -351,6 +358,66 @@
 				height: 30px;
 				border-radius: 4px;
 			}
+
+			/* Type and motion specimens. */
+			.ladder-row {
+				display: flex;
+				align-items: baseline;
+				gap: var(--bchc-space-4);
+				padding: var(--bchc-space-2) 0;
+				border-bottom: 1px solid var(--bchc-border-subtle);
+			}
+			.ladder-row:last-child {
+				border-bottom: 0;
+			}
+			.ladder-key {
+				flex: none;
+				width: 96px;
+				font:
+					500 11px/1 var(--mono);
+				color: var(--bchc-text-muted);
+			}
+			.ladder-sample {
+				min-width: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.curves {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: var(--bchc-space-3);
+				margin-top: var(--bchc-space-6);
+			}
+			.curve {
+				padding: var(--bchc-space-4);
+				border-radius: var(--bchc-radius-tile);
+				background: var(--bchc-surface-raised);
+				box-shadow: inset 0 0 0 1px var(--bchc-border-subtle);
+				cursor: pointer;
+			}
+			.curve-name {
+				font:
+					500 11px/1 var(--mono);
+				color: var(--bchc-text-muted);
+			}
+			.curve-track {
+				margin-top: var(--bchc-space-3);
+				height: 22px;
+				position: relative;
+			}
+			.curve-dot {
+				position: absolute;
+				inset-block: 0;
+				width: 22px;
+				border-radius: var(--bchc-radius-pill);
+				background: var(--bchc-accent);
+				transform: translateX(0);
+			}
+			.curve.playing .curve-dot {
+				transform: translateX(calc(100% * 8));
+				transition: transform var(--bchc-duration-slow) var(--curve);
+			}
 		</style>
 	</head>
 	<body>
@@ -365,6 +432,8 @@
 			<label class="knob">accent <select id="accent"></select></label>
 			<label class="knob">neutral <select id="neutral"></select></label>
 			<label class="knob">radius <select id="radius"></select></label>
+			<label class="knob">font <select id="font"></select></label>
+			<label class="knob">blur <select id="blur"></select></label>
 		</header>
 
 		<main>
@@ -394,6 +463,29 @@
 							data-bchc-mode="dark"
 							data-bchc-radius="large"
 						></div>
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h2>Type and motion</h2>
+				<p class="note">
+					The ladder at the font currently selected, and the two easing curves
+					the whole system shares. Press a card to play its curve — spring
+					overshoots and settles, settle arrives without overshoot.
+				</p>
+				<div class="panes">
+					<div class="pane">
+						<div class="pane-label">Light</div>
+						<div
+							class="stage"
+							id="type-light"
+							data-bchc-mode="light"
+						></div>
+					</div>
+					<div class="pane">
+						<div class="pane-label">Dark</div>
+						<div class="stage" id="type-dark" data-bchc-mode="dark"></div>
 					</div>
 				</div>
 			</section>
@@ -446,6 +538,36 @@
 			);
 			fill($("neutral"), ["auto", ...theme.neutrals], "auto");
 			fill($("radius"), theme.radius, "large");
+			fill($("font"), theme.fonts, "brand");
+			fill($("blur"), theme.blurs, "small");
+
+			const LADDER = [
+				["text-xl", "Connect a wallet"],
+				["text-lg", "Scan with your wallet"],
+				["text-md", "Cashonize — body and wallet names"],
+				["text-sm", "Secondary body and button labels"],
+				["text-xs", "Field labels and captions"],
+				["text-2xs", "Network badge, legal"],
+			];
+
+			const CURVES = ["spring", "settle"];
+
+			function renderType(element) {
+				const rows = LADDER.map(
+					([size, sample]) =>
+						`<div class="ladder-row"><span class="ladder-key">${size}</span><span class="ladder-sample" style="font-size: var(--bchc-${size})">${sample}</span></div>`,
+				).join("");
+				const curves = CURVES.map(
+					(name) =>
+						`<div class="curve" style="--curve: var(--bchc-ease-${name})"><div class="curve-name">ease-${name}</div><div class="curve-track"><div class="curve-dot"></div></div></div>`,
+				).join("");
+				element.innerHTML = `${rows}<div class="curves">${curves}</div>`;
+				for (const curve of element.querySelectorAll(".curve")) {
+					curve.addEventListener("click", () => {
+						curve.classList.toggle("playing");
+					});
+				}
+			}
 
 			/** One ramp: twelve swatches labelled by step, titled by Radix role. */
 			function ramp(name, prefix) {
@@ -525,11 +647,18 @@
 				const accent = theme.accents.find((a) => a.name === accentName);
 				const chosen = $("neutral").value;
 				const neutral = chosen === "auto" ? accent.neutral : chosen;
-				for (const id of ["stage-light", "stage-dark"]) {
+				for (const id of [
+					"stage-light",
+					"stage-dark",
+					"type-light",
+					"type-dark",
+				]) {
 					const stage = $(id);
 					stage.dataset.bchcAccent = accentName;
 					stage.dataset.bchcNeutral = neutral;
 					stage.dataset.bchcRadius = $("radius").value;
+					stage.dataset.bchcFont = $("font").value;
+					stage.dataset.bchcBlur = $("blur").value;
 				}
 				for (const id of ["matrix-light", "matrix-dark"]) {
 					$(id).dataset.bchcNeutral = neutral;
@@ -538,9 +667,11 @@
 
 			renderStage($("stage-light"));
 			renderStage($("stage-dark"));
+			renderType($("type-light"));
+			renderType($("type-dark"));
 			renderMatrix($("matrix-light"));
 			renderMatrix($("matrix-dark"));
-			for (const id of ["accent", "neutral", "radius"]) {
+			for (const id of ["accent", "neutral", "radius", "font", "blur"]) {
 				$(id).addEventListener("change", apply);
 			}
 			apply();
