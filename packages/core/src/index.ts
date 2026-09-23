@@ -6,7 +6,20 @@
  */
 
 export type { BchConnectErrorCode } from "./errors.js";
-export { BchConnectError, isBchConnectError } from "./errors.js";
+export {
+	AbortedError,
+	BchConnectError,
+	CapabilityMissingError,
+	ConfigError,
+	InvalidWalletResponseError,
+	isBchConnectError,
+	MethodUnsupportedError,
+	NetworkMismatchError,
+	RequestRejectedError,
+	SessionMissingError,
+	TimeoutError,
+	TransportError,
+} from "./errors.js";
 export type {
 	CapabilityRegistry,
 	LibauthSigning,
