@@ -3,8 +3,9 @@
 	"compilerOptions": {
 		"composite": true,
 		"noEmit": true,
+		"isolatedDeclarations": false,
 		"allowImportingTsExtensions": true,
 		"types": ["node"]
 	},
-	"include": [".", "../src", "palette/apcach.d.ts"]
+	"include": [".", "../tools", "../src"]
 }

@@ -17,11 +17,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type Color from "colorjs.io";
-import { oklchCoords, type ResolvedScale, resolveScale } from "./palette.ts";
+import { type ResolvedScale, resolveScale } from "./palette.ts";
 import {
 	ACCENTS,
 	type AccentRecipe,
 	type BlurPreset,
+	CODE,
 	DARK_VEIL,
 	FONT_STACKS,
 	type FontPreset,
@@ -47,11 +48,32 @@ const OUT_FILE = join(HERE, "..", "..", "src", "styles", "theme.generated.css");
  */
 const MANIFEST_FILE = join(HERE, "proof.data.generated.js");
 
-/** Serialises a colour as `oklch(L% C H)`, rounded to what the eye can resolve. */
+/**
+ * The same enums as TypeScript unions.
+ *
+ * Without this the stylesheet and the eventual theme API would each carry their
+ * own copy of "which accents exist", and the two would drift the first time one
+ * is added. Both are generated from `recipes.ts` instead, so a new accent is
+ * one line in one file.
+ */
+const TYPES_FILE = join(HERE, "..", "..", "src", "theme.generated.ts");
+
+/**
+ * Serialises a colour as sRGB hex.
+ *
+ * Authoring is OKLCH and every value is gamut-mapped into sRGB before it gets
+ * here, so hex loses nothing — but it matters at the other end. A colour
+ * authored as `oklch()` comes back out of `getComputedStyle().color` as an
+ * `oklch()` string, and anything that has to parse a colour itself rather than
+ * hand it to the CSS engine — a canvas, an SVG fill written by a library —
+ * cannot read it. Hex resolves to `rgb(...)`, which everything parses.
+ *
+ * The readable form of this palette is `recipes.ts`, not its output.
+ */
 function css(color: Color, alpha?: number): string {
-	const [lightness, chroma, hue] = oklchCoords(color);
-	const base = `${(lightness * 100).toFixed(1)}% ${chroma.toFixed(4)} ${hue.toFixed(1)}`;
-	return alpha === undefined ? `oklch(${base})` : `oklch(${base} / ${alpha})`;
+	const srgb = color.to("srgb");
+	if (alpha !== undefined) srgb.alpha = alpha;
+	return srgb.toString({ format: "hex", collapse: false });
 }
 
 /** `light-dark(a, b)` — one declaration carrying both palettes. */
@@ -77,7 +99,16 @@ function emitSteps(
 	return lines;
 }
 
-/** The scrim and shadows, built from the neutral's darkest step. */
+/**
+ * The scrim and shadows.
+ *
+ * Both are built from the *dark end* of the neutral ramp, which is step 12 in
+ * light mode and step 1 in dark — not step 12 in both. Step 12 is the
+ * high-contrast text colour, so in dark mode it is the lightest value in the
+ * scale: using it produced a near-white veil that washed the page out instead
+ * of dimming it, and box-shadows that read as a glow. A scrim darkens and a
+ * shadow is cast, in either theme.
+ */
 function emitVeil(
 	light: Color,
 	dark: Color,
@@ -113,10 +144,10 @@ function neutralLines(recipe: ScaleRecipe): string[] {
 	const light = resolveScale(recipe, "light");
 	const dark = resolveScale(recipe, "dark");
 	const lightInk = light.steps[11];
-	const darkInk = dark.steps[11];
+	const darkInk = dark.steps[0];
 	if (lightInk === undefined || darkInk === undefined) {
 		throw new Error(
-			`Neutral "${recipe.name}" has no step 12 to build its scrim from.`,
+			`Neutral "${recipe.name}" is missing a step to build its scrim from.`,
 		);
 	}
 	return [
@@ -125,19 +156,34 @@ function neutralLines(recipe: ScaleRecipe): string[] {
 	];
 }
 
+/**
+ * An attribute selector that works whether the theme attribute sits on an
+ * ordinary element or on a shadow host.
+ *
+ * This stylesheet is adopted into the modal's shadow root, and an adopted sheet
+ * cannot match the host element with a plain attribute selector — only
+ * `:host()` reaches it. Emitting the bare selector alone meant every knob set
+ * on the host was silently ignored and the modal always fell back to the
+ * defaults. Emitting both covers the shadow host and ordinary light-DOM use,
+ * such as the proof page, from one block.
+ */
+function themed(selector: string): string {
+	return `${selector},\n:host(${selector})`;
+}
+
 function emitAccent(recipe: AccentRecipe): string {
-	return `[data-bchc-accent="${recipe.name}"] {\n${accentLines(recipe).join("\n")}\n}`;
+	return `${themed(`[data-bchc-accent="${recipe.name}"]`)} {\n${accentLines(recipe).join("\n")}\n}`;
 }
 
 function emitNeutral(recipe: ScaleRecipe): string {
-	return `[data-bchc-neutral="${recipe.name}"] {\n${neutralLines(recipe).join("\n")}\n}`;
+	return `${themed(`[data-bchc-neutral="${recipe.name}"]`)} {\n${neutralLines(recipe).join("\n")}\n}`;
 }
 
 function emitBlur(): string {
 	return (Object.keys(OVERLAY_BLUR) as BlurPreset[])
 		.map(
 			(preset) =>
-				`[data-bchc-blur="${preset}"] {\n\t--bchc-overlay-blur: ${OVERLAY_BLUR[preset]}px;\n}`,
+				`${themed(`[data-bchc-blur="${preset}"]`)} {\n\t--bchc-overlay-blur: ${OVERLAY_BLUR[preset]}px;\n}`,
 		)
 		.join("\n\n");
 }
@@ -146,7 +192,7 @@ function emitFont(): string {
 	return (Object.keys(FONT_STACKS) as FontPreset[])
 		.map(
 			(preset) =>
-				`[data-bchc-font="${preset}"] {\n\t--bchc-font-family: ${FONT_STACKS[preset]};\n}`,
+				`${themed(`[data-bchc-font="${preset}"]`)} {\n\t--bchc-font-family: ${FONT_STACKS[preset]};\n}`,
 		)
 		.join("\n\n");
 }
@@ -193,7 +239,7 @@ function emitSemantic(): string {
 	// property is *declared*, not where it is used. Declared only on `:host`,
 	// `--bchc-surface` would resolve once against the host's neutral and then
 	// inherit that frozen colour into any descendant that set a different one.
-	return `:where(:root, :host, [data-bchc-accent], [data-bchc-neutral]) {\n${lines.join("\n")}\n}`;
+	return `:where(:root, :host, [data-bchc-accent], [data-bchc-neutral], :host([data-bchc-accent]), :host([data-bchc-neutral])) {\n${lines.join("\n")}\n}`;
 }
 
 function emitRadius(): string {
@@ -202,7 +248,9 @@ function emitRadius(): string {
 		const lines = Object.entries(RADIUS[preset]).map(
 			([role, value]) => `\t--bchc-radius-${role}: ${value}px;`,
 		);
-		blocks.push(`[data-bchc-radius="${preset}"] {\n${lines.join("\n")}\n}`);
+		blocks.push(
+			`${themed(`[data-bchc-radius="${preset}"]`)} {\n${lines.join("\n")}\n}`,
+		);
 	}
 	return blocks.join("\n\n");
 }
@@ -210,9 +258,9 @@ function emitRadius(): string {
 /** The mode knob is `color-scheme`, which is what `light-dark()` reads. */
 function emitModes(): string {
 	return [
-		'[data-bchc-mode="auto"] {\n\tcolor-scheme: light dark;\n}',
-		'[data-bchc-mode="light"] {\n\tcolor-scheme: light;\n}',
-		'[data-bchc-mode="dark"] {\n\tcolor-scheme: dark;\n}',
+		`${themed('[data-bchc-mode="auto"]')} {\n\tcolor-scheme: light dark;\n}`,
+		`${themed('[data-bchc-mode="light"]')} {\n\tcolor-scheme: light;\n}`,
+		`${themed('[data-bchc-mode="dark"]')} {\n\tcolor-scheme: dark;\n}`,
 	].join("\n\n");
 }
 
@@ -253,6 +301,8 @@ function emitDefaults(): string {
 		...Object.entries(RADIUS[radius]).map(
 			([role, value]) => `\t--bchc-radius-${role}: ${value}px;`,
 		),
+		`\t--bchc-code-ink: ${CODE.ink};`,
+		`\t--bchc-code-paper: ${CODE.paper};`,
 		`\t--bchc-overlay-blur: ${OVERLAY_BLUR[blur]}px;`,
 		`\t--bchc-font-family: ${FONT_STACKS[font]};`,
 		"\tcolor-scheme: light dark;",
@@ -289,7 +339,14 @@ function indent(block: string): string {
 		.join("\n");
 }
 
-async function main(): Promise<void> {
+/**
+ * The whole stylesheet as a string.
+ *
+ * Exported separately from {@link main} so a test can rebuild it and compare
+ * against the committed file — a generated artifact that has drifted from its
+ * source is worse than no artifact, because it looks authoritative.
+ */
+export function buildStylesheet(): string {
 	const inner = [
 		emitDefaults(),
 		emitModes(),
@@ -304,11 +361,11 @@ async function main(): Promise<void> {
 		.map(indent)
 		.join("\n\n");
 
-	const file = `${banner()}\n\n@layer bchconnect.palette {\n${inner}\n}\n`;
+	return `${banner()}\n\n@layer bchconnect.palette {\n${inner}\n}\n`;
+}
 
-	await mkdir(dirname(OUT_FILE), { recursive: true });
-	await writeFile(OUT_FILE, file, "utf8");
-
+/** The proof page's manifest, for the same reason. */
+export function buildManifest(): string {
 	const manifest = {
 		accents: ACCENTS.map((accent) => ({
 			name: accent.name,
@@ -324,12 +381,105 @@ async function main(): Promise<void> {
 			token.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`),
 		),
 	};
-	await writeFile(
-		MANIFEST_FILE,
+	return (
 		`/* GENERATED by generate.ts - do not edit. Mirrors recipes.ts for proof.html. */\n` +
-			`globalThis.BCHC_THEME = ${JSON.stringify(manifest, null, "\t")};\n`,
-		"utf8",
+		`globalThis.BCHC_THEME = ${JSON.stringify(manifest, null, "\t")};\n`
 	);
+}
+
+/** The knob enums as TypeScript, for whatever eventually types the theme API. */
+export function buildTypes(): string {
+	const union = (values: readonly string[]): string =>
+		values.map((value) => `"${value}"`).join(" | ");
+	const list = (values: readonly string[]): string =>
+		values.map((value) => `\t"${value}",`).join("\n");
+
+	const accents = ACCENTS.map((accent) => accent.name);
+	const neutrals = NEUTRALS.map((neutral) => neutral.name);
+	const radius = Object.keys(RADIUS);
+	const fonts = Object.keys(FONT_STACKS);
+	const blurs = Object.keys(OVERLAY_BLUR);
+	const first = ACCENTS[0];
+	if (first === undefined) throw new Error("No accents defined.");
+
+	return `/**
+ * GENERATED FILE - do not edit by hand.
+ *
+ * Source of truth: tools/palette/recipes.ts
+ * Regenerate:      node packages/ui/tools/palette/generate.ts
+ *
+ * Every value here is closed on purpose. A developer picks from these rather
+ * than passing a colour, which is what lets the system guarantee contrast and
+ * keeps the modal recognisable across the dapps that embed it. Each one maps to
+ * a \`data-bchc-*\` attribute on the modal host; the matching declarations live
+ * in \`styles/theme.generated.css\`.
+ */
+
+/** Curated accents. \`ink\` is achromatic, for monochrome brands. */
+export type BchcAccent = ${union(accents)};
+
+/**
+ * Neutral families. Each accent is paired with one by default, so this is an
+ * override rather than a required choice.
+ */
+export type BchcNeutral = ${union(neutrals)};
+
+/** Radius presets. Each maps to an explicit value per role, not a multiplier. */
+export type BchcRadius = ${union(radius)};
+
+/** Font stacks. \`brand\` falls back to \`system\` until a face is injected. */
+export type BchcFont = ${union(fonts)};
+
+/** Backdrop blur behind the modal. */
+export type BchcBlur = ${union(blurs)};
+
+/** \`auto\` follows \`prefers-color-scheme\`. */
+export type BchcMode = "auto" | "light" | "dark";
+
+export const BCHC_ACCENTS = [
+${list(accents)}
+] as const;
+
+export const BCHC_NEUTRALS = [
+${list(neutrals)}
+] as const;
+
+export const BCHC_RADII = [
+${list(radius)}
+] as const;
+
+export const BCHC_FONTS = [
+${list(fonts)}
+] as const;
+
+export const BCHC_BLURS = [
+${list(blurs)}
+] as const;
+
+/**
+ * Which neutral each accent is paired with by default.
+ *
+ * The pairing cannot live in CSS: a stylesheet can declare
+ * \`--bchc-neutral-family\` but nothing can select on a custom property's
+ * value, so whoever sets the theme attributes has to resolve it. Radix frames
+ * the pairing as aesthetic rather than accessible — "the difference is subtle",
+ * their words — which is why it is a default here and \`data-bchc-neutral\`
+ * overrides it.
+ */
+export const BCHC_ACCENT_NEUTRAL: Readonly<Record<BchcAccent, BchcNeutral>> = {
+${ACCENTS.map((accent) => `\t${accent.name}: "${accent.neutral}",`).join("\n")}
+};
+
+export const BCHC_DEFAULT_ACCENT: BchcAccent = "${first.name}";
+export const BCHC_DEFAULT_NEUTRAL: BchcNeutral = "${first.neutral}";
+`;
+}
+
+async function main(): Promise<void> {
+	await mkdir(dirname(OUT_FILE), { recursive: true });
+	await writeFile(OUT_FILE, buildStylesheet(), "utf8");
+	await writeFile(MANIFEST_FILE, buildManifest(), "utf8");
+	await writeFile(TYPES_FILE, buildTypes(), "utf8");
 
 	const scales = ACCENTS.length + NEUTRALS.length + STATUS.length;
 	process.stdout.write(
@@ -340,4 +490,9 @@ async function main(): Promise<void> {
 	);
 }
 
-await main();
+// Only write files when run as a script. Importing this module — which the
+// tests do, to rebuild the stylesheet and diff it against what is committed —
+// must not touch the working tree.
+if (import.meta.main) {
+	await main();
+}

@@ -6,6 +6,7 @@
 		{ "path": "./packages/core/test/types-registered" },
 		{ "path": "./packages/test-utils" },
 		{ "path": "./packages/test-utils/test" },
-		{ "path": "./packages/ui/tools" }
+		{ "path": "./packages/ui/tools" },
+		{ "path": "./packages/ui/test" }
 	]
 }

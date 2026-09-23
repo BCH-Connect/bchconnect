@@ -1,0 +1,1400 @@
+/*
+ * The modal.
+ *
+ * Every value here comes from a token. If something below carries a literal
+ * that is not a structural dimension — a column width, a border hairline — it
+ * is a token we have not defined yet, not a licence to hardcode a colour.
+ *
+ * Loaded as a CSS module script and adopted into the shadow root, so nothing
+ * here can reach the page and nothing on the page can reach in.
+ *
+ * ## Motion
+ *
+ * Everything that starts from a known state is animated here: the entrance,
+ * the exit, the code writing itself in, hover and press. Anything that has to
+ * start from *where something was* — rows that shuffle, a card that grows —
+ * is measured and driven from `motion.ts`, which reads the same tokens.
+ *
+ * The grammar is small on purpose. Things arrive by rising a few pixels and
+ * fading in; things leave faster than they came; the accent moves only when
+ * it means something is live. Nothing bounces.
+ */
+
+:host {
+	display: contents;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+::selection {
+	background: var(--bchc-accent-subtle-active);
+	color: var(--bchc-text);
+}
+
+/* The scrim ---------------------------------------------------------------- */
+
+.overlay {
+	position: fixed;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	padding: var(--bchc-space-4);
+	background: var(--bchc-overlay);
+	backdrop-filter: blur(var(--bchc-overlay-blur));
+	/* A vanishing point for the card's arrival, set a little below centre so
+	   what comes from far away also comes from below. */
+	perspective: 1400px;
+	perspective-origin: 50% 65%;
+	animation: fade var(--bchc-duration-fast) var(--bchc-ease-out) both;
+}
+
+@keyframes fade {
+	from {
+		opacity: 0;
+	}
+}
+
+/* The card ----------------------------------------------------------------- */
+
+.card {
+	position: relative;
+	width: 760px;
+	max-width: 100%;
+	max-height: calc(100dvh - var(--bchc-space-8));
+	padding: var(--bchc-space-6);
+	display: flex;
+	flex-direction: column;
+	gap: var(--bchc-space-5);
+	background: var(--bchc-surface);
+	color: var(--bchc-text);
+	font-family: var(--bchc-font-family);
+	font-size: var(--bchc-text-md);
+	line-height: var(--bchc-leading-normal);
+	border-radius: var(--bchc-radius-modal);
+	box-shadow:
+		0 1px 2px var(--bchc-shadow-tight),
+		0 24px 64px var(--bchc-shadow-soft),
+		inset 0 0 0 1px var(--bchc-border-subtle);
+	/* Nothing here is prose. Labels, names and captions are chrome, and a
+	   drag across the card should not paint them blue; the one string worth
+	   having — the link — has its own button. */
+	user-select: none;
+	-webkit-user-select: none;
+	/* The card comes up into place from below and from a little way back:
+	   the travel carries the entrance, the depth gives it a body, and the fade
+	   is over almost at once, so it reads as an object arriving rather than a
+	   picture developing. The hinge is the bottom edge, so the top tilts away
+	   for a frame or two and then squares up as the spring lands it. Transform
+	   and opacity only: one composited layer, nothing repaints. Quick, since a
+	   thing that is asked for should not dawdle. */
+	transform-origin: 50% 100%;
+	animation: rise calc(var(--bchc-duration-base) * 1.3) var(--bchc-ease-arrive)
+		both;
+}
+
+@keyframes rise {
+	from {
+		opacity: 0;
+		transform: translate3d(0, 56px, -140px) rotateX(3deg);
+	}
+	15% {
+		opacity: 1;
+	}
+}
+
+/* The contents settle a beat after the card, in reading order; `motion.ts`
+   drives that, so a body rebuilt mid-entrance never replays it. */
+
+/* Leaving is quicker than arriving. The card drops away the way it came in
+   while the scrim lifts; nothing waits on anything. */
+/* Its own keyframes, not `fade` played in reverse: a CSS animation is
+   identified by name, so re-declaring `fade` with another direction would
+   update the finished entrance in place rather than start anything. */
+.overlay.is-closing {
+	pointer-events: none;
+	animation: lift calc(var(--bchc-duration-base) * 0.7) var(--bchc-ease-out)
+		both;
+}
+
+@keyframes lift {
+	to {
+		opacity: 0;
+	}
+}
+
+/* A dismissed thing should be gone before the hand that dismissed it has
+   moved on: the exit runs on a shorter clock than the entrance. */
+.overlay.is-closing .card {
+	animation: sink calc(var(--bchc-duration-base) * 0.7) var(--bchc-ease-out)
+		both;
+}
+
+@keyframes sink {
+	to {
+		opacity: 0;
+		transform: scale(0.97) translateY(8px);
+	}
+}
+
+.card:focus {
+	outline: none;
+}
+
+/* Header ------------------------------------------------------------------- */
+
+.head {
+	display: flex;
+	align-items: center;
+	gap: var(--bchc-space-2);
+	min-height: var(--bchc-hit-pointer);
+	flex: none;
+}
+
+.title {
+	margin: 0;
+	flex: 1;
+	font-size: var(--bchc-text-xl);
+	font-weight: var(--bchc-weight-bold);
+	line-height: var(--bchc-leading-tight);
+	letter-spacing: var(--bchc-tracking-tight);
+}
+
+/*
+ * The network, only off mainnet. On mainnet the element is not rendered at
+ * all, rather than rendered empty — an empty badge still reserves space and
+ * still reads as a thing that failed to load.
+ *
+ * A chip, not bare text: a word floating beside the close button read as a
+ * heading that had lost its way. The accent tint says "a property of this
+ * session" without shouting it.
+ */
+.badge {
+	display: inline-flex;
+	align-items: center;
+	height: 26px;
+	padding: 0 var(--bchc-space-3);
+	margin-right: var(--bchc-space-1);
+	border-radius: var(--bchc-radius-pill);
+	background: var(--bchc-accent-subtle);
+	color: var(--bchc-accent-text);
+	font-size: var(--bchc-text-xs);
+	font-weight: var(--bchc-weight-semibold);
+	letter-spacing: var(--bchc-tracking-snug);
+	white-space: nowrap;
+}
+
+.close,
+.back {
+	width: var(--bchc-hit-pointer);
+	height: var(--bchc-hit-pointer);
+	flex: none;
+	display: grid;
+	place-items: center;
+	border: 0;
+	border-radius: var(--bchc-radius-pill);
+	background: transparent;
+	color: var(--bchc-text-muted);
+	cursor: pointer;
+	transition:
+		background var(--bchc-duration-fast) var(--bchc-ease-out),
+		color var(--bchc-duration-fast) var(--bchc-ease-out),
+		transform var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+.close:hover,
+.back:hover {
+	background: var(--bchc-surface-hover);
+	color: var(--bchc-text);
+}
+
+.close:active,
+.back:active {
+	transform: scale(0.92);
+	transition-duration: 60ms;
+}
+
+/* The cross turns a quarter as the pointer arrives: a small hinge that says
+   the button is live, and a nod to where it sends you. */
+.close svg {
+	transition: transform var(--bchc-duration-base) var(--bchc-ease-spring);
+}
+
+.close:hover svg {
+	transform: rotate(90deg);
+}
+
+.back svg {
+	transition: transform var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+.back:hover svg {
+	transform: translateX(-1px);
+}
+
+/* Body --------------------------------------------------------------------- */
+
+/*
+ * Scrolls only when the card has hit the viewport. A scroll container clips,
+ * and the rows outdent past the column edge by one step so their hover fill
+ * can extend beyond the text — so the body is widened by that same step and
+ * padded back, and gains a hair above and below for focus rings.
+ */
+.body {
+	min-height: 0;
+	margin: calc(var(--bchc-space-1) * -1) calc(var(--bchc-space-3) * -1);
+	padding: var(--bchc-space-1) var(--bchc-space-3);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+	scrollbar-color: var(--bchc-border) transparent;
+}
+
+/* While the contents are arriving they sit below their places, which would
+   otherwise scroll. See the first paint in `modal.ts`. */
+.overlay.is-entering .body {
+	overflow: clip;
+}
+
+/*
+ * A body's outgoing contents, pinned where they were while the new ones
+ * arrive. `motion.ts` sets the geometry; this only takes it out of flow.
+ */
+.ghost {
+	position: absolute;
+	pointer-events: none;
+}
+
+.split {
+	display: grid;
+	grid-template-columns: 1fr 368px;
+	gap: var(--bchc-space-10);
+	align-items: start;
+}
+
+/* One stacked column: the drawer, and every screen that has no two sides. */
+.single {
+	display: flex;
+	flex-direction: column;
+	gap: var(--bchc-space-4);
+	min-width: 0;
+}
+
+/* Only a drawer can be dragged, so only a drawer shows a handle. */
+.grabber {
+	display: none;
+}
+
+.left {
+	/* Rows that leave the list are ghosted in place against this box. */
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: var(--bchc-space-3);
+	min-width: 0;
+}
+
+/* Session type ------------------------------------------------------------- */
+
+/* Label to control: the same step the wallet rows put between mark and name,
+   so the two kinds of row read as one rhythm. */
+.field {
+	display: flex;
+	align-items: center;
+	gap: var(--bchc-space-3);
+	min-height: 30px;
+}
+
+.label {
+	font-size: var(--bchc-text-sm);
+	font-weight: var(--bchc-weight-medium);
+	color: var(--bchc-text-muted);
+}
+
+.select-wrap {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+}
+
+/*
+ * The trigger: the pill as before, now a button. Its chevron turns over when
+ * the menu is open, so the control itself says which way it is.
+ */
+.select {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--bchc-space-2);
+	height: 30px;
+	padding: 0 10px 0 var(--bchc-space-3);
+	border: 0;
+	border-radius: var(--bchc-radius-pill);
+	background: var(--bchc-text);
+	color: var(--bchc-surface);
+	font-family: inherit;
+	font-size: var(--bchc-text-xs);
+	font-weight: var(--bchc-weight-semibold);
+	line-height: 1;
+	white-space: nowrap;
+	cursor: pointer;
+	transition:
+		background var(--bchc-duration-fast) var(--bchc-ease-out),
+		transform var(--bchc-duration-fast) var(--bchc-ease-spring);
+}
+
+.select:hover,
+.select[aria-expanded="true"] {
+	background: var(--bchc-text-muted);
+}
+
+.select:active {
+	transform: scale(0.97);
+}
+
+.select svg {
+	flex: none;
+	transition: transform var(--bchc-duration-base) var(--bchc-ease-spring);
+}
+
+.select:hover svg {
+	transform: translateY(1px);
+}
+
+.select[aria-expanded="true"] svg {
+	transform: rotate(180deg);
+}
+
+/*
+ * The menu: the card's own surface, one step raised, grown out of the pill's
+ * corner. Rows carry the protocols' marks, so the choice is made by sight as
+ * much as by name. The accent tints the row under the pointer and the row
+ * that is chosen; the check says which is which.
+ */
+.menu {
+	position: absolute;
+	top: calc(100% + var(--bchc-space-1));
+	left: 0;
+	z-index: 2;
+	min-width: 208px;
+	margin: 0;
+	padding: var(--bchc-space-1);
+	display: grid;
+	gap: 2px;
+	list-style: none;
+	background: var(--bchc-surface);
+	border-radius: var(--bchc-radius-control);
+	box-shadow:
+		0 1px 2px var(--bchc-shadow-tight),
+		0 12px 32px var(--bchc-shadow-soft),
+		inset 0 0 0 1px var(--bchc-border-subtle);
+	transform-origin: 12px 0;
+}
+
+.option {
+	display: flex;
+	align-items: center;
+	gap: var(--bchc-space-2);
+	min-height: 36px;
+	padding: 0 var(--bchc-space-2);
+	border-radius: var(--bchc-radius-media);
+	color: var(--bchc-text);
+	font-size: var(--bchc-text-sm);
+	font-weight: var(--bchc-weight-semibold);
+	cursor: pointer;
+	transition:
+		background var(--bchc-duration-fast) var(--bchc-ease-out),
+		color var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+/* Hover is the neutral fill the wallet rows use; the accent is reserved for
+   the row that is chosen. Two accent fills side by side read as one block. */
+.option:hover,
+.option:focus-visible {
+	background: var(--bchc-surface-hover);
+	outline: none;
+}
+
+.option:active {
+	background: var(--bchc-surface-active);
+}
+
+.option[aria-selected="true"],
+.option[aria-selected="true"]:hover,
+.option[aria-selected="true"]:focus-visible {
+	background: var(--bchc-accent-subtle);
+	color: var(--bchc-accent-text);
+}
+
+.option[aria-selected="true"]:active {
+	background: var(--bchc-accent-subtle-active);
+}
+
+.option-mark {
+	width: 18px;
+	height: 18px;
+	flex: none;
+	border-radius: 4px;
+	object-fit: contain;
+}
+
+.option-name {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Only the chosen row shows its check; the others keep the space. */
+.option-check {
+	display: grid;
+	place-items: center;
+	width: 14px;
+	opacity: 0;
+	transform: scale(0.6);
+	transition:
+		opacity var(--bchc-duration-fast) var(--bchc-ease-out),
+		transform var(--bchc-duration-base) var(--bchc-ease-spring);
+}
+
+.option[aria-selected="true"] .option-check {
+	opacity: 1;
+	transform: none;
+}
+
+/* Wallet list -------------------------------------------------------------- */
+
+.wallets {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	/* 2px was off the spacing scale entirely and left the rows all but touching.
+	   One grid step separates them without breaking the list into cards. */
+	gap: var(--bchc-space-1);
+	margin: 0 calc(var(--bchc-space-3) * -1);
+}
+
+/* A wallet is a link. It opens the wallet; it is not a choice to confirm. */
+.wallet {
+	display: flex;
+	align-items: center;
+	gap: var(--bchc-space-3);
+	/* Comfortably clear of the 44px touch floor rather than sitting on it.
+	   Derived from the floor so the relationship survives a change to either. */
+	min-height: calc(var(--bchc-hit-touch) + var(--bchc-space-3));
+	padding: var(--bchc-space-2) var(--bchc-space-3);
+	border: 0;
+	border-radius: var(--bchc-radius-row);
+	background: transparent;
+	color: var(--bchc-text);
+	font-family: inherit;
+	font-size: var(--bchc-text-md);
+	font-weight: var(--bchc-weight-semibold);
+	text-align: left;
+	text-decoration: none;
+	cursor: pointer;
+	transition:
+		background var(--bchc-duration-fast) var(--bchc-ease-out),
+		transform var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+/*
+ * Hover is a soft fill and the mark leaning forward, nothing more. The ring
+ * and drop shadow that used to be here made each row look like a card that had
+ * come loose; a list of wallets should read as a list.
+ *
+ * The lean is not decoration. A wallet row opens a wallet, so its mark tips
+ * the way it is about to send you, and the arrow arrives from the same side.
+ */
+.wallet:hover {
+	background: var(--bchc-surface-raised);
+}
+
+.wallet:active {
+	transform: scale(0.985);
+	transition-duration: 60ms;
+}
+
+.wallet img {
+	width: 32px;
+	height: 32px;
+	flex: none;
+	border-radius: var(--bchc-radius-media);
+	object-fit: cover;
+	transition: transform var(--bchc-duration-base) var(--bchc-ease-spring);
+}
+
+.wallet:hover img {
+	transform: scale(1.06) translateX(1px);
+}
+
+/* The arrow only ever appears on hover, so a resting list stays quiet. */
+.go {
+	margin-left: auto;
+	display: grid;
+	place-items: center;
+	color: var(--bchc-text-muted);
+	opacity: 0;
+	transform: translateX(-6px);
+	transition:
+		opacity var(--bchc-duration-fast) var(--bchc-ease-out),
+		transform var(--bchc-duration-base) var(--bchc-ease-settle);
+}
+
+.wallet:hover .go,
+.wallet:focus-visible .go {
+	opacity: 1;
+	transform: none;
+}
+
+/* A wallet with nowhere to send you is listed but not pretending to be a link. */
+.wallet[aria-disabled="true"] {
+	color: var(--bchc-text-muted);
+	cursor: default;
+}
+
+.wallet[aria-disabled="true"]:hover {
+	background: transparent;
+}
+
+.wallet[aria-disabled="true"]:hover img {
+	transform: none;
+}
+
+/* A quiet heading over the list, so "Session type" above it does not read as
+   the label for the wallets too. More space above it than below, so it groups
+   downward with the rows it names. */
+.section-label {
+	margin: var(--bchc-space-2) 0 0;
+	font-size: var(--bchc-text-sm);
+	font-weight: var(--bchc-weight-medium);
+	color: var(--bchc-text-muted);
+}
+
+/* A long wallet name wraps inside the row rather than shoving the arrow out of
+   it; the row grows because its height is a minimum, not a fixed value. */
+.wallet-name {
+	min-width: 0;
+	line-height: var(--bchc-leading-snug);
+}
+
+/*
+ * A standalone accent link, at body size and bold.
+ *
+ * This used to be muted small print with the link buried inside it, which made
+ * the one way out for a visitor with no wallet the quietest thing on screen.
+ *
+ * Weight and the accent rather than an underline. An underline is the
+ * browser's idea of a link, not this system's, and next to pill buttons and
+ * soft fills it reads as a document rather than an interface. On hover the
+ * underline draws itself in from the left: the one place a line is earned.
+ */
+.get-one {
+	margin: var(--bchc-space-2) 0 0;
+}
+
+.get-one button {
+	padding: 0;
+	border: 0;
+	background: none;
+	font-family: inherit;
+	cursor: pointer;
+	color: var(--bchc-accent-text);
+	font-size: var(--bchc-text-md);
+	font-weight: var(--bchc-weight-bold);
+	text-decoration: none;
+	background-image: linear-gradient(currentColor, currentColor);
+	background-repeat: no-repeat;
+	background-size: 0% 1.5px;
+	background-position: 0 100%;
+	transition:
+		color var(--bchc-duration-fast) var(--bchc-ease-out),
+		background-size var(--bchc-duration-base) var(--bchc-ease-out);
+}
+
+.get-one button:hover {
+	color: var(--bchc-accent);
+	background-size: 100% 1.5px;
+}
+
+/* The code ----------------------------------------------------------------- */
+
+.right {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--bchc-space-4);
+	min-width: 0;
+}
+
+.tile {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 1;
+	display: grid;
+	place-items: center;
+	padding: var(--bchc-space-4);
+	border: 0;
+	border-radius: var(--bchc-radius-tile);
+	overflow: clip;
+	container-type: inline-size;
+	/* The code's own paper and ink, fixed in both themes. */
+	background: var(--bchc-code-paper);
+	color: var(--bchc-code-ink);
+	/* On a light surface the paper is a hair off the card, so the tile needs an
+	   edge to be a tile at all. On a dark surface it is white on near-black and
+	   a rim would only dirty it. */
+	box-shadow:
+		inset 0 0 0 1px light-dark(var(--bchc-border-subtle), transparent),
+		0 1px 2px var(--bchc-shadow-tight),
+		0 12px 32px var(--bchc-shadow-soft);
+	transition:
+		background var(--bchc-duration-base) var(--bchc-ease-out),
+		box-shadow var(--bchc-duration-base) var(--bchc-ease-out);
+}
+
+.tile:hover {
+	box-shadow:
+		inset 0 0 0 1px light-dark(var(--bchc-border-subtle), transparent),
+		0 2px 4px var(--bchc-shadow-tight),
+		0 18px 40px var(--bchc-shadow-soft);
+}
+
+/* Where the component reads the code's colours from: never transitions, so
+   what it reads is never a value on its way somewhere else. */
+.probe {
+	position: absolute;
+	width: 0;
+	height: 0;
+	visibility: hidden;
+	pointer-events: none;
+	background: var(--bchc-code-paper);
+	color: var(--bchc-code-ink);
+	accent-color: var(--bchc-accent);
+}
+
+/* The drawing is the control: pressing it copies the link. */
+.code {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	cursor: pointer;
+	transition:
+		opacity var(--bchc-duration-slow) var(--bchc-ease-out),
+		filter var(--bchc-duration-slow) var(--bchc-ease-out),
+		transform var(--bchc-duration-base) var(--bchc-ease-spring);
+}
+
+.code:active {
+	transform: scale(0.985);
+	transition-duration: 60ms;
+}
+
+.code:disabled {
+	cursor: default;
+}
+
+.code svg {
+	width: 100%;
+	height: 100%;
+	display: block;
+	/* The library stamps `shape-rendering="crispEdges"` on the drawing, which
+	   switches anti-aliasing off: fine for squares on a pixel grid, ragged for
+	   circles on any grid. A property beats a presentation attribute. */
+	shape-rendering: geometricPrecision;
+}
+
+/* A new drawing writes itself in along a soft diagonal edge, the way a
+   scanner reads it. Only a drawing the renderer just made carries the class;
+   one that merely moved with a rebuilt body stays put. */
+.code svg.is-fresh {
+	mask-image: linear-gradient(115deg, #000 42%, transparent 58%);
+	mask-size: 300% 100%;
+	mask-position: 0% 0;
+	animation: write var(--bchc-duration-slow) var(--bchc-ease-out) both;
+}
+
+@keyframes write {
+	from {
+		mask-position: 100% 0;
+	}
+}
+
+/* The drawing being replaced. Stays put underneath while the new one writes
+   over it, then dissolves; removed from the tree when this ends. */
+.code .code-ghost {
+	position: absolute;
+	inset: 0;
+	mask: none;
+	animation: dissolve var(--bchc-duration-slow) var(--bchc-ease-out) both;
+}
+
+@keyframes dissolve {
+	to {
+		opacity: 0;
+		filter: blur(6px);
+	}
+}
+
+/*
+ * Before there is a code to show, a code is shown anyway: a real drawing of a
+ * stand-in link, faint, with a light passing over it. The shape of what is
+ * coming is already on the paper, so the real code arrives into a place that
+ * was waiting for it rather than into a blank.
+ */
+.code svg.is-placeholder {
+	opacity: 0.09;
+}
+
+/* The passing light. Only while there is something to wait for. Above the
+   drawing, or it passes behind the paper and is never seen. */
+.skeleton {
+	position: absolute;
+	inset: 0;
+	z-index: 1000;
+	opacity: 0;
+	visibility: hidden;
+	transition:
+		opacity var(--bchc-duration-base) var(--bchc-ease-out),
+		visibility 0s var(--bchc-duration-base);
+	pointer-events: none;
+	overflow: clip;
+}
+
+.skeleton::after {
+	content: "";
+	position: absolute;
+	inset: -20%;
+	background: linear-gradient(
+		105deg,
+		transparent 35%,
+		var(--bchc-code-paper) 50%,
+		transparent 65%
+	);
+	opacity: 0.85;
+	animation: sweep 1.8s var(--bchc-ease-in-out) infinite;
+}
+
+@keyframes sweep {
+	from {
+		transform: translateX(-60%);
+	}
+	to {
+		transform: translateX(60%);
+	}
+}
+
+.tile.is-initiating .skeleton {
+	opacity: 1;
+	visibility: visible;
+	transition-delay: 0s;
+}
+
+.tile.is-initiating {
+	cursor: default;
+}
+
+/*
+ * The attempt failed. The paper leaves with the code: it sinks back, out of
+ * focus, and the tile becomes open space in which the failure is composed
+ * out of the modal's own parts — a ring of dots like the code's modules, a
+ * cross drawn inside it, the words, the way forward. Nothing boxed, nothing
+ * red but the mark. Every piece arrives a beat after the last.
+ */
+.tile.is-failed {
+	/* The paper's place, kept as a soft surface rather than left empty: one
+	   step up from the card, no rim, and a faint glow of the danger hue behind
+	   the mark so the space has a centre. */
+	background:
+		radial-gradient(
+			circle at 50% 38%,
+			color-mix(in oklab, var(--bchc-danger) 9%, transparent),
+			transparent 58%
+		),
+		var(--bchc-surface-raised);
+	box-shadow: none;
+}
+
+.tile.is-failed:hover {
+	box-shadow: none;
+}
+
+.tile.is-failed .code {
+	opacity: 0;
+	filter: blur(10px);
+	transform: scale(0.92);
+	pointer-events: none;
+}
+
+.tile.is-failed .skeleton {
+	opacity: 0;
+	visibility: hidden;
+}
+
+.status {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--bchc-space-2);
+	padding: var(--bchc-space-5);
+	/* The tile's own colour is the code's fixed ink; this face is text. */
+	color: var(--bchc-text);
+	text-align: center;
+	visibility: hidden;
+	transition: visibility 0s var(--bchc-duration-base);
+}
+
+.status > * {
+	opacity: 0;
+	transform: translateY(10px);
+	transition:
+		opacity var(--bchc-duration-base) var(--bchc-ease-out),
+		transform var(--bchc-duration-base) var(--bchc-ease-settle);
+}
+
+.tile.is-failed .status {
+	visibility: visible;
+	transition-delay: 0s;
+}
+
+.tile.is-failed .status > * {
+	opacity: 1;
+	transform: none;
+}
+
+/* Arrival order: mark, title, detail, action — a beat apart, after the code
+   has had a moment to leave. Departure is all at once and quicker. */
+.tile.is-failed .status > :nth-child(1) {
+	transition-delay: calc(var(--bchc-duration-fast) * 0.75);
+}
+
+.tile.is-failed .status > :nth-child(2) {
+	transition-delay: calc(var(--bchc-duration-fast) * 1.25);
+}
+
+.tile.is-failed .status > :nth-child(3) {
+	transition-delay: calc(var(--bchc-duration-fast) * 1.6);
+}
+
+.tile.is-failed .status > :nth-child(4) {
+	transition-delay: calc(var(--bchc-duration-fast) * 2);
+}
+
+.status-mark {
+	position: relative;
+	width: 96px;
+	height: 96px;
+	margin-bottom: var(--bchc-space-3);
+	display: grid;
+	place-items: center;
+	color: var(--bchc-danger-text);
+}
+
+.status-mark .ring {
+	position: absolute;
+	inset: 0;
+}
+
+/* The ring's dots come in one after another around the circle, then hold
+   still. No slow turn: rotating a rasterised ring resamples dots this small
+   every frame and they shimmer. */
+.status-mark .ring circle {
+	transform-origin: 48px 48px;
+	opacity: 0;
+	transform: scale(0.3);
+}
+
+/* Each dot arrives in turn, then a soft wave of light travels round the ring
+   for as long as the failure shows. Opacity only: a ring that turned shimmered,
+   because rotating a rasterised dot resamples it every frame. */
+.tile.is-failed .status-mark .ring circle {
+	animation:
+		ring-in var(--bchc-duration-base) var(--bchc-ease-spring) both,
+		ring-wave 2.8s var(--bchc-ease-in-out) infinite;
+	animation-delay:
+		calc(var(--bchc-duration-fast) + var(--i) * 28ms),
+		calc(
+			var(--bchc-duration-fast) +
+			var(--bchc-duration-base) +
+			var(--i) *
+			200ms
+		);
+}
+
+@keyframes ring-wave {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.35;
+	}
+}
+
+@keyframes ring-in {
+	from {
+		opacity: 0;
+		transform: scale(0.3);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+/* The cross draws itself once the ring has closed. Lucide's cross is two
+   strokes of 17 units each. */
+.status-mark > svg:not(.ring) path {
+	stroke-dasharray: 18;
+	stroke-dashoffset: 18;
+}
+
+.tile.is-failed .status-mark > svg:not(.ring) path {
+	animation: draw var(--bchc-duration-base) var(--bchc-ease-out) forwards;
+	animation-delay: calc(var(--bchc-duration-fast) * 3);
+}
+
+.tile.is-failed .status-mark > svg:not(.ring) path:nth-child(2) {
+	animation-delay: calc(var(--bchc-duration-fast) * 3.5);
+}
+
+@keyframes draw {
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+
+.status-title {
+	font-size: var(--bchc-text-lg);
+	font-weight: var(--bchc-weight-bold);
+	line-height: var(--bchc-leading-tight);
+	letter-spacing: var(--bchc-tracking-tight);
+	text-wrap: balance;
+}
+
+.status-detail {
+	margin: 0;
+	max-width: 32ch;
+	font-size: var(--bchc-text-sm);
+	line-height: var(--bchc-leading-snug);
+	color: var(--bchc-text-muted);
+	text-wrap: pretty;
+}
+
+/*
+ * The way forward, in the same voice as "Don't have a wallet?": body size,
+ * bold. Lifts a hair and throws a little of its own light on hover, gives
+ * under the press, and springs back — a control that wants to be pressed.
+ */
+.status .retry {
+	margin-top: var(--bchc-space-4);
+	min-height: 44px;
+	padding: 0 var(--bchc-space-5) 0 var(--bchc-space-4);
+	font-size: var(--bchc-text-md);
+	font-weight: var(--bchc-weight-bold);
+	letter-spacing: var(--bchc-tracking-snug);
+	transition:
+		background var(--bchc-duration-fast) var(--bchc-ease-out),
+		box-shadow var(--bchc-duration-fast) var(--bchc-ease-out),
+		transform var(--bchc-duration-fast) var(--bchc-ease-spring);
+}
+
+/* Light, not lift: a button that moves can slip out from under the pointer. */
+.status .retry:hover {
+	box-shadow: 0 6px 20px
+		color-mix(in oklab, var(--bchc-accent) 40%, transparent);
+}
+
+.status .retry:active {
+	transform: scale(0.96);
+	box-shadow: 0 2px 8px color-mix(in oklab, var(--bchc-accent) 25%, transparent);
+	transition-duration: 60ms;
+}
+
+/* The arrow turns back once as the pointer arrives: the action, in gesture. */
+.retry svg {
+	transition: transform var(--bchc-duration-slow) var(--bchc-ease-spring);
+}
+
+.retry:hover svg {
+	transform: rotate(-360deg);
+}
+
+/* Present but unseen while the failure shows: its box is what keeps the
+   column, and so the card, from changing height. */
+.footer.is-void {
+	visibility: hidden;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--bchc-space-3);
+	width: 100%;
+	transition:
+		opacity var(--bchc-duration-fast) var(--bchc-ease-out),
+		visibility 0s;
+}
+
+.caption {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--bchc-space-2);
+	margin: 0;
+	min-width: 0;
+	font-size: var(--bchc-text-sm);
+	font-weight: var(--bchc-weight-medium);
+	color: var(--bchc-text-muted);
+}
+
+.caption svg {
+	flex: none;
+}
+
+.caption-text {
+	min-width: 0;
+}
+
+/* Buttons ------------------------------------------------------------------ */
+
+.button {
+	flex: none;
+	min-height: 40px;
+	padding: 0 var(--bchc-space-4);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--bchc-space-2);
+	border: 0;
+	border-radius: var(--bchc-radius-control);
+	font-family: inherit;
+	font-size: var(--bchc-text-sm);
+	font-weight: var(--bchc-weight-semibold);
+	text-decoration: none;
+	white-space: nowrap;
+	cursor: pointer;
+	transition:
+		background var(--bchc-duration-fast) var(--bchc-ease-out),
+		color var(--bchc-duration-fast) var(--bchc-ease-out),
+		box-shadow var(--bchc-duration-fast) var(--bchc-ease-out),
+		transform var(--bchc-duration-fast) var(--bchc-ease-out),
+		opacity var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+.button:active {
+	transform: scale(0.97);
+	transition-duration: 60ms;
+}
+
+.button:disabled {
+	opacity: 0.45;
+	cursor: default;
+	pointer-events: none;
+}
+
+.button.primary {
+	background: var(--bchc-accent);
+	color: var(--bchc-accent-foreground);
+}
+
+.button.primary:hover {
+	background: var(--bchc-accent-hover);
+}
+
+.button.pill {
+	min-height: 36px;
+	padding: 0 var(--bchc-space-4);
+	border-radius: var(--bchc-radius-pill);
+	background: var(--bchc-surface-raised);
+	color: var(--bchc-text);
+	box-shadow: inset 0 0 0 1px var(--bchc-border-subtle);
+}
+
+.button.pill:hover {
+	background: var(--bchc-surface-hover);
+}
+
+.button.primary.pill {
+	background: var(--bchc-accent);
+	color: var(--bchc-accent-foreground);
+	box-shadow: none;
+}
+
+.button.primary.pill:hover {
+	background: var(--bchc-accent-hover);
+}
+
+/* Success is the accent: the button turns for as long as the acknowledgement
+   lasts and settles back on its own. The icon pops in because the label alone
+   reads as a rename, not as something having happened. */
+.button.is-copied {
+	background: var(--bchc-accent-subtle);
+	color: var(--bchc-accent-text);
+	box-shadow: inset 0 0 0 1px var(--bchc-accent-border);
+}
+
+.button.is-copied svg {
+	animation: pop var(--bchc-duration-base) var(--bchc-ease-spring) both;
+}
+
+@keyframes pop {
+	from {
+		transform: scale(0.4);
+		opacity: 0;
+	}
+}
+
+.button.secondary {
+	background: var(--bchc-surface-raised);
+	color: var(--bchc-text);
+	box-shadow: inset 0 0 0 1px var(--bchc-border);
+}
+
+.button.secondary:hover {
+	background: var(--bchc-surface-hover);
+}
+
+/* Status ------------------------------------------------------------------- */
+
+.dots {
+	display: inline-flex;
+	gap: 3px;
+}
+
+.dots i {
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: currentColor;
+	animation: pulse 1.4s var(--bchc-ease-in-out) infinite;
+}
+
+.dots i:nth-child(2) {
+	animation-delay: 0.16s;
+}
+
+.dots i:nth-child(3) {
+	animation-delay: 0.32s;
+}
+
+@keyframes pulse {
+	0%,
+	60%,
+	100% {
+		opacity: 0.25;
+	}
+	30% {
+		opacity: 1;
+	}
+}
+
+/* Focus -------------------------------------------------------------------- */
+
+:where(a, button, select, [tabindex]):focus-visible {
+	outline: 2px solid var(--bchc-focus);
+	outline-offset: 2px;
+}
+
+/* The drawer ---------------------------------------------------------------- */
+
+/*
+ * A drawer, not a dialog that got narrow. It is anchored to the bottom edge,
+ * carries a handle, and answers a drag continuously — see `sheet.ts` for the
+ * physics. `touch-action` hands vertical gestures to the drag rather than to
+ * the browser's own scroll, which is what stops the sheet fighting the page.
+ */
+.overlay.is-sheet {
+	padding: 0;
+	place-items: end stretch;
+}
+
+.overlay.is-sheet .card {
+	width: 100%;
+	max-height: calc(100dvh - var(--bchc-space-10));
+	padding: var(--bchc-space-2) var(--bchc-space-5) var(--bchc-space-6);
+	border-radius: var(--bchc-radius-modal) var(--bchc-radius-modal) 0 0;
+	touch-action: pan-x;
+	animation: sheet var(--bchc-duration-slow) var(--bchc-ease-settle) both;
+	/* The sheet reaches the bottom edge of the screen, so the last control
+	   clears the home indicator rather than sitting under it. */
+	padding-bottom: calc(var(--bchc-space-6) + env(safe-area-inset-bottom, 0px));
+}
+
+@keyframes sheet {
+	from {
+		transform: translateY(100%);
+	}
+}
+
+.overlay.is-sheet.is-closing .card {
+	animation: sheet var(--bchc-duration-base) var(--bchc-ease-out) reverse both;
+}
+
+/* Dismissed by hand: the drag already carried the sheet off, so only the
+   scrim has anything left to do. */
+.overlay.is-sheet.is-closing.is-dragged .card {
+	animation: none;
+	transform: translateY(100%);
+}
+
+.overlay.is-sheet .grabber {
+	display: block;
+	width: 36px;
+	height: 4px;
+	margin: 0 auto var(--bchc-space-1);
+	border-radius: var(--bchc-radius-pill);
+	background: var(--bchc-border);
+	flex: none;
+}
+
+/* The code is secondary on a phone, where the deep link is the real path. */
+.overlay.is-sheet .tile {
+	width: min(100%, 256px);
+	margin: 0 auto;
+	padding: var(--bchc-space-3);
+}
+
+.overlay.is-sheet .footer {
+	justify-content: center;
+	gap: var(--bchc-space-4);
+}
+
+/* A full-width primary action, which is what a thumb wants. */
+.button.block {
+	width: 100%;
+	min-height: 52px;
+	font-size: var(--bchc-text-md);
+	border-radius: var(--bchc-radius-control);
+}
+
+/*
+ * A quiet aside, not an alarm. Nothing has gone wrong that the user did: a
+ * wallet that never claimed the link scheme is not their mistake, so this reads
+ * as help rather than as an error — neutral surface, muted text, round icon.
+ *
+ * It keeps its box while hidden so revealing it does not shove the drawer down
+ * under the reader's thumb. That is also why it is a class and not `hidden`,
+ * which would remove the box entirely.
+ */
+.hint {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--bchc-space-2);
+	margin: 0;
+	min-height: var(--bchc-space-12);
+	padding: var(--bchc-space-3);
+	border-radius: var(--bchc-radius-tile);
+	background: var(--bchc-surface-raised);
+	font-size: var(--bchc-text-sm);
+	line-height: var(--bchc-leading-snug);
+	color: var(--bchc-text-muted);
+	text-wrap: pretty;
+	visibility: hidden;
+	opacity: 0;
+	transform: translateY(-4px);
+	transition:
+		opacity var(--bchc-duration-base) var(--bchc-ease-out),
+		transform var(--bchc-duration-base) var(--bchc-ease-settle);
+}
+
+.hint svg {
+	flex: none;
+	margin-top: 1px;
+	color: var(--bchc-accent-text);
+}
+
+.hint.is-visible {
+	visibility: visible;
+	opacity: 1;
+	transform: none;
+}
+
+/* The wallet directory ------------------------------------------------------ */
+
+.directory {
+	display: flex;
+	flex-direction: column;
+	gap: var(--bchc-space-1);
+	margin: 0 calc(var(--bchc-space-3) * -1);
+}
+
+/* The whole row is the link; the pill at its end names where it goes. */
+.directory-row {
+	display: flex;
+	align-items: center;
+	gap: var(--bchc-space-3);
+	flex-wrap: wrap;
+	min-height: calc(var(--bchc-hit-touch) + var(--bchc-space-4));
+	padding: var(--bchc-space-2) var(--bchc-space-3);
+	border-radius: var(--bchc-radius-row);
+	color: var(--bchc-text);
+	font-weight: var(--bchc-weight-semibold);
+	text-decoration: none;
+	cursor: pointer;
+	transition:
+		background var(--bchc-duration-fast) var(--bchc-ease-out),
+		transform var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+.directory-row:active {
+	transform: scale(0.985);
+	transition-duration: 60ms;
+}
+
+.directory-logo {
+	width: 36px;
+	height: 36px;
+	flex: none;
+	border-radius: var(--bchc-radius-media);
+	object-fit: cover;
+}
+
+.directory-row:hover {
+	background: var(--bchc-surface-raised);
+}
+
+.directory-links {
+	margin-left: auto;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--bchc-space-2);
+}
+
+.directory-links .button {
+	min-height: var(--bchc-hit-pointer);
+	gap: var(--bchc-space-1);
+	font-size: var(--bchc-text-xs);
+	font-weight: var(--bchc-weight-medium);
+}
+
+.directory-links .button svg {
+	transition: transform var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+/* Hovering anywhere on the row lights the pill and nudges its arrow. */
+.directory-row:hover .button.pill {
+	background: var(--bchc-surface-hover);
+}
+
+.directory-row:hover .button svg {
+	transform: translate(1px, -1px);
+}
+
+/*
+ * Last in the file on purpose. `.badge` and `.back` both set `display`, and at
+ * equal specificity the later rule wins — which is how this beats them without
+ * reaching for `!important`.
+ */
+[hidden] {
+	display: none;
+}

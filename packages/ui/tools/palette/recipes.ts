@@ -382,6 +382,22 @@ export const STATUS: readonly ScaleRecipe[] = [
 ];
 
 /**
+ * The connection code's own two colours, fixed in both themes.
+ *
+ * The code is a machine-readable object, not a brand surface. A light-on-dark
+ * code is valid by the spec and plenty of scanners still fail on it, so it
+ * stays dark-on-light whatever the modal around it is doing — the tile becomes
+ * a white plate on a dark card rather than the code inverting.
+ *
+ * The ink carries a whisper of the sage hue so it belongs to this palette
+ * rather than being stray pure black, and still clears 19:1 against the paper.
+ */
+export const CODE: { readonly ink: string; readonly paper: string } = {
+	ink: "#101312",
+	paper: "#ffffff",
+};
+
+/**
  * Alpha applied to the neutral's step 12 to make the overlay and shadows.
  * Authored per mode because a dark modal needs a heavier scrim to separate from
  * a dark page than a light one does.
