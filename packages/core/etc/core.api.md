@@ -17,6 +17,12 @@ export interface AbiInput {
 }
 
 // @public
+export class AbortedError extends BchConnectError {
+    readonly code = "ABORTED";
+    override readonly name = "AbortedError";
+}
+
+// @public
 export interface AppMetadata {
     description?: string;
     icon?: string;
@@ -39,6 +45,12 @@ export type BchConnectErrorCode = "REJECTED" | "ABORTED" | "TIMEOUT" | "CAPABILI
 
 // @public
 export type CapabilityFor<P extends ProtocolDefinition, N extends keyof CapabilityRegistry> = N extends P["capability"] ? CapabilityRegistry[N] | null : null;
+
+// @public
+export class CapabilityMissingError extends BchConnectError {
+    readonly code = "CAPABILITY_MISSING";
+    override readonly name = "CapabilityMissingError";
+}
 
 // @public
 export interface CapabilityRegistry {
@@ -134,6 +146,12 @@ export interface ClientStore {
 }
 
 // @public
+export class ConfigError extends BchConnectError {
+    readonly code = "CONFIG";
+    override readonly name = "ConfigError";
+}
+
+// @public
 export interface ConnectOptions {
     mode?: "replace" | "add";
     onPairing?: (pairing: Pairing) => void;
@@ -203,9 +221,15 @@ export type EventName<P extends ProtocolDefinition> = keyof P["events"] & string
 export type EventPayload<P extends ProtocolDefinition, E extends EventName<P>> = P["events"][E];
 
 // @public
-export function isBchConnectError<C extends BchConnectErrorCode = BchConnectErrorCode>(error: unknown, code?: C): error is BchConnectError & {
-    readonly code: C;
-};
+export class InvalidWalletResponseError extends BchConnectError {
+    readonly code = "INVALID_WALLET_RESPONSE";
+    override readonly name = "InvalidWalletResponseError";
+}
+
+// @public
+export function isBchConnectError<C extends BchConnectErrorCode = BchConnectErrorCode>(error: unknown, code?: C): error is Extract<RequestRejectedError | AbortedError | TimeoutError | CapabilityMissingError | MethodUnsupportedError | SessionMissingError | TransportError | InvalidWalletResponseError | NetworkMismatchError | ConfigError, {
+    code: C;
+}>;
 
 // @public
 export interface KeyValueStore {
@@ -279,7 +303,19 @@ export type MethodParams<P extends ProtocolDefinition, M extends MethodName<P>> 
 export type MethodResult<P extends ProtocolDefinition, M extends MethodName<P>> = Extract<P["methods"][M], MethodDefinition>["result"];
 
 // @public
+export class MethodUnsupportedError extends BchConnectError {
+    readonly code = "METHOD_UNSUPPORTED";
+    override readonly name = "MethodUnsupportedError";
+}
+
+// @public
 export type Network = "mainnet" | "chipnet" | "regtest";
+
+// @public
+export class NetworkMismatchError extends BchConnectError {
+    readonly code = "NETWORK_MISMATCH";
+    override readonly name = "NetworkMismatchError";
+}
 
 // @public
 export type NonFungibleTokenCapability = "none" | "mutable" | "minting";
@@ -331,12 +367,32 @@ export interface RequestOptions {
 }
 
 // @public
+export class RequestRejectedError extends BchConnectError {
+    constructor(message: string, options: {
+        by: "user" | "wallet" | "unknown";
+        remoteMessage?: string;
+        cause?: unknown;
+        sessionId?: string;
+    });
+    readonly by: "user" | "wallet" | "unknown";
+    readonly code = "REJECTED";
+    override readonly name = "RequestRejectedError";
+    readonly remoteMessage?: string;
+}
+
+// @public
 export interface Session<P extends ProtocolDefinition = ProtocolDefinition> {
     readonly data: P["session"];
     readonly id: string;
     readonly protocol: P["id"];
     readonly status: SessionStatus;
     readonly wallet: WalletIdentity;
+}
+
+// @public
+export class SessionMissingError extends BchConnectError {
+    readonly code = "SESSION_MISSING";
+    override readonly name = "SessionMissingError";
 }
 
 // @public
@@ -377,6 +433,12 @@ export interface SourceOutput extends TransactionInput, TransactionOutput {
 }
 
 // @public
+export class TimeoutError extends BchConnectError {
+    readonly code = "TIMEOUT";
+    override readonly name = "TimeoutError";
+}
+
+// @public
 export interface TokenData {
     readonly amount: bigint;
     readonly category: Uint8Array;
@@ -407,6 +469,12 @@ export interface TransactionOutput {
     readonly lockingBytecode: Uint8Array;
     readonly token?: TokenData;
     readonly valueSatoshis: bigint;
+}
+
+// @public
+export class TransportError extends BchConnectError {
+    readonly code = "TRANSPORT";
+    override readonly name = "TransportError";
 }
 
 // @public
