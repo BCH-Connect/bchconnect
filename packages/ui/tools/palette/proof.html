@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>BCH Connect palette proof</title>
+		<link rel="stylesheet" href="../../src/styles/theme.generated.css" />
+		<script src="./proof.data.generated.js"></script>
+		<style>
+			/* The page's own chrome is deliberately outside the palette. Judging a
+			   colour system inside a UI painted with that same system tells you
+			   nothing — the frame has to stay neutral. */
+			:root {
+				color-scheme: light dark;
+				--page: light-dark(#fbfbfa, #121212);
+				--page-raised: light-dark(#ffffff, #1b1b1b);
+				--page-line: light-dark(#e4e4e2, #2c2c2c);
+				--page-ink: light-dark(#17171a, #f2f2f0);
+				--page-dim: light-dark(#6b6b70, #9a9a9e);
+				--mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				padding: 0 0 96px;
+				background: var(--page);
+				color: var(--page-ink);
+				font:
+					15px/1.5 system-ui,
+					sans-serif;
+				-webkit-font-smoothing: antialiased;
+			}
+			header {
+				position: sticky;
+				top: 0;
+				z-index: 10;
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 20px;
+				padding: 14px 24px;
+				background: color-mix(in srgb, var(--page) 88%, transparent);
+				backdrop-filter: blur(12px);
+				border-bottom: 1px solid var(--page-line);
+			}
+			h1 {
+				margin: 0;
+				font-size: 20px;
+				line-height: 1.2;
+				font-weight: 650;
+				letter-spacing: -0.02em;
+			}
+			h1 small {
+				display: block;
+				font-weight: 400;
+				font-size: 12px;
+				color: var(--page-dim);
+			}
+			.knob {
+				display: flex;
+				align-items: center;
+				gap: 7px;
+				font-size: 12px;
+				color: var(--page-dim);
+			}
+			select {
+				font: inherit;
+				font-size: 13px;
+				padding: 5px 8px;
+				border-radius: 7px;
+				border: 1px solid var(--page-line);
+				background: var(--page-raised);
+				color: var(--page-ink);
+			}
+			main {
+				max-width: 1320px;
+				margin: 0 auto;
+				padding: 0 24px;
+			}
+			section {
+				margin-top: 44px;
+			}
+			h2 {
+				margin: 0 0 4px;
+				font-size: 13px;
+				font-weight: 650;
+				text-transform: uppercase;
+				letter-spacing: 0.07em;
+				color: var(--page-dim);
+			}
+			.note {
+				margin: 0 0 18px;
+				max-width: 68ch;
+				font-size: 13px;
+				color: var(--page-dim);
+			}
+
+			/* Two panes side by side. Light and dark are two authored palettes, not
+			   one palette and its inverse, so they have to be judged together. */
+			.panes {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 20px;
+			}
+			@media (max-width: 900px) {
+				.panes {
+					grid-template-columns: 1fr;
+				}
+			}
+			.pane {
+				border: 1px solid var(--page-line);
+				border-radius: 14px;
+				overflow: hidden;
+			}
+			.pane-label {
+				padding: 8px 14px;
+				font-size: 11px;
+				font-weight: 650;
+				text-transform: uppercase;
+				letter-spacing: 0.07em;
+				color: var(--page-dim);
+				background: var(--page-raised);
+				border-bottom: 1px solid var(--page-line);
+			}
+			/* Inside a pane, the palette takes over completely. */
+			.stage {
+				padding: 22px;
+				background: var(--bchc-surface);
+				color: var(--bchc-text);
+			}
+
+			.ramp {
+				margin-bottom: 18px;
+			}
+			.ramp-name {
+				font:
+					600 11px/1 var(--mono);
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				color: var(--bchc-text-muted);
+				margin-bottom: 6px;
+			}
+			.swatches {
+				display: grid;
+				grid-template-columns: repeat(12, 1fr);
+				border-radius: 8px;
+				overflow: hidden;
+			}
+			.swatch {
+				aspect-ratio: 1 / 1.45;
+				display: flex;
+				align-items: flex-end;
+				justify-content: center;
+				padding-bottom: 4px;
+				font:
+					600 9px/1 var(--mono);
+				color: color-mix(in srgb, currentColor 55%, transparent);
+			}
+
+			.tokens {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 2px 14px;
+				margin-top: 20px;
+			}
+			.token {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 3px 0;
+				font:
+					500 11px/1 var(--mono);
+				color: var(--bchc-text-muted);
+			}
+			.chip {
+				width: 15px;
+				height: 15px;
+				flex: none;
+				border-radius: 4px;
+				box-shadow: inset 0 0 0 1px var(--bchc-border-subtle);
+			}
+
+			/* Real fragments. Swatches lie: a colour only shows its problems once it
+			   is carrying text at a real size, next to a border, under a hover. */
+			.specimens {
+				display: flex;
+				flex-direction: column;
+				gap: 14px;
+				margin-top: 24px;
+				padding-top: 20px;
+				border-top: 1px solid var(--bchc-border-subtle);
+			}
+			.row-strip {
+				display: flex;
+				flex-direction: column;
+				gap: 2px;
+			}
+			.wallet-row {
+				display: flex;
+				align-items: center;
+				gap: 11px;
+				height: 46px;
+				padding: 0 11px;
+				border: 0;
+				border-radius: var(--bchc-radius-row);
+				background: transparent;
+				color: var(--bchc-text);
+				font: inherit;
+				font-weight: 600;
+				font-size: 14px;
+				text-align: left;
+				width: 100%;
+				cursor: pointer;
+				transition: background 120ms;
+			}
+			.wallet-row:hover {
+				background: var(--bchc-surface-hover);
+			}
+			.wallet-row[aria-selected="true"] {
+				background: var(--bchc-accent-subtle);
+			}
+			.wallet-row:focus-visible {
+				outline: 2px solid var(--bchc-focus);
+				outline-offset: 2px;
+			}
+			.logo {
+				width: 28px;
+				height: 28px;
+				flex: none;
+				border-radius: var(--bchc-radius-media);
+				background: var(--bchc-surface-sunken);
+				box-shadow: inset 0 0 0 1px var(--bchc-border-subtle);
+			}
+			.check {
+				margin-left: auto;
+				color: var(--bchc-accent-text);
+				font-size: 13px;
+			}
+			.buttons {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 9px;
+			}
+			button.solid,
+			button.quiet,
+			button.destructive {
+				font: inherit;
+				font-weight: 600;
+				font-size: 13.5px;
+				height: 40px;
+				padding: 0 18px;
+				border: 0;
+				border-radius: var(--bchc-radius-control);
+				cursor: pointer;
+				transition:
+					background 120ms,
+					box-shadow 120ms;
+			}
+			button.solid {
+				background: var(--bchc-accent);
+				color: var(--bchc-accent-foreground);
+			}
+			button.solid:hover {
+				background: var(--bchc-accent-hover);
+			}
+			button.quiet {
+				background: var(--bchc-surface-raised);
+				color: var(--bchc-text);
+				box-shadow: inset 0 0 0 1px var(--bchc-border);
+			}
+			button.quiet:hover {
+				background: var(--bchc-surface-hover);
+			}
+			button.destructive {
+				background: var(--bchc-danger);
+				color: var(--bchc-surface);
+			}
+			button:focus-visible {
+				outline: 2px solid var(--bchc-focus);
+				outline-offset: 2px;
+			}
+			.panel {
+				padding: 12px 14px;
+				border-radius: var(--bchc-radius-tile);
+				font-size: 13px;
+				line-height: 1.45;
+			}
+			.panel.accent {
+				background: var(--bchc-accent-subtle);
+				color: var(--bchc-accent-text);
+				box-shadow: inset 0 0 0 1px var(--bchc-accent-border);
+			}
+			.panel.danger {
+				background: var(--bchc-danger-subtle);
+				color: var(--bchc-danger-text);
+				box-shadow: inset 0 0 0 1px var(--bchc-danger-border);
+			}
+			.panel.warning {
+				background: var(--bchc-warning-subtle);
+				color: var(--bchc-warning-text);
+				box-shadow: inset 0 0 0 1px var(--bchc-warning-border);
+			}
+			.prose h3 {
+				margin: 0 0 3px;
+				font-size: 17px;
+				font-weight: 650;
+				letter-spacing: -0.01em;
+			}
+			.prose p {
+				margin: 0;
+				font-size: 13.5px;
+				color: var(--bchc-text-muted);
+			}
+			.prose a {
+				color: var(--bchc-accent-text);
+				text-decoration-color: color-mix(
+					in srgb,
+					currentColor 35%,
+					transparent
+				);
+			}
+			.card {
+				padding: 18px;
+				border-radius: var(--bchc-radius-modal);
+				background: var(--bchc-surface-raised);
+				box-shadow:
+					0 1px 2px var(--bchc-shadow-tight),
+					0 18px 44px var(--bchc-shadow-soft),
+					inset 0 0 0 1px var(--bchc-border-subtle);
+			}
+
+			/* Every accent at once: the only way to see whether two of them collide. */
+			.matrix {
+				display: grid;
+				gap: 3px;
+			}
+			.matrix-row {
+				display: grid;
+				grid-template-columns: 62px repeat(12, 1fr);
+				gap: 3px;
+				align-items: center;
+			}
+			.matrix-name {
+				font:
+					600 11px/1 var(--mono);
+				color: var(--page-dim);
+			}
+			.matrix-cell {
+				height: 30px;
+				border-radius: 4px;
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<h1>
+				Palette proof
+				<small
+					>Generated from tools/palette/recipes.ts — gated by
+					check.ts</small
+				>
+			</h1>
+			<label class="knob">accent <select id="accent"></select></label>
+			<label class="knob">neutral <select id="neutral"></select></label>
+			<label class="knob">radius <select id="radius"></select></label>
+		</header>
+
+		<main>
+			<section>
+				<h2>Selected accent, in context</h2>
+				<p class="note">
+					Light and dark are two authored palettes rather than one and its
+					inversion, so both are on screen at once. The fragments below the
+					swatches are the ones that actually break: text on a tinted surface,
+					a border against its hover, a solid carrying a label.
+				</p>
+				<div class="panes">
+					<div class="pane">
+						<div class="pane-label">Light</div>
+						<div
+							class="stage"
+							id="stage-light"
+							data-bchc-mode="light"
+							data-bchc-radius="large"
+						></div>
+					</div>
+					<div class="pane">
+						<div class="pane-label">Dark</div>
+						<div
+							class="stage"
+							id="stage-dark"
+							data-bchc-mode="dark"
+							data-bchc-radius="large"
+						></div>
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h2>All accents</h2>
+				<p class="note">
+					Twelve steps for every accent, both modes. What this view is for is
+					collisions — two accents that read as the same colour at step 9, or a
+					step that jumps where its neighbours glide.
+				</p>
+				<div class="panes">
+					<div class="pane">
+						<div class="pane-label">Light</div>
+						<div
+							class="stage matrix"
+							id="matrix-light"
+							data-bchc-mode="light"
+						></div>
+					</div>
+					<div class="pane">
+						<div class="pane-label">Dark</div>
+						<div
+							class="stage matrix"
+							id="matrix-dark"
+							data-bchc-mode="dark"
+						></div>
+					</div>
+				</div>
+			</section>
+		</main>
+
+		<script>
+			const theme = globalThis.BCHC_THEME;
+			const $ = (id) => document.getElementById(id);
+
+			function fill(select, values, selected) {
+				select.innerHTML = values
+					.map(
+						(value) =>
+							`<option value="${value}"${value === selected ? " selected" : ""}>${value}</option>`,
+					)
+					.join("");
+			}
+
+			fill(
+				$("accent"),
+				theme.accents.map((a) => a.name),
+				"green",
+			);
+			fill($("neutral"), ["auto", ...theme.neutrals], "auto");
+			fill($("radius"), theme.radius, "large");
+
+			/** One ramp: twelve swatches labelled by step, titled by Radix role. */
+			function ramp(name, prefix) {
+				const cells = theme.roles
+					.map(
+						(role, i) =>
+							`<div class="swatch" style="background: var(--bchc-${prefix}-${i + 1})" title="${prefix} ${i + 1} — ${role}">${i + 1}</div>`,
+					)
+					.join("");
+				return `<div class="ramp"><div class="ramp-name">${name}</div><div class="swatches">${cells}</div></div>`;
+			}
+
+			function tokenList() {
+				return `<div class="tokens">${theme.semantic
+					.map(
+						(token) =>
+							`<div class="token"><span class="chip" style="background: var(--bchc-${token})"></span>${token}</div>`,
+					)
+					.join("")}</div>`;
+			}
+
+			const specimens = `
+				<div class="specimens">
+					<div class="card">
+						<div class="prose">
+							<h3>Connect a wallet</h3>
+							<p>Scan the code with your wallet, or open one below.</p>
+						</div>
+						<div class="row-strip" style="margin-top: 14px">
+							<button class="wallet-row" aria-selected="true">
+								<span class="logo"></span>Cashonize<span class="check">✓</span>
+							</button>
+							<button class="wallet-row"><span class="logo"></span>Selene</button>
+							<button class="wallet-row"><span class="logo"></span>Paytaca</button>
+						</div>
+						<div class="buttons" style="margin-top: 14px">
+							<button class="solid">Open wallet</button>
+							<button class="quiet">Copy link</button>
+							<button class="destructive">Disconnect</button>
+						</div>
+					</div>
+					<div class="panel accent">Waiting for you to approve in your wallet.</div>
+					<div class="panel warning">You are on Chipnet, not mainnet.</div>
+					<div class="panel danger">That request was declined. Nothing was sent.</div>
+					<div class="prose">
+						<p>Body text on the surface, with <a href="#">an accent link</a> inside it.</p>
+					</div>
+				</div>`;
+
+			function renderStage(element) {
+				element.innerHTML =
+					ramp("accent", "accent") +
+					ramp("neutral", "neutral") +
+					theme.status.map((name) => ramp(name, name)).join("") +
+					tokenList() +
+					specimens;
+			}
+
+			function renderMatrix(element) {
+				element.innerHTML = theme.accents
+					.map((accent) => {
+						const cells = theme.roles
+							.map(
+								(_, i) =>
+									`<div class="matrix-cell" style="background: var(--bchc-accent-${i + 1})"></div>`,
+							)
+							.join("");
+						// Each row carries its own accent attribute, so the twelve cells
+						// resolve against that scale without any per-cell inline colour.
+						return `<div class="matrix-row" data-bchc-accent="${accent.name}"><span class="matrix-name">${accent.name}</span>${cells}</div>`;
+					})
+					.join("");
+			}
+
+			function apply() {
+				const accentName = $("accent").value;
+				const accent = theme.accents.find((a) => a.name === accentName);
+				const chosen = $("neutral").value;
+				const neutral = chosen === "auto" ? accent.neutral : chosen;
+				for (const id of ["stage-light", "stage-dark"]) {
+					const stage = $(id);
+					stage.dataset.bchcAccent = accentName;
+					stage.dataset.bchcNeutral = neutral;
+					stage.dataset.bchcRadius = $("radius").value;
+				}
+				for (const id of ["matrix-light", "matrix-dark"]) {
+					$(id).dataset.bchcNeutral = neutral;
+				}
+			}
+
+			renderStage($("stage-light"));
+			renderStage($("stage-dark"));
+			renderMatrix($("matrix-light"));
+			renderMatrix($("matrix-dark"));
+			for (const id of ["accent", "neutral", "radius"]) {
+				$(id).addEventListener("change", apply);
+			}
+			apply();
+		</script>
+	</body>
+</html>
