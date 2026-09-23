@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>BCH Connect lab</title>
+		<!-- qr-code-styling ships UMD only, so it arrives as a global here and is
+		     handed to the component. The component never reaches for it. -->
+		<script src="/node_modules/qr-code-styling/lib/qr-code-styling.js"></script>
+		<style>
+			/* Lab chrome. Deliberately outside the design system: the modal is the
+			   thing being judged, and a frame painted with the same tokens makes it
+			   impossible to see where the modal ends. */
+			:root {
+				color-scheme: light dark;
+				--chrome: light-dark(#f4f4f3, #141414);
+				--chrome-raised: light-dark(#ffffff, #1d1d1d);
+				--chrome-line: light-dark(#e2e2e0, #2e2e2e);
+				--chrome-ink: light-dark(#18181a, #f0f0ee);
+				--chrome-dim: light-dark(#6a6a70, #98989c);
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				min-height: 100vh;
+				display: grid;
+				grid-template-columns: 260px 1fr;
+				background: var(--chrome);
+				color: var(--chrome-ink);
+				font:
+					14px/1.5 system-ui,
+					sans-serif;
+			}
+			aside {
+				/* Above the modal's scrim, so states can be driven while it is open. */
+				position: relative;
+				z-index: 1;
+				padding: 18px;
+				border-right: 1px solid var(--chrome-line);
+				background: var(--chrome-raised);
+				display: flex;
+				flex-direction: column;
+				gap: 18px;
+				overflow-y: auto;
+				max-height: 100vh;
+			}
+			h1 {
+				margin: 0;
+				font-size: 18px;
+				font-weight: 650;
+				letter-spacing: -0.02em;
+			}
+			h1 small {
+				display: block;
+				font-size: 12px;
+				font-weight: 400;
+				color: var(--chrome-dim);
+			}
+			fieldset {
+				border: 0;
+				padding: 0;
+				margin: 0;
+				display: flex;
+				flex-direction: column;
+				gap: 7px;
+			}
+			legend {
+				padding: 0 0 7px;
+				font-size: 11.5px;
+				font-weight: 650;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				color: var(--chrome-dim);
+			}
+			label {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 10px;
+				font-size: 12.5px;
+				color: var(--chrome-dim);
+			}
+			select {
+				flex: 1;
+				max-width: 140px;
+				font: inherit;
+				font-size: 12.5px;
+				padding: 4px 7px;
+				border-radius: 7px;
+				border: 1px solid var(--chrome-line);
+				background: var(--chrome);
+				color: var(--chrome-ink);
+			}
+			.states {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 4px;
+			}
+			.states button {
+				font: inherit;
+				font-size: 12px;
+				padding: 6px 4px;
+				border-radius: 7px;
+				border: 1px solid var(--chrome-line);
+				background: var(--chrome);
+				color: var(--chrome-ink);
+				cursor: pointer;
+			}
+			.states button[aria-pressed="true"] {
+				background: var(--chrome-ink);
+				color: var(--chrome-raised);
+				border-color: var(--chrome-ink);
+			}
+			/* The fake dapp. The modal has to be judged sitting on a real page, not
+			   floating on a blank one. */
+			main {
+				position: relative;
+				display: grid;
+				place-items: center;
+				padding: 40px;
+			}
+			.dapp {
+				width: min(720px, 100%);
+				padding: 32px;
+				border-radius: 20px;
+				background: var(--chrome-raised);
+				border: 1px solid var(--chrome-line);
+			}
+			.dapp h2 {
+				margin: 0 0 6px;
+				font-size: 26px;
+				letter-spacing: -0.02em;
+			}
+			.dapp p {
+				margin: 0 0 22px;
+				color: var(--chrome-dim);
+				max-width: 46ch;
+			}
+			.dapp button {
+				font: inherit;
+				font-weight: 600;
+				padding: 11px 20px;
+				border-radius: 999px;
+				border: 0;
+				background: var(--chrome-ink);
+				color: var(--chrome-raised);
+				cursor: pointer;
+			}
+			.hint {
+				margin-top: 16px;
+				font-size: 12px;
+				color: var(--chrome-dim);
+			}
+			/* Clean mode: nothing on the page but the button. `H` toggles. */
+			body.clean {
+				grid-template-columns: 1fr;
+			}
+			body.clean aside {
+				display: none;
+			}
+			body.clean .dapp {
+				background: none;
+				border: 0;
+				text-align: center;
+			}
+			body.clean .dapp > h2,
+			body.clean .dapp > p {
+				display: none;
+			}
+			/* The stage: what stands with the button when the panel is hidden. A
+			   quiet title above, a light/dark switch below. */
+			.stage {
+				display: none;
+				flex-direction: column;
+				align-items: center;
+				gap: 28px;
+			}
+			body.clean .stage {
+				display: flex;
+			}
+			body.clean .dapp > #connect {
+				display: none;
+			}
+			.stage-title {
+				margin: 0;
+				font-size: 15px;
+				font-weight: 600;
+				letter-spacing: -0.01em;
+				color: var(--chrome-dim);
+			}
+			.stage #connect-stage {
+				font: inherit;
+				font-weight: 600;
+				padding: 11px 20px;
+				border-radius: 999px;
+				border: 0;
+				background: var(--chrome-ink);
+				color: var(--chrome-raised);
+				cursor: pointer;
+			}
+			/* Floating knobs for the recording, above the modal's scrim so the
+			   theme can be tuned with it open: swatches, radius, scheme. */
+			.float {
+				display: none;
+				position: fixed;
+				left: 20px;
+				top: 50%;
+				transform: translateY(-50%);
+				z-index: 2147483001;
+				flex-direction: column;
+				gap: 14px;
+				padding: 12px;
+				border-radius: 16px;
+				border: 1px solid var(--chrome-line);
+				background: var(--chrome-raised);
+			}
+			body.clean .float {
+				display: flex;
+			}
+			.swatches {
+				display: grid;
+				grid-template-columns: repeat(2, 22px);
+				gap: 8px;
+			}
+			.swatches button {
+				width: 22px;
+				height: 22px;
+				padding: 0;
+				border-radius: 50%;
+				border: 2px solid transparent;
+				background: var(--swatch);
+				cursor: pointer;
+				transition: transform 160ms cubic-bezier(0.2, 0.9, 0.2, 1);
+			}
+			.swatches button:hover {
+				transform: scale(1.12);
+			}
+			.swatches button[aria-pressed="true"] {
+				border-color: var(--chrome-ink);
+			}
+			.radii,
+			.float .scheme {
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+				padding: 0;
+				border: 0;
+				background: none;
+			}
+			.radii button,
+			.float .scheme button {
+				font: inherit;
+				font-size: 11px;
+				padding: 4px 8px;
+				border-radius: 999px;
+				border: 1px solid var(--chrome-line);
+				background: var(--chrome);
+				color: var(--chrome-dim);
+				cursor: pointer;
+			}
+			.radii button[aria-pressed="true"],
+			.float .scheme button[aria-pressed="true"] {
+				background: var(--chrome-ink);
+				color: var(--chrome-raised);
+				border-color: var(--chrome-ink);
+			}
+			.scheme {
+				display: inline-flex;
+				padding: 3px;
+				border-radius: 999px;
+				border: 1px solid var(--chrome-line);
+				background: var(--chrome-raised);
+			}
+			.scheme button {
+				font: inherit;
+				font-size: 12px;
+				padding: 5px 12px;
+				border-radius: 999px;
+				border: 0;
+				background: transparent;
+				color: var(--chrome-dim);
+				cursor: pointer;
+			}
+			.scheme button[aria-pressed="true"] {
+				background: var(--chrome-ink);
+				color: var(--chrome-raised);
+			}
+			.clean-toggle {
+				font: inherit;
+				font-size: 12px;
+				padding: 6px 10px;
+				border-radius: 7px;
+				border: 1px solid var(--chrome-line);
+				background: var(--chrome);
+				color: var(--chrome-dim);
+				cursor: pointer;
+			}
+			/* A phone-width window: the sidebar stacks above the dapp and drops
+			   behind the modal, so the sheet is judged over the full width. Set the
+			   state first, then open. */
+			@media (max-width: 899px) {
+				body {
+					grid-template-columns: 1fr;
+					min-height: auto;
+				}
+				aside {
+					z-index: auto;
+					max-height: none;
+					border-right: 0;
+					border-bottom: 1px solid var(--chrome-line);
+				}
+				main {
+					padding: 24px 16px;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<aside>
+			<h1>BCH Connect<small>lab</small></h1>
+
+			<fieldset>
+				<legend>Theme</legend>
+				<label>accent <select id="accent"></select></label>
+				<label>neutral <select id="neutral"></select></label>
+				<label>radius <select id="radius"></select></label>
+				<label>font <select id="font"></select></label>
+				<label>face <select id="face"></select></label>
+				<label>blur <select id="blur"></select></label>
+				<label>mode <select id="mode"></select></label>
+			</fieldset>
+
+			<fieldset>
+				<legend>Session</legend>
+				<label>network <select id="network"></select></label>
+			</fieldset>
+
+			<fieldset>
+				<legend>State</legend>
+				<div class="states" id="states"></div>
+			</fieldset>
+
+			<button class="clean-toggle" id="clean" type="button" title="Hide the panel and the dapp chrome. Press H to bring it back.">Hide panel (H)</button>
+		</aside>
+
+		<main>
+			<div class="dapp">
+				<h2>BCH Connect UI</h2>
+				<button id="connect" type="button">Connect wallet</button>
+				<p class="hint">
+					The modal starts closed, as it does in a real dapp. Open it from here.
+				</p>
+				<div class="stage">
+					<p class="stage-title">BCH Connect UI</p>
+					<button id="connect-stage" type="button">Connect wallet</button>
+				</div>
+			</div>
+		</main>
+
+		<div class="float" aria-label="Theme">
+			<div class="swatches" id="swatches" role="group" aria-label="Accent"></div>
+			<div class="radii" id="radii" role="group" aria-label="Radius"></div>
+			<div class="scheme" role="group" aria-label="Colour scheme">
+				<button type="button" data-scheme="light" aria-pressed="false">Light</button>
+				<button type="button" data-scheme="dark" aria-pressed="false">Dark</button>
+			</div>
+			<div class="radii" role="group" aria-label="Outcome">
+				<button type="button" id="float-connect">Connect</button>
+				<button type="button" id="float-decline">Decline</button>
+			</div>
+		</div>
+
+		<script type="module" src="./lab.js"></script>
+	</body>
+</html>
