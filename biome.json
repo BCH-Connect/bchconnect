@@ -69,6 +69,34 @@
 					}
 				}
 			}
+		},
+		{
+			"includes": ["packages/test-utils/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						"useNamingConvention": {
+							"level": "error",
+							"options": {
+								"conventions": [
+									{
+										"selector": {
+											"kind": "typeProperty"
+										},
+										"formats": ["camelCase", "snake_case"]
+									},
+									{
+										"selector": {
+											"kind": "objectLiteralProperty"
+										},
+										"formats": ["camelCase", "snake_case"]
+									}
+								]
+							}
+						}
+					}
+				}
+			}
 		}
 	]
 }
