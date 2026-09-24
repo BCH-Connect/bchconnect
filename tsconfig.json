@@ -3,6 +3,8 @@
 	"references": [
 		{ "path": "./packages/core" },
 		{ "path": "./packages/core/test" },
-		{ "path": "./packages/core/test/types-registered" }
+		{ "path": "./packages/core/test/types-registered" },
+		{ "path": "./packages/test-utils" },
+		{ "path": "./packages/test-utils/test" }
 	]
 }
