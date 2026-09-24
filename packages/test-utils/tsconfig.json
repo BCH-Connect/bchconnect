@@ -2,7 +2,10 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"composite": true,
-		"noEmit": true
+		"noEmit": true,
+		"paths": {
+			"@bchconnect/core": ["../core/src/index.ts"]
+		}
 	},
-	"include": ["src"]
+	"include": ["src", "../core/src"]
 }
