@@ -10,8 +10,6 @@
 		[
 			"@bchconnect/core",
 			"@bchconnect/react",
-			"@bchconnect/vue",
-			"@bchconnect/svelte",
 			"@bchconnect/ui",
 			"@bchconnect/test-utils",
 			"bchconnect"
