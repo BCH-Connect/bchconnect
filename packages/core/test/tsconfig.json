@@ -3,8 +3,12 @@
 	"compilerOptions": {
 		"composite": true,
 		"noEmit": true,
-		"isolatedDeclarations": false
+		"isolatedDeclarations": false,
+		"paths": {
+			"@bchconnect/core": ["../src/index.ts"],
+			"@bchconnect/test-utils": ["../../test-utils/src/index.ts"]
+		}
 	},
-	"include": [".", "../src"],
+	"include": [".", "../src", "../../test-utils/src"],
 	"exclude": ["types-registered"]
 }
