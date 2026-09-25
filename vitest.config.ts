@@ -7,6 +7,9 @@ export default defineConfig({
 			"@bchconnect/core": fileURLToPath(
 				new URL("./packages/core/src/index.ts", import.meta.url),
 			),
+			"@bchconnect/test-utils": fileURLToPath(
+				new URL("./packages/test-utils/src/index.ts", import.meta.url),
+			),
 		},
 	},
 	test: {
