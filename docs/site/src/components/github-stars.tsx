@@ -32,10 +32,15 @@ function writeCache(count: number) {
 }
 
 export function GithubStars() {
-	const [count, setCount] = useState<number | null>(() => readCache());
+	// Starts empty so the first client render matches the server's; the cache is read after hydration.
+	const [count, setCount] = useState<number | null>(null);
 
 	useEffect(() => {
-		if (readCache() !== null) return;
+		const cached = readCache();
+		if (cached !== null) {
+			setCount(cached);
+			return;
+		}
 		const controller = new AbortController();
 
 		async function load() {
@@ -46,6 +51,7 @@ export function GithubStars() {
 				);
 				if (!res.ok) return;
 				const data = (await res.json()) as Record<string, unknown>;
+				// biome-ignore lint/complexity/useLiteralKeys: dot access is rejected under noPropertyAccessFromIndexSignature
 				const value = data["stargazers_count"];
 				if (typeof value !== "number") return;
 				setCount(value);
