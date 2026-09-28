@@ -1,3 +1,14 @@
 {
-	"pages": ["index", "guides", "connectors", "reference"]
+	"pages": [
+		"index",
+		"---Learn---",
+		"...concepts",
+		"---Protocols---",
+		"...connectors",
+		"---Build---",
+		"guides",
+		"ui",
+		"---Reference---",
+		"...reference"
+	]
 }
