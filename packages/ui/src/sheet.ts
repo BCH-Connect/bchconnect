@@ -2,16 +2,30 @@ import {
 	decideRelease,
 	intent,
 	recordVelocitySample,
+	releaseDuration,
 	rubberBand,
+	scrimOpacity,
 	type VelocitySample,
 	velocityAt,
 } from "./gesture.ts";
 import { tempoOf } from "./motion.ts";
 
 export interface SheetHandlers {
-	readonly onDismiss: () => void;
+	/** Called once dismissal is decided. `settled` resolves once the release animation ends, however it ends. */
+	readonly onDismiss: (settled: Promise<void>) => void;
 	/** Whether dragging applies at all right now; false on a wide viewport. */
 	readonly isActive: () => boolean;
+}
+
+export interface DraggableSheet {
+	/**
+	 * Freezes the current position and opacity inline and cancels any
+	 * running drag/release animation, so a caller-driven exit (a CSS
+	 * animation, typically) can safely take over from exactly here.
+	 */
+	readonly commit: () => void;
+	/** `commit`, plus removes the event listeners. Call once, when the sheet is torn down. */
+	readonly release: () => void;
 }
 
 type Phase = "idle" | "pressed" | "dragging" | "passed";
@@ -19,11 +33,48 @@ type Phase = "idle" | "pressed" | "dragging" | "passed";
 /** After a settle or dismiss, how long a resulting click stays swallowed. */
 const CLICK_GUARD_MS = 100;
 
-// Moves the element via transform only, so dragging stays on the compositor.
+const SHEET_EASE_FALLBACK = "cubic-bezier(0.32, 0.72, 0, 1)";
+
+function sheetEase(element: Element): string {
+	const value = getComputedStyle(element)
+		.getPropertyValue("--bchc-ease-sheet")
+		.trim();
+	return value === "" ? SHEET_EASE_FALLBACK : value;
+}
+
+function readOffset(element: HTMLElement): number {
+	return new DOMMatrixReadOnly(getComputedStyle(element).transform).m42;
+}
+
+function readOpacity(element: HTMLElement): number {
+	const value = Number.parseFloat(getComputedStyle(element).opacity);
+	return Number.isNaN(value) ? 1 : value;
+}
+
+function transformFor(offsetPx: number): string {
+	return offsetPx === 0 ? "" : `translate3d(0, ${offsetPx}px, 0)`;
+}
+
+// Only the transform/opacity animations, so an unrelated one (e.g. `morphHeight`'s on the same card) is left alone.
+function animationsAffecting(element: Element, property: string): Animation[] {
+	return element
+		.getAnimations()
+		.filter(
+			(animation) =>
+				animation.effect instanceof KeyframeEffect &&
+				animation.effect.getKeyframes().some((frame) => property in frame),
+		);
+}
+
+// Moves the card and scrim via transform/opacity only, so dragging stays on
+// the compositor. `card` and `scrim` must share one animated clock: every
+// hand-off between a CSS animation, an inline style and a WAAPI animation
+// happens synchronously, in the same task, from whatever is on screen.
 export function draggableSheet(
-	element: HTMLElement,
+	card: HTMLElement,
+	scrim: HTMLElement,
 	handlers: SheetHandlers,
-): () => void {
+): DraggableSheet {
 	let phase: Phase = "idle";
 	let pointerId: number | null = null;
 	let touchId: number | null = null;
@@ -31,39 +82,117 @@ export function draggableSheet(
 	let startX = 0;
 	let startY = 0;
 	let dragOriginY = 0;
+	let dragBaseOffset = 0;
+	let dragHeight = 0;
 	let offset = 0;
 	let samples: readonly VelocitySample[] = [];
 	let justDragged = false;
 	let clickGuardTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	const setOffset = (next: number): void => {
-		offset = next;
-		element.style.transform = next === 0 ? "" : `translateY(${next}px)`;
+	let rafId: number | null = null;
+	let cardAnimation: Animation | null = null;
+	let scrimAnimation: Animation | null = null;
+	// Bumped on every freeze/new release, so a superseded release's finish
+	// handler (its `finished` promise still settles after a cancel) can tell
+	// it no longer owns the sheet and must not touch its styles.
+	let releaseToken = 0;
+
+	const setWillChange = (active: boolean): void => {
+		card.style.willChange = active ? "transform" : "";
+		scrim.style.willChange = active ? "opacity" : "";
 	};
 
-	const settle = (): void => {
-		element.style.transition = `transform var(--bchc-duration-base) var(--bchc-ease-settle)`;
-		setOffset(0);
-		let done = false;
-		const finish = (): void => {
-			if (done) return;
-			done = true;
-			element.removeEventListener("transitionend", finish);
-			element.removeEventListener("transitioncancel", finish);
-			clearTimeout(fallback);
-			element.style.transition = "";
-		};
-		element.addEventListener("transitionend", finish, { once: true });
-		element.addEventListener("transitioncancel", finish, { once: true });
-		// Fallback: neither event fires when the offset was already 0.
-		const fallback = setTimeout(finish, tempoOf(element).base + 50);
+	const cancelScheduledWrite = (): void => {
+		if (rafId !== null) {
+			cancelAnimationFrame(rafId);
+			rafId = null;
+		}
 	};
 
-	const dismiss = (height: number): void => {
-		// Continues at the gesture's speed instead of snapping.
-		element.style.transition = `transform var(--bchc-duration-base) var(--bchc-ease-out)`;
-		setOffset(height);
-		handlers.onDismiss();
+	const scheduleWrite = (): void => {
+		if (rafId !== null) return;
+		rafId = requestAnimationFrame(() => {
+			rafId = null;
+			card.style.transform = `translate3d(0, ${offset}px, 0)`;
+			scrim.style.opacity = String(scrimOpacity(offset, dragHeight));
+		});
+	};
+
+	// Reads whatever is currently on screen (drag, CSS entrance, or a settle
+	// in flight), commits it as a plain inline style, then cancels every
+	// animation on both elements — in that order, so nothing jumps.
+	const freeze = (): number => {
+		releaseToken += 1;
+		const currentOffset = readOffset(card);
+		const currentOpacity = readOpacity(scrim);
+		for (const animation of animationsAffecting(card, "transform")) {
+			animation.cancel();
+		}
+		for (const animation of animationsAffecting(scrim, "opacity")) {
+			animation.cancel();
+		}
+		cardAnimation = null;
+		scrimAnimation = null;
+		offset = currentOffset;
+		card.style.transform = transformFor(currentOffset);
+		scrim.style.opacity = String(currentOpacity);
+		return currentOffset;
+	};
+
+	const startRelease = (
+		target: number,
+		velocity: number,
+		dismissing: boolean,
+	): void => {
+		const fromOffset = offset;
+		const fromOpacity = scrimOpacity(offset, dragHeight);
+		const remaining = target - fromOffset;
+		// Speed toward `target`; zero or negative when the finger was still or moving away.
+		const speed = remaining === 0 ? 0 : velocity * Math.sign(remaining);
+		const tempo = tempoOf(card);
+		const longest = dismissing ? tempo.base * 1.1 : tempo.slow * 0.9;
+		const duration = releaseDuration(Math.abs(remaining), speed, longest);
+		const easing = sheetEase(card);
+		const toOpacity = dismissing ? 0 : 1;
+
+		setWillChange(true);
+		releaseToken += 1;
+		const token = releaseToken;
+		cardAnimation = card.animate(
+			[
+				{ transform: `translate3d(0, ${fromOffset}px, 0)` },
+				{ transform: `translate3d(0, ${target}px, 0)` },
+			],
+			{ duration, easing, fill: "forwards" },
+		);
+		scrimAnimation = scrim.animate(
+			[{ opacity: fromOpacity }, { opacity: toOpacity }],
+			{ duration, easing, fill: "forwards" },
+		);
+		offset = target;
+
+		const bothFinished = Promise.allSettled([
+			cardAnimation.finished,
+			scrimAnimation.finished,
+		]);
+		if (dismissing) handlers.onDismiss(bothFinished.then(() => undefined));
+		void bothFinished.then(() => {
+			if (token !== releaseToken) return;
+			cardAnimation?.cancel();
+			scrimAnimation?.cancel();
+			cardAnimation = null;
+			scrimAnimation = null;
+			setWillChange(false);
+			if (dismissing) {
+				// Stays off-screen: the caller removes the overlay once it sees `settled`.
+				card.style.transform = `translate3d(0, ${target}px, 0)`;
+				scrim.style.opacity = "0";
+			} else {
+				card.style.transform = "";
+				scrim.style.opacity = "";
+				offset = 0;
+			}
+		});
 	};
 
 	const armClickGuard = (): void => {
@@ -79,7 +208,7 @@ export function draggableSheet(
 	const scrollersAbove = (target: EventTarget | null): Element[] => {
 		const found: Element[] = [];
 		let node = target instanceof Element ? target : null;
-		while (node !== null && node !== element) {
+		while (node !== null && node !== card) {
 			const overflowY = getComputedStyle(node).overflowY;
 			if (overflowY === "auto" || overflowY === "scroll") found.push(node);
 			node = node.parentElement;
@@ -145,14 +274,18 @@ export function draggableSheet(
 			}
 			phase = "dragging";
 			dragOriginY = y;
-			element.style.transition = "";
+			dragBaseOffset = freeze();
+			dragHeight = card.getBoundingClientRect().height;
+			card.classList.add("is-dragging");
+			setWillChange(true);
 			samples = recordVelocitySample(samples, time, y);
 			return "decided-drag";
 		}
 		if (phase === "dragging") {
-			const delta = y - dragOriginY;
+			const raw = dragBaseOffset + (y - dragOriginY);
 			samples = recordVelocitySample(samples, time, y);
-			setOffset(delta >= 0 ? delta : -rubberBand(-delta));
+			offset = raw >= 0 ? raw : -rubberBand(-raw);
+			scheduleWrite();
 			return "continue";
 		}
 		return "ignore";
@@ -163,22 +296,26 @@ export function draggableSheet(
 		phase = "idle";
 		pressTarget = null;
 		if (!wasDragging) return;
-		const height = element.getBoundingClientRect().height;
-		if (decideRelease(offset, height, velocityAt(samples, time))) {
-			dismiss(height);
+		cancelScheduledWrite();
+		card.classList.remove("is-dragging");
+		const velocity = velocityAt(samples, time);
+		if (decideRelease(offset, dragHeight, velocity)) {
+			startRelease(dragHeight, velocity, true);
 		} else {
-			settle();
+			startRelease(0, velocity, false);
 		}
 		armClickGuard();
 	};
 
-	const finishCancel = (): void => {
+	const finishCancel = (time: number): void => {
 		const wasDragging = phase === "dragging";
 		phase = "idle";
 		pressTarget = null;
 		if (!wasDragging) return;
+		cancelScheduledWrite();
+		card.classList.remove("is-dragging");
 		// A cancelled gesture never dismisses, only settles.
-		settle();
+		startRelease(0, velocityAt(samples, time), false);
 		armClickGuard();
 	};
 
@@ -186,7 +323,7 @@ export function draggableSheet(
 	const abandon = (): void => {
 		pointerId = null;
 		touchId = null;
-		finishCancel();
+		finishCancel(performance.now());
 	};
 
 	const onPointerDown = (event: PointerEvent): void => {
@@ -210,14 +347,14 @@ export function draggableSheet(
 			event.timeStamp,
 			event.cancelable,
 		);
-		if (result === "decided-drag") element.setPointerCapture(event.pointerId);
+		if (result === "decided-drag") card.setPointerCapture(event.pointerId);
 		if (phase === "dragging" && event.cancelable) event.preventDefault();
 	};
 
 	const onPointerUp = (event: PointerEvent): void => {
 		if (event.pointerType === "touch" || pointerId !== event.pointerId) return;
-		if (element.hasPointerCapture(event.pointerId)) {
-			element.releasePointerCapture(event.pointerId);
+		if (card.hasPointerCapture(event.pointerId)) {
+			card.releasePointerCapture(event.pointerId);
 		}
 		pointerId = null;
 		finishRelease(event.timeStamp);
@@ -225,11 +362,11 @@ export function draggableSheet(
 
 	const onPointerCancel = (event: PointerEvent): void => {
 		if (event.pointerType === "touch" || pointerId !== event.pointerId) return;
-		if (element.hasPointerCapture(event.pointerId)) {
-			element.releasePointerCapture(event.pointerId);
+		if (card.hasPointerCapture(event.pointerId)) {
+			card.releasePointerCapture(event.pointerId);
 		}
 		pointerId = null;
-		finishCancel();
+		finishCancel(event.timeStamp);
 	};
 
 	const touchById = (list: TouchList, id: number): Touch | null => {
@@ -273,7 +410,7 @@ export function draggableSheet(
 		const touch = touchById(event.changedTouches, touchId);
 		if (touch === null) return;
 		touchId = null;
-		finishCancel();
+		finishCancel(event.timeStamp);
 	};
 
 	const onDragStart = (event: DragEvent): void => {
@@ -292,28 +429,43 @@ export function draggableSheet(
 		event.stopPropagation();
 	};
 
-	element.addEventListener("pointerdown", onPointerDown);
-	element.addEventListener("pointermove", onPointerMove);
-	element.addEventListener("pointerup", onPointerUp);
-	element.addEventListener("pointercancel", onPointerCancel);
-	element.addEventListener("touchstart", onTouchStart, { passive: true });
-	element.addEventListener("touchmove", onTouchMove, { passive: false });
-	element.addEventListener("touchend", onTouchEnd);
-	element.addEventListener("touchcancel", onTouchCancel);
-	element.addEventListener("dragstart", onDragStart);
-	element.addEventListener("click", onClickCapture, { capture: true });
+	card.addEventListener("pointerdown", onPointerDown);
+	card.addEventListener("pointermove", onPointerMove);
+	card.addEventListener("pointerup", onPointerUp);
+	card.addEventListener("pointercancel", onPointerCancel);
+	card.addEventListener("touchstart", onTouchStart, { passive: true });
+	card.addEventListener("touchmove", onTouchMove, { passive: false });
+	card.addEventListener("touchend", onTouchEnd);
+	card.addEventListener("touchcancel", onTouchCancel);
+	card.addEventListener("dragstart", onDragStart);
+	card.addEventListener("click", onClickCapture, { capture: true });
 
-	return () => {
-		element.removeEventListener("pointerdown", onPointerDown);
-		element.removeEventListener("pointermove", onPointerMove);
-		element.removeEventListener("pointerup", onPointerUp);
-		element.removeEventListener("pointercancel", onPointerCancel);
-		element.removeEventListener("touchstart", onTouchStart);
-		element.removeEventListener("touchmove", onTouchMove);
-		element.removeEventListener("touchend", onTouchEnd);
-		element.removeEventListener("touchcancel", onTouchCancel);
-		element.removeEventListener("dragstart", onDragStart);
-		element.removeEventListener("click", onClickCapture, { capture: true });
+	const commit = (): void => {
+		cancelScheduledWrite();
+		// Outside drawer mode the card's motion is not this module's to touch.
+		if (handlers.isActive()) freeze();
+		pointerId = null;
+		touchId = null;
+		phase = "idle";
+		pressTarget = null;
+		card.classList.remove("is-dragging");
+		setWillChange(false);
+	};
+
+	const release = (): void => {
+		commit();
+		card.removeEventListener("pointerdown", onPointerDown);
+		card.removeEventListener("pointermove", onPointerMove);
+		card.removeEventListener("pointerup", onPointerUp);
+		card.removeEventListener("pointercancel", onPointerCancel);
+		card.removeEventListener("touchstart", onTouchStart);
+		card.removeEventListener("touchmove", onTouchMove);
+		card.removeEventListener("touchend", onTouchEnd);
+		card.removeEventListener("touchcancel", onTouchCancel);
+		card.removeEventListener("dragstart", onDragStart);
+		card.removeEventListener("click", onClickCapture, { capture: true });
 		if (clickGuardTimeout !== null) clearTimeout(clickGuardTimeout);
 	};
+
+	return { commit, release };
 }

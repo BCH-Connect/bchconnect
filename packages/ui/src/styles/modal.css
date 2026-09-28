@@ -36,6 +36,12 @@
 	}
 }
 
+/* Its own layer so its opacity can follow the drag independently of the card; inert, so presses still reach `.overlay` underneath. */
+.scrim {
+	display: none;
+	pointer-events: none;
+}
+
 .card {
 	position: relative;
 	width: 760px;
@@ -1039,6 +1045,12 @@
 	}
 }
 
+@media (prefers-reduced-transparency: reduce) {
+	.overlay {
+		backdrop-filter: none;
+	}
+}
+
 /* These loops use literal durations, which the token collapse in tokens.css can't stop. */
 @media (prefers-reduced-motion: reduce) {
 	.skeleton::after {
@@ -1061,6 +1073,36 @@
 .overlay.is-sheet {
 	padding: 0;
 	place-items: end stretch;
+	/* The scrim is its own layer below; an animated overlay opacity here would make it the backdrop root instead, and `.scrim`'s blur would stop seeing the page. */
+	background: none;
+	backdrop-filter: none;
+	animation: none;
+}
+
+.overlay.is-sheet.is-closing {
+	animation: none;
+}
+
+.overlay.is-sheet .scrim {
+	display: block;
+	position: absolute;
+	inset: 0;
+	background: var(--bchc-overlay);
+	backdrop-filter: blur(var(--bchc-overlay-blur));
+	animation: scrim-in calc(var(--bchc-duration-slow) * 0.9)
+		var(--bchc-ease-sheet) both;
+}
+
+@keyframes scrim-in {
+	from {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-transparency: reduce) {
+	.overlay.is-sheet .scrim {
+		backdrop-filter: none;
+	}
 }
 
 .overlay.is-sheet .card {
@@ -1070,7 +1112,8 @@
 		calc(var(--bchc-space-6) + env(safe-area-inset-bottom, 0px));
 	border-radius: var(--bchc-radius-modal) var(--bchc-radius-modal) 0 0;
 	touch-action: pan-x;
-	animation: sheet var(--bchc-duration-slow) var(--bchc-ease-settle) both;
+	animation: sheet calc(var(--bchc-duration-slow) * 0.9) var(--bchc-ease-sheet)
+		both;
 }
 
 @keyframes sheet {
@@ -1079,14 +1122,50 @@
 	}
 }
 
-.overlay.is-sheet.is-closing .card {
-	animation: sheet var(--bchc-duration-base) var(--bchc-ease-out) reverse both;
+/* Continues the card's surface below its own bottom edge, so an upward pull never shows the page under the sheet. Out of flow: no layout effect, no presses. */
+.overlay.is-sheet .card::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 100%;
+	height: 64px;
+	background: var(--bchc-surface);
+	pointer-events: none;
 }
 
-/* The drag already carried the sheet off (sheet.ts); nothing left to animate. */
+/* Own keyframes (only a `to` block): the sheet may be mid-drag when this starts, so the exit begins from wherever it already is, not always from the resting position. */
+.overlay.is-sheet.is-closing .card {
+	animation: sheet-out calc(var(--bchc-duration-base) * 1.1)
+		var(--bchc-ease-sheet) both;
+}
+
+@keyframes sheet-out {
+	to {
+		transform: translateY(100%);
+	}
+}
+
+.overlay.is-sheet.is-closing .scrim {
+	animation: scrim-out calc(var(--bchc-duration-base) * 1.1)
+		var(--bchc-ease-sheet) both;
+}
+
+@keyframes scrim-out {
+	to {
+		opacity: 0;
+	}
+}
+
+/* The drag already carried the sheet off (sheet.ts); nothing left to animate, and the end state must match what it already set inline. */
 .overlay.is-sheet.is-closing.is-dragged .card {
 	animation: none;
 	transform: translateY(100%);
+}
+
+.overlay.is-sheet.is-closing.is-dragged .scrim {
+	animation: none;
+	opacity: 0;
 }
 
 .overlay.is-sheet .grabber {
@@ -1097,6 +1176,14 @@
 	border-radius: var(--bchc-radius-pill);
 	background: var(--bchc-border);
 	flex: none;
+	transition:
+		transform var(--bchc-duration-fast) var(--bchc-ease-out),
+		background var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+.overlay.is-sheet .card.is-dragging .grabber {
+	transform: scaleX(1.22);
+	background: var(--bchc-border-hover);
 }
 
 .overlay.is-sheet .tile {

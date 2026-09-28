@@ -17,7 +17,7 @@ import {
 	snapshotRows,
 	tempoOf,
 } from "./motion.ts";
-import { draggableSheet } from "./sheet.ts";
+import { type DraggableSheet, draggableSheet } from "./sheet.ts";
 import {
 	FAILURE_COPY,
 	type ModalScreen,
@@ -53,7 +53,7 @@ const PLACEHOLDER_LINK =
 	"bchconnect://placeholder/kqzvxwtnmrhpbdgjsfcylakqzvxwtnmrhpbdgjsfcylakqzvxwtnmrhpbdgjsfcylakqzvxwtnmrhpbdgjsfcyla";
 const COPIED_FOR = 1800;
 /** `@keyframes` names. See `#close`. */
-const EXIT_ANIMATIONS = new Set(["lift", "sink", "sheet"]);
+const EXIT_ANIMATIONS = new Set(["lift", "sink", "sheet-out", "scrim-out"]);
 const LOADING_DOTS = '<span class="dots"><i></i><i></i><i></i></span>';
 
 function copyFace(copied: boolean): string {
@@ -132,7 +132,7 @@ export class BchcModal extends ElementBase {
 	#closing = false;
 	#entered = false;
 	#overlay: HTMLDivElement | null = null;
-	#releaseDrag: (() => void) | null = null;
+	#drag: DraggableSheet | null = null;
 	// Re-templating moves the code element between parents; skipped unless the body shape changed.
 	#bodyKey: string | null = null;
 	readonly #media: MediaQueryList = matchMedia(SHEET_QUERY);
@@ -180,8 +180,8 @@ export class BchcModal extends ElementBase {
 		document.removeEventListener("visibilitychange", this.#onLeft);
 		document.removeEventListener("keydown", this.#onKey);
 		removeEventListener("blur", this.#onLeft);
-		this.#releaseDrag?.();
-		this.#releaseDrag = null;
+		this.#drag?.release();
+		this.#drag = null;
 		if (this.#copyResetTimer !== null) {
 			clearTimeout(this.#copyResetTimer);
 			this.#copyResetTimer = null;
@@ -208,15 +208,23 @@ export class BchcModal extends ElementBase {
 		await this.#close(false);
 	}
 
-	// `dragged`: the sheet already left, so only the scrim animates out.
-	async #close(dragged: boolean): Promise<void> {
+	// `dragged`: the sheet already left under its own release animation
+	// (`settled` resolves once it ends); no CSS exit animation runs for it.
+	async #close(dragged: boolean, settled?: Promise<void>): Promise<void> {
 		const overlay = this.#overlay;
 		if (overlay === null || this.#closing) return;
 		this.#closing = true;
+		// A programmatic close can land mid-drag or mid-settle: freeze it
+		// inline first, so the CSS exit starts from exactly where it is.
+		if (!dragged) this.#drag?.commit();
 		overlay.classList.add("is-closing");
-		if (dragged) overlay.classList.add("is-dragged");
-		// Waits only for the exit keyframes, not e.g. the code's write-in animation.
-		await namedAnimationsFinished(overlay, EXIT_ANIMATIONS);
+		if (dragged) {
+			overlay.classList.add("is-dragged");
+			await settled;
+		} else {
+			// Waits only for the exit keyframes, not e.g. the code's write-in animation.
+			await namedAnimationsFinished(overlay, EXIT_ANIMATIONS);
+		}
 		this.#emit("bchc-close");
 	}
 
@@ -258,6 +266,7 @@ export class BchcModal extends ElementBase {
 		const overlay = document.createElement("div");
 		overlay.className = "overlay";
 		overlay.innerHTML = `
+			<div class="scrim" aria-hidden="true"></div>
 			<div class="card" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
 				<div class="grabber" aria-hidden="true"></div>
 				<div class="head">
@@ -344,10 +353,11 @@ export class BchcModal extends ElementBase {
 		});
 
 		const card = overlay.querySelector(".card");
-		if (card instanceof HTMLElement) {
-			this.#releaseDrag = draggableSheet(card, {
+		const scrim = overlay.querySelector(".scrim");
+		if (card instanceof HTMLElement && scrim instanceof HTMLElement) {
+			this.#drag = draggableSheet(card, scrim, {
 				isActive: () => this.#media.matches,
-				onDismiss: () => void this.#close(true),
+				onDismiss: (settled) => void this.#close(true, settled),
 			});
 		}
 
@@ -427,18 +437,21 @@ export class BchcModal extends ElementBase {
 		if (!this.#entered && this.isConnected) {
 			this.#entered = true;
 			card.focus({ preventScroll: true });
-			enter(
-				// .tile excluded: its own write-in animation is its entrance.
-				overlay.querySelectorAll(
-					".head, .left > *, .single > :not(.tile), .right > .footer",
-				),
-				tempoOf(card),
-			);
-			// Entering content starts below its place, showing as scroll overflow until clipped.
-			overlay.classList.add("is-entering");
-			void animationsFinished(overlay).then(() =>
-				overlay.classList.remove("is-entering"),
-			);
+			// The drawer's contents ride with the sheet instead of staggering in.
+			if (!sheet) {
+				enter(
+					// .tile excluded: its own write-in animation is its entrance.
+					overlay.querySelectorAll(
+						".head, .left > *, .single > :not(.tile), .right > .footer",
+					),
+					tempoOf(card),
+				);
+				// Entering content starts below its place, showing as scroll overflow until clipped.
+				overlay.classList.add("is-entering");
+				void animationsFinished(overlay).then(() =>
+					overlay.classList.remove("is-entering"),
+				);
+			}
 		}
 	}
 
