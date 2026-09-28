@@ -1,0 +1,11 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"noEmit": true,
+		"allowImportingTsExtensions": true,
+		// qr-code-styling's own types reach for unused canvas/jsdom types we don't depend on.
+		"skipLibCheck": true
+	},
+	"include": ["src"]
+}
