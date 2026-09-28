@@ -66,6 +66,29 @@ const COMPARISON = [
 	},
 ] as const;
 
+const ACCESSIBILITY = [
+	{
+		term: "Screen readers",
+		detail:
+			"The modal is a labelled dialog, and every change of state is announced as it happens.",
+	},
+	{
+		term: "Keyboard",
+		detail:
+			"Arrow keys move through the session types, Escape closes, and focus is always visible.",
+	},
+	{
+		term: "Contrast",
+		detail:
+			"Every accent and neutral you can pick is checked against WCAG contrast floors, in light and dark.",
+	},
+	{
+		term: "Motion and display",
+		detail:
+			"Reduced motion is respected, and the modal holds up in Windows high contrast mode.",
+	},
+] as const;
+
 function Home() {
 	return (
 		<HomeLayout {...baseOptions()}>
@@ -104,14 +127,16 @@ function Home() {
 				<div className="landing-protocols">
 					{PROTOCOLS.map((protocol) => (
 						<div className="landing-protocol" key={protocol.id}>
-							<img
-								className="landing-protocol-mark"
-								src={protocol.mark}
-								alt=""
-								width={40}
-								height={40}
-							/>
-							<h3>{protocol.name}</h3>
+							<h3>
+								<img
+									className="landing-protocol-mark"
+									src={protocol.mark}
+									alt=""
+									width={32}
+									height={32}
+								/>
+								{protocol.name}
+							</h3>
 							<p>{protocol.copy}</p>
 						</div>
 					))}
@@ -150,6 +175,28 @@ function Home() {
 				>
 					Read the concepts guide
 				</Link>
+			</section>
+
+			<section
+				className="landing-section landing-a11y"
+				aria-labelledby="a11y-heading"
+			>
+				<div>
+					<h2 id="a11y-heading">Accessible by default</h2>
+					<p className="landing-a11y-lede">
+						People link wallets with a keyboard, a screen reader, or a phone in
+						bright sun. The modal is built for all of them, so you don't start
+						from zero.
+					</p>
+				</div>
+				<dl className="landing-facts">
+					{ACCESSIBILITY.map((fact) => (
+						<div key={fact.term}>
+							<dt>{fact.term}</dt>
+							<dd>{fact.detail}</dd>
+						</div>
+					))}
+				</dl>
 			</section>
 
 			<section className="landing-section" aria-labelledby="honest-heading">

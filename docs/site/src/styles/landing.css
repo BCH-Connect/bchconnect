@@ -145,40 +145,42 @@
 
 .landing-protocols {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 28px;
+	grid-template-columns: minmax(0, 1fr);
 }
 
-@media (max-width: 719px) {
+@media (min-width: 900px) {
 	.landing-protocols {
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		column-gap: 40px;
 	}
 }
 
+/* A lineup of names, not cards: the mark sits inline with the name and a rule carries the row. */
 .landing-protocol {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-
-.landing-protocol-mark {
-	width: 40px;
-	height: 40px;
-	border-radius: 14px;
-	object-fit: contain;
-	background-color: var(--color-fd-card);
-	border: 1px solid var(--color-fd-border);
-	padding: 6px;
+	padding-block: 24px;
+	border-top: 1px solid var(--color-fd-border);
 }
 
 .landing-protocol h3 {
-	margin: 0;
-	font-size: 1.05rem;
-	font-weight: 600;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 0 0 10px;
+	font-size: clamp(1.35rem, 0.8vw + 1.15rem, 1.65rem);
+	font-weight: 700;
+	letter-spacing: -0.025em;
+}
+
+.landing-protocol-mark {
+	width: 32px;
+	height: 32px;
+	border-radius: 10px;
+	object-fit: contain;
 }
 
 .landing-protocol p {
 	margin: 0;
+	max-width: 40ch;
 	color: var(--color-fd-muted-foreground);
 	line-height: 1.55;
 }
@@ -223,6 +225,65 @@
 	color: var(--color-fd-foreground);
 	font-weight: 600;
 	margin-bottom: 8px;
+}
+
+.landing-a11y {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 8px;
+}
+
+@media (min-width: 900px) {
+	.landing-a11y {
+		grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+		gap: 72px;
+	}
+}
+
+.landing-a11y h2 {
+	margin-bottom: 20px;
+	max-width: 12ch;
+}
+
+.landing-a11y-lede {
+	margin: 0;
+	max-width: 44ch;
+	line-height: 1.65;
+	color: var(--color-fd-muted-foreground);
+}
+
+.landing-facts {
+	margin: 0;
+}
+
+.landing-facts > div {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 4px;
+	padding-block: 20px;
+	border-top: 1px solid var(--color-fd-border);
+}
+
+.landing-facts > div:last-child {
+	border-bottom: 1px solid var(--color-fd-border);
+}
+
+@media (min-width: 560px) {
+	.landing-facts > div {
+		grid-template-columns: 11rem minmax(0, 1fr);
+		gap: 24px;
+	}
+}
+
+.landing-facts dt {
+	font-weight: 600;
+	color: var(--color-fd-foreground);
+}
+
+.landing-facts dd {
+	margin: 0;
+	line-height: 1.6;
+	color: var(--color-fd-muted-foreground);
 }
 
 .landing-table {
