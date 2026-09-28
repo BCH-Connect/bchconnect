@@ -1,8 +1,47 @@
 ---
 title: Design principles
 description: "The rules the library holds itself to, and what they buy you."
+icon: Compass
 ---
 
-<Callout type="warn" title="Not written yet">
-  This page is being written. See the [status page](/docs).
-</Callout>
+BCH Connect follows a short list of rules. Each one shapes behavior you'll notice while building, so knowing them saves you guesswork.
+
+## Honest about differences
+
+The shared surface covers what every protocol can do, plus extras that you check for before using. It never pretends a protocol can do something it can't. If a feature isn't available on a session, you find out by checking, not by a failure at runtime. [Protocols compared](/docs/concepts/protocols) shows the differences in the open.
+
+## Protocols are peers
+
+No protocol is privileged in the core. Which protocol the UI shows first, and in what order, is a setting. The default puts WizardConnect first, and you can change it.
+
+## A core built to last
+
+The core knows nothing about Bitcoin Cash specifics, so protocols that don't exist yet can plug into it without changes. It is meant to stay stable once it reaches 1.0.
+
+## Nothing happens before intent
+
+Importing BCH Connect and creating a client opens no connections and loads no protocol code. A connector loads its protocol's SDK only when the user starts connecting, or when a saved session is restored. A page that supports three protocols, visited by someone who hasn't connected yet, touches no relay and downloads no protocol SDK. When they connect, they download only the one they use.
+
+## Small core, only what you install
+
+The core has no runtime dependencies. Each protocol's SDK belongs to its own connector package, so you only install what you support.
+
+## Types you can trust
+
+Everything that arrives from a wallet or a relay is checked before it reaches typed code. If a wallet sends a malformed reply, you get a clear error instead of a value that only looks right.
+
+## Everything can be cancelled
+
+Every operation that waits can be cancelled. Cancelling settles on your side at once; the connector then tells the wallet in the best way its protocol allows.
+
+## Safe for server rendering
+
+Nothing touches browser-only APIs when the library is imported or the client is created. Restoring sessions can wait until the page is hydrated, and a small serializable summary lets a server-rendered page show the right state from the first paint.
+
+## Quirks stay inside connectors
+
+Version differences, malformed replies, reconnect edge cases and encoding dialects are handled inside each connector. If a protocol quirk reaches your code, that is a bug in the connector.
+
+## Only what someone needs
+
+Nothing ships without a current use. The surface stays small, and it grows when real needs appear.

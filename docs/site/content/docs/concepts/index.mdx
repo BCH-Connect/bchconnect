@@ -1,8 +1,43 @@
 ---
 title: How BCH Connect works
 description: "The mental model behind BCH Connect, in five short pages."
+icon: Lightbulb
 ---
 
-<Callout type="warn" title="Not written yet">
-  This page is being written. See the [status page](/docs).
-</Callout>
+BCH Connect is a wallet-connection library for Bitcoin Cash dapps. It gives you one integration over every protocol a dapp and a wallet can use to talk to each other: today WizardConnect, WalletConnect and CashConnect. You get a default connect UI you can ship as it is, and a path to build your own.
+
+BCH Connect is an integrator, not a protocol. It defines no wire format of its own and asks nothing new of wallets. Each protocol stays exactly as its authors wrote it; BCH Connect adapts to them so your dapp doesn't have to.
+
+The payoff is simple arithmetic. Without a shared layer, every dapp integrates every protocol on its own. With one, each protocol is integrated once, and every dapp that uses BCH Connect benefits.
+
+It also has clear edges. BCH Connect ends where the conversation with the wallet ends: it doesn't query the chain, build transactions or talk to Electrum servers. It works alongside libraries such as libauth, CashScript and mainnet-js rather than replacing them.
+
+These pages explain the ideas you'll meet in every other part of the docs. They are short, and reading them in order takes a few minutes.
+
+<Cards>
+	<Card
+		title="Vocabulary"
+		href="/docs/concepts/vocabulary"
+		description="The words these docs use, and what each one means precisely."
+	/>
+	<Card
+		title="Architecture"
+		href="/docs/concepts/architecture"
+		description="A protocol-agnostic core, protocol definitions, and shared capabilities."
+	/>
+	<Card
+		title="Sessions and lifecycle"
+		href="/docs/concepts/sessions"
+		description="How a session is established, what its status means, and how it ends."
+	/>
+	<Card
+		title="Protocols compared"
+		href="/docs/concepts/protocols"
+		description="WizardConnect, WalletConnect and CashConnect side by side."
+	/>
+	<Card
+		title="Design principles"
+		href="/docs/concepts/principles"
+		description="The rules the library holds itself to, and what they buy you."
+	/>
+</Cards>

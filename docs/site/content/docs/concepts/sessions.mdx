@@ -1,8 +1,46 @@
 ---
 title: Sessions and lifecycle
 description: "How a session is established, what its status means, and how it ends."
+icon: Activity
 ---
 
-<Callout type="warn" title="Not written yet">
-  This page is being written. See the [status page](/docs).
-</Callout>
+A session is one established link between your dapp and one wallet over one protocol. This page follows a session from the first attempt to its end.
+
+## Establishing a session
+
+Every attempt to connect moves through the same phases, whatever the protocol:
+
+1. **Starting.** The connector prepares the pairing. Relay-based protocols may need a moment here; WizardConnect has its link ready straight away, so it skips this phase.
+2. **Waiting for approval.** The pairing is ready: a QR code to scan or a link that opens the wallet. The user approves in their wallet.
+3. **Connected.** The session is live.
+
+An attempt can also end without a session: the wallet declines, the attempt times out, you cancel it, or the transport fails. The default UI mirrors these phases exactly and adds nothing in between, so it never claims the wallet has seen a request when nothing reported that.
+
+Waiting for a person has no deadline by default. A user may take a while to find their phone, and a deadline that fires before they approve helps no one. You can set one when your dapp needs it, and cancelling is always available.
+
+## Status has two parts
+
+A session's status answers two separate questions:
+
+- **Transport:** is the channel to the wallet up right now?
+- **Peer:** do we believe the wallet is on the other end?
+
+They are separate because they fail separately. A relay can be connected while the wallet app is closed, and a wallet can still be paired while the relay briefly reconnects. Each connector follows the same rules for these values, so a status like "waiting for your wallet, open it" means the same thing for every protocol. When a protocol offers no liveness signal, the peer is reported as unknown rather than guessed.
+
+## Requests
+
+Once connected, your dapp sends requests over the session. Each request settles exactly once: with a result, or with a clear reason such as declined, timed out, cancelled or no longer connected. Results are checked before your code sees them.
+
+Requests that need the user to confirm in the wallet are visible while they wait, so your UI can show "confirm in your wallet" with a working Cancel. Cancelling settles the request immediately on your side, then tells the wallet as well as its protocol allows.
+
+## Several sessions
+
+The client can hold several sessions at once, even over different protocols. By default it keeps one: connecting again replaces the current session. You can choose to add a session instead. Ending one session never affects the others.
+
+## How a session ends
+
+A session ends because you disconnected, the wallet disconnected, it expired, or an error ended it. The reason is always reported.
+
+## Across page loads
+
+Sessions survive reloads. Protocol secrets stay in the connector's own storage on the user's device. Separately, the client keeps a small summary with no secrets in it, enough for a server-rendered page to show "connected" before any protocol code loads. When the page starts, each connector restores its sessions. If the summary said connected but the session can't be restored, it ends as expired.
