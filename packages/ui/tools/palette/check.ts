@@ -1,26 +1,8 @@
-/**
- * The contrast gate.
- *
- * Run with `node packages/ui/tools/palette/check.ts`. Exits non-zero on any
- * failure, so it can block a merge.
- *
- * ## Why WCAG 2.x and not APCA
- *
- * WCAG 3.0 is a Working Draft whose own text says its contrast algorithm "is
- * yet to be determined", and APCA is not normatively referenced by any shipped
- * standard. What is actually binding — the EU's EN 301 549, the US ADA Title II
- * rule — is WCAG 2.x, and none of Primer, Carbon, Atlassian, Spectrum or
- * Material 3 gate on APCA. So the ratios are the gate. APCA Lc is computed and
- * printed beside them because it is the better perceptual signal and costs one
- * extra call, but it fails nothing.
- *
- * ## Why every accent is checked against every neutral
- *
- * Each accent ships with a paired neutral, but the pairing is a default a
- * developer may override, so the matrix is the full cross product rather than
- * the eight pairs we expect. A combination nobody on the team would choose is
- * still a combination someone will ship.
- */
+// The contrast gate; exits non-zero on failure, so it can block a merge.
+// WCAG 2.x ratios are the pass/fail floor (what EN 301 549 / ADA Title II
+// actually bind to); APCA Lc is printed alongside but fails nothing. Every
+// accent is checked against every neutral, not only its paired default,
+// since the pairing is overridable.
 
 import type Color from "colorjs.io";
 import {
@@ -79,18 +61,9 @@ function check(
 	};
 }
 
-/**
- * A scale whose lightness does not move in one direction has a step that reads
- * as out of order — a "hovered border" lighter than the border it hovers from,
- * or low-contrast text darker than the solid above it. The ladders are authored
- * to be monotonic; this is what stops a retuned ratio from silently breaking it.
- *
- * `ink` is checked only to step 8. Its solid is step 12 by definition, so steps
- * 9 and 10 sit at the dark end and step 11 comes back lighter. That is not a
- * defect, it is what an achromatic accent is: the solid and the text are the
- * same ink. Exempting it is derived from the recipe rather than hardcoded, so a
- * second achromatic accent would be covered without touching this.
- */
+// Catches a retuned ratio silently breaking the ladders' monotonic lightness.
+// `ink` is checked only to step 8: its solid is step 12 by definition, so 9-11
+// aren't monotonic by design. Derived from the recipe, not hardcoded to "ink".
 function monotonicFailures(
 	name: string,
 	scale: ResolvedScale,
@@ -141,7 +114,6 @@ function checksFor(mode: Mode): { checks: Check[]; ladder: string[] } {
 			...monotonicFailures(accentRecipe.name, accent, mode, accentRecipe),
 		);
 
-		// The solid's own foreground is a property of the accent alone.
 		checks.push(
 			check(
 				`${accentRecipe.name} ${mode}`,

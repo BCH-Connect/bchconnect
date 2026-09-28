@@ -6,10 +6,14 @@
  * ships: the harness is throwaway, the component it mounts is not.
  */
 
-import "../src/modal.ts";
-import "../src/toast.ts";
 import {
-	BCHC_ACCENT_NEUTRAL,
+	BCHC_DIRECTORY,
+	BCHC_PROTOCOLS,
+	BCHC_WALLETS,
+} from "../src/defaults.ts";
+import { register } from "../src/register.ts";
+import {
+	BCHC_ACCENT_DEFAULT_NEUTRAL,
 	BCHC_ACCENTS,
 	BCHC_BLURS,
 	BCHC_FONTS,
@@ -17,106 +21,52 @@ import {
 	BCHC_RADII,
 } from "../src/theme.generated.ts";
 
+// UMD global, handed in rather than imported: qr-code-styling ships no ESM
+// entry, and the component is not allowed to reach for a global itself. The
+// script tag that sets it runs before this module, so it is already there.
+register(globalThis.QRCodeStyling);
+
 /**
- * Fixture registry.
- *
- * The support matrix is real — from the connector baselines, not invented —
- * but it lives here rather than in `src` because the wallet-to-protocol table
- * is SPEC section 8's to define and it has not been drafted. Only wallets whose
- * marks we actually hold are listed.
+ * Where to actually get each wallet, official sites only for now. Kept apart
+ * from `BCHC_DIRECTORY`, which carries the same sites under labelled links
+ * rather than one href per wallet id — the shape this lab's "connected" and
+ * wallet-list wiring wants.
  */
-const WALLETS = {
-	cashonize: {
-		id: "cashonize",
-		name: "Cashonize",
-		logo: "/packages/ui/assets/cashonize.png",
-		href: "https://cashonize.com",
-	},
-	selene: {
-		id: "selene",
-		name: "Selene",
-		logo: "/packages/ui/assets/selene.svg",
-		href: "https://selene.cash",
-	},
-	paytaca: {
-		id: "paytaca",
-		name: "Paytaca",
-		logo: "/packages/ui/assets/paytaca.png",
-		href: "https://paytaca.com",
-	},
-	// A design placeholder, per PRODUCT.md — it is here to make the list long
-	// enough to judge, not because the support matrix claims it. It links like
-	// the others so the list is judged as a list of links; a wallet with
-	// `href: null` renders muted and inert, which is a state, not a bug.
-	optn: {
-		id: "optn",
-		name: "OPTN",
-		logo: "/packages/ui/assets/optn.png",
-		href: "https://optn.cash",
-	},
+const WALLET_HREF = {
+	cashonize: "https://cashonize.com",
+	selene: "https://selene.cash",
+	paytaca: "https://paytaca.com",
+	optn: "https://optn.cash",
 };
 
 /**
- * Where to actually get each wallet.
+ * Sample connection codes, one per protocol, for the "scan" state.
  *
- * Official sites only for now — app-store links have not been supplied, and
- * inventing store URLs for someone else's app is the kind of detail that is
- * wrong in a way nobody notices until a user taps it.
+ * Real WalletConnect and CashConnect sessions, sampled once; WizardConnect's
+ * is fabricated in the same shape, since its code is live the moment the
+ * modal opens rather than read back from a session.
  */
-const DIRECTORY = [
-	{
-		id: "cashonize",
-		name: "Cashonize",
-		logo: "/packages/ui/assets/cashonize.png",
-		links: [{ label: "Open web wallet", href: "https://cashonize.com" }],
-	},
-	{
-		id: "selene",
-		name: "Selene",
-		logo: "/packages/ui/assets/selene.svg",
-		links: [{ label: "Get Selene", href: "https://selene.cash" }],
-	},
-	{
-		id: "paytaca",
-		name: "Paytaca",
-		logo: "/packages/ui/assets/paytaca.png",
-		links: [{ label: "Get Paytaca", href: "https://paytaca.com" }],
-	},
-	{
-		id: "optn",
-		name: "OPTN",
-		logo: "/packages/ui/assets/optn.png",
-		links: [{ label: "Get OPTN", href: "https://optn.cash" }],
-	},
-];
+const PROTOCOL_LINKS = {
+	wizardconnect:
+		"WIZ://%3FP%3DLDT6EGH3WX8C47LZ4XFZ0EUFHUWVPMZPVHJEX4PP3ZMHD63SQFNQ%26S%3DQK7G6VT7GMDTV",
+	walletconnect:
+		"wc:f351dbe7d12d683faad485fd648e4c1e8db60bf14258129bbe5aab111c2ba4a0@2?expiryTimestamp=1790141761&relay-protocol=irn&symKey=b20098400b519b8bcf583df011d74fad8b0020817d518a2e035b406acc00bc96",
+	// Sampled from a real session: a pairing key and the nostr relay.
+	cashconnect:
+		"bch-cc-v1:f40b68af88ef5de4f1a0a52a405d50e079bd7a6a36db7723b879650e5fc01c7d?relay=wss%3A%2F%2Fnostr.infra.cash",
+};
 
-const PROTOCOLS = [
-	{
-		id: "wizardconnect",
-		name: "WizardConnect",
-		// A hat with transparent edges: a glyph, so it gets the accent well.
-		mark: { src: "/packages/ui/assets/mark-wizardconnect.png", shape: "glyph" },
-		link: "WIZ://%3FP%3DLDT6EGH3WX8C47LZ4XFZ0EUFHUWVPMZPVHJEX4PP3ZMHD63SQFNQ%26S%3DQK7G6VT7GMDTV",
-		wallets: [WALLETS.cashonize, WALLETS.paytaca, WALLETS.optn],
-	},
-	{
-		id: "walletconnect",
-		name: "WalletConnect",
-		// A solid rounded square already: a tile, so it fills its hole as is.
-		mark: { src: "/packages/ui/assets/walletconnect-icon.svg", shape: "tile" },
-		link: "wc:f351dbe7d12d683faad485fd648e4c1e8db60bf14258129bbe5aab111c2ba4a0@2?expiryTimestamp=1790141761&relay-protocol=irn&symKey=b20098400b519b8bcf583df011d74fad8b0020817d518a2e035b406acc00bc96",
-		wallets: [WALLETS.cashonize, WALLETS.selene, WALLETS.paytaca, WALLETS.optn],
-	},
-	{
-		id: "cashconnect",
-		name: "CashConnect",
-		// The symbol alone, cut from the wordmark. A disc: a glyph.
-		mark: { src: "/packages/ui/assets/mark-cashconnect.png", shape: "glyph" },
-		// Sampled from a real session: a pairing key and the nostr relay.
-		link: "bch-cc-v1:f40b68af88ef5de4f1a0a52a405d50e079bd7a6a36db7723b879650e5fc01c7d?relay=wss%3A%2F%2Fnostr.infra.cash",
-		wallets: [WALLETS.cashonize],
-	},
-];
+/** `BCHC_WALLETS`, filtered to `protocolId` and shaped as a modal wants its `wallets` view field. */
+function walletsFor(protocolId) {
+	return BCHC_WALLETS.filter((wallet) => wallet.protocols.includes(protocolId)).map(
+		(wallet) => ({
+			id: wallet.id,
+			name: wallet.name,
+			logo: wallet.logo,
+			href: WALLET_HREF[wallet.id] ?? null,
+		}),
+	);
+}
 
 const STATES = [
 	["scan", "Scan"],
@@ -171,25 +121,24 @@ function fill(select, values, selected) {
 function phaseFor() {
 	if (FAILURES.has(state.phase)) return { kind: "failed", reason: state.phase };
 	if (state.phase === "connected") {
+		const wallet = BCHC_WALLETS.find((entry) => entry.id === "cashonize");
 		return {
 			kind: "connected",
-			walletName: WALLETS.cashonize.name,
-			walletLogo: WALLETS.cashonize.logo,
+			walletName: wallet.name,
+			walletLogo: wallet.logo,
 		};
 	}
 	if (state.phase === "initiating") return { kind: "initiating" };
-	const protocol = PROTOCOLS.find((entry) => entry.id === state.protocol);
-	return { kind: "awaiting-approval", link: protocol.link };
+	return { kind: "awaiting-approval", link: PROTOCOL_LINKS[state.protocol] };
 }
 
 function viewFor() {
-	const protocol = PROTOCOLS.find((entry) => entry.id === state.protocol);
 	return {
 		screen: state.screen,
 		protocol: state.protocol,
-		protocols: PROTOCOLS.map(({ id, name, mark }) => ({ id, name, mark })),
-		wallets: protocol.wallets,
-		directory: DIRECTORY,
+		protocols: BCHC_PROTOCOLS,
+		wallets: walletsFor(state.protocol),
+		directory: BCHC_DIRECTORY,
 		network: state.network,
 		phase: phaseFor(),
 	};
@@ -240,7 +189,7 @@ function applyTheme(element) {
 	// resolve this — nothing can select on a custom property's value — so the
 	// caller setting the attributes does it, which is what the shipped library
 	// will do too.
-	element.dataset.bchcNeutral = neutral || BCHC_ACCENT_NEUTRAL[accent];
+	element.dataset.bchcNeutral = neutral || BCHC_ACCENT_DEFAULT_NEUTRAL[accent];
 	element.dataset.bchcRadius = radius;
 	element.dataset.bchcFont = font;
 	element.dataset.bchcBlur = blur;
@@ -251,19 +200,16 @@ function open() {
 	if (modal !== null) return;
 	modal = document.createElement("bchc-modal");
 	applyTheme(modal);
-	// UMD global, handed in rather than imported: qr-code-styling ships no ESM
-	// entry, and the component is not allowed to reach for a global itself.
-	modal.codeRenderer = globalThis.QRCodeStyling;
 	modal.view = viewFor();
 
 	// Fired once the exit has played; removing on it cuts nothing short.
-	modal.addEventListener("bchc:close", close);
-	modal.addEventListener("bchc:screen", (event) => {
+	modal.addEventListener("bchc-close", close);
+	modal.addEventListener("bchc-screen", (event) => {
 		state.screen = event.detail.screen;
 		refresh();
 	});
-	modal.addEventListener("bchc:retry", () => setPhase("scan"));
-	modal.addEventListener("bchc:protocol", (event) => {
+	modal.addEventListener("bchc-retry", () => setPhase("scan"));
+	modal.addEventListener("bchc-protocol", (event) => {
 		state.protocol = event.detail.protocol;
 		// A new protocol is a new attempt. WalletConnect's link comes from a
 		// relay, so it cannot be shown at once; the others open straight onto a
@@ -280,13 +226,14 @@ function open() {
  * quieter says who answered. Here that is the shipped toast.
  */
 function celebrate() {
+	const wallet = BCHC_WALLETS.find((entry) => entry.id === "cashonize");
 	const toast = document.createElement("bchc-toast");
 	applyTheme(toast);
 	toast.view = {
-		walletName: WALLETS.cashonize.name,
-		walletLogo: WALLETS.cashonize.logo,
+		walletName: wallet.name,
+		walletLogo: wallet.logo,
 	};
-	toast.addEventListener("bchc:dismiss", () => toast.remove());
+	toast.addEventListener("bchc-dismiss", () => toast.remove());
 	document.body.append(toast);
 }
 
@@ -340,7 +287,7 @@ fill($("font"), BCHC_FONTS, state.theme.font);
 fill($("face"), Object.keys(FACES), state.theme.face);
 fill($("blur"), BCHC_BLURS, state.theme.blur);
 fill($("mode"), ["auto", "light", "dark"], state.theme.mode);
-fill($("network"), ["mainnet", "chipnet", "testnet4", "regtest"], state.network);
+fill($("network"), ["mainnet", "chipnet", "regtest"], state.network);
 
 for (const key of [
 	"accent",
@@ -482,4 +429,4 @@ setScheme(
 );
 
 // Escape is the modal's own business: it plays its exit and then emits
-// `bchc:close`, which is the same path the cross and the scrim take.
+// `bchc-close`, which is the same path the cross and the scrim take.

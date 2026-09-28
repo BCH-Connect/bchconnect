@@ -1,10 +1,7 @@
-/*
- * The success toast. Same tokens, same grammar as the modal: it rises into
- * place on the spring and sinks away faster than it came.
- */
-
 :host {
 	display: contents;
+	/* Inherited by every control; each one draws its own :active state instead. */
+	-webkit-tap-highlight-color: transparent;
 }
 
 *,
@@ -36,13 +33,11 @@
 		0 1px 2px var(--bchc-shadow-tight),
 		0 16px 48px var(--bchc-shadow-soft),
 		inset 0 0 0 1px var(--bchc-border-subtle);
-	cursor: pointer;
 	user-select: none;
-	-webkit-user-select: none;
 	/* Centred with a transform, so the entrance composes on top of it. */
 	transform: translateX(-50%);
 	animation: toast-rise calc(var(--bchc-duration-base) * 1.3)
-		var(--bchc-ease-arrive) both;
+		var(--bchc-ease-enter) both;
 }
 
 @keyframes toast-rise {
@@ -55,7 +50,7 @@
 	}
 }
 
-.toast.is-leaving {
+.toast.is-exiting {
 	pointer-events: none;
 	animation: toast-sink var(--bchc-duration-base) var(--bchc-ease-out) both;
 }
@@ -67,18 +62,31 @@
 	}
 }
 
-.toast:focus-visible {
+.toast-live {
+	display: flex;
+	align-items: center;
+	gap: var(--bchc-space-3);
+}
+
+/* Covers the whole toast, so a click anywhere dismisses it. */
+.toast:active {
+	opacity: 0.85;
+}
+
+.toast-dismiss {
+	position: absolute;
+	inset: 0;
+	border: 0;
+	border-radius: inherit;
+	background: none;
+	cursor: pointer;
+}
+
+.toast-dismiss:focus-visible {
 	outline: 2px solid var(--bchc-focus);
 	outline-offset: 2px;
 }
 
-/* The mark ----------------------------------------------------------------- */
-
-/*
- * The wallet that answered, with a check that draws itself in the accent a
- * beat after the logo has settled. The check overlaps the logo's corner and
- * carries a ring of surface so it reads as sitting on it, not beside it.
- */
 .done-mark {
 	position: relative;
 	flex: none;
@@ -112,7 +120,6 @@
 	animation-delay: var(--bchc-duration-fast);
 }
 
-/* No logo to show: the check is the mark. */
 .done-mark.is-bare .check {
 	position: static;
 	width: 44px;
@@ -130,8 +137,7 @@
 	height: 22px;
 }
 
-/* Lucide's check is 22.6 units long; the dash is that plus a hair so the
-   whole stroke starts hidden and draws through in one pass. */
+/* Lucide's check is 22.6 units; 23 hides the whole stroke before it draws in. */
 .done-mark .check path {
 	stroke-dasharray: 23;
 	stroke-dashoffset: 23;

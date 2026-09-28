@@ -1,92 +1,122 @@
+// What the modal renders. Types only; the modal has no connection logic of its own.
+
 /**
- * What the modal renders.
+ * Off-mainnet networks get a badge; mainnet does not. Mirrors
+ * `@bchconnect/core`'s `Network`.
  *
- * Types only. The modal is a projection of the client's connect state machine,
- * so it owns no connection logic of its own — it is handed a view and draws it.
- * That is what lets the lab drive every state directly, including the ones that
- * are hard to reach against a real wallet.
- *
- * Provisional until SPEC section 8 is drafted. Nothing here is exported from a
- * package yet, and the names are expected to move once the spec pins them.
+ * @beta
  */
+export type Network = "mainnet" | "chipnet" | "regtest";
 
-/** Off-mainnet networks get a badge; mainnet does not. */
-export type Network = "mainnet" | "chipnet" | "testnet4" | "regtest";
-
-/** How each network is written for a person rather than for a config file. */
 export const NETWORK_LABEL: Readonly<Record<Network, string>> = {
 	mainnet: "Mainnet",
 	chipnet: "Chipnet",
-	testnet4: "Testnet4",
 	regtest: "Regtest",
 };
 
+/**
+ * Which connect protocol a session uses.
+ *
+ * @beta
+ */
 export type ProtocolId = "wizardconnect" | "walletconnect" | "cashconnect";
 
 /**
- * How a protocol's mark fills its bounds.
+ * How a protocol's mark fills its bounds: `tile` is already a plate;
+ * `glyph` needs one composed around it (see `code.ts`).
  *
- * A `tile` is already a plate: a solid rounded square that fills its box edge
- * to edge, like WalletConnect's. A `glyph` has transparent edges, like a hat or
- * a disc, and would float loose in the hole the code leaves for it. The
- * renderer sets a glyph on a faint accent plate so it reads as placed rather
- * than dropped.
+ * @beta
  */
 export type MarkShape = "tile" | "glyph";
 
+/**
+ * A protocol's mark, as drawn into the connection code.
+ *
+ * @beta
+ */
 export interface ProtocolMark {
+	/** Where the mark's image is served from. */
 	readonly src: string;
+	/** Whether the mark is a solid tile or a glyph that needs a plate. */
 	readonly shape: MarkShape;
 }
 
+/**
+ * One session type a visitor can choose.
+ *
+ * @beta
+ */
 export interface ProtocolOption {
+	/** The protocol's identifier. */
 	readonly id: ProtocolId;
+	/** The protocol's name, as shown in the session-type control. */
 	readonly name: string;
-	/** The protocol's mark, buried in the code rather than laid on top. */
+	/** The protocol's mark, embedded in the code rather than laid on top. */
 	readonly mark: ProtocolMark | null;
 }
 
 /**
  * Which face of the modal is showing.
  *
- * "Get a wallet" stays inside the modal rather than sending the visitor to a
- * website. On a phone that is the difference between a useful answer and a dead
- * end: someone with no wallet installed gets nothing from the deep link and
- * nothing from a native prompt, so the list of wallets has to be here.
+ * @beta
  */
 export type ModalScreen = "connect" | "wallets";
 
 /**
- * A wallet in the directory, with somewhere to actually get it.
+ * A wallet in the directory, with somewhere to get it. Separate from
+ * {@link WalletOption}: one you can open now, versus one you could install.
  *
- * Separate from {@link WalletOption} on purpose: one is "a wallet you can open
- * right now", the other is "a wallet you could install". Conflating them is how
- * a list ends up linking an app store from a connect button.
+ * @beta
  */
 export interface WalletDirectoryEntry {
+	/** A stable identifier for the wallet. */
 	readonly id: string;
+	/** The wallet's display name. */
 	readonly name: string;
+	/** The wallet's logo, as a URL or data URI. */
 	readonly logo: string;
+	/** Where to get the wallet, one link per platform or store. */
 	readonly links: readonly { readonly label: string; readonly href: string }[];
 }
 
 /**
- * A wallet is a link, not a selectable option: picking one opens it. The modal
- * never holds a "selected wallet" that the user has to then confirm.
+ * A wallet listed in the modal. Choosing it opens its `href`.
+ *
+ * @beta
  */
 export interface WalletOption {
+	/** A stable identifier for the wallet. */
 	readonly id: string;
+	/** The wallet's display name. */
 	readonly name: string;
+	/** The wallet's logo, as a URL or data URI. */
 	readonly logo: string;
-	/** Absent when the wallet has no same-device link on this platform. */
+	/** The wallet's link, or `null` when it has none on this platform. The row is then shown disabled. */
 	readonly href: string | null;
 }
 
 /**
- * Why a connection did not happen.
+ * A wallet and the session types it speaks; the caller filters by protocol
+ * and builds a {@link WalletOption} from each match.
  *
- * These mirror the client's failure modes. `aborted` is the user stopping it
- * from our side; `rejected` is the wallet declining from theirs.
+ * @beta
+ */
+export interface WalletSupport {
+	/** A stable identifier for the wallet. */
+	readonly id: string;
+	/** The wallet's display name. */
+	readonly name: string;
+	/** The wallet's logo, as a URL or data URI. */
+	readonly logo: string;
+	/** Every session type this wallet can open a connection with. */
+	readonly protocols: readonly ProtocolId[];
+}
+
+/**
+ * Why a connection did not happen; mirrors the client's failure modes
+ * (`aborted` = user-side, `rejected` = wallet-side).
+ *
+ * @beta
  */
 export type FailureReason =
 	| "rejected"
@@ -97,11 +127,10 @@ export type FailureReason =
 	| "unsupported";
 
 /**
- * Where the attempt is.
+ * Where the attempt is. `initiating` exists only for protocols whose link
+ * comes from a relay; WizardConnect skips it.
  *
- * `initiating` exists only for protocols whose link comes from a relay and so
- * cannot be shown immediately. WizardConnect skips it: its code is live the
- * moment the modal opens, which is the point of opening on a code at all.
+ * @beta
  */
 export type ConnectPhase =
 	| { readonly kind: "initiating" }
@@ -110,8 +139,9 @@ export type ConnectPhase =
 			readonly link: string;
 	  }
 	/**
-	 * Success is not a screen. The modal closes itself on this, and the caller
-	 * shows what it likes in its place — `bchc-toast` is the one shipped here.
+	 * Success is not a screen: the modal closes itself on this, and the
+	 * caller shows what it likes in its place. `bchc-toast` is the one
+	 * shipped here.
 	 */
 	| {
 			readonly kind: "connected";
@@ -121,31 +151,29 @@ export type ConnectPhase =
 	  }
 	| { readonly kind: "failed"; readonly reason: FailureReason };
 
+/**
+ * The whole of what the modal renders, for one state of one attempt.
+ *
+ * @beta
+ */
 export interface ModalView {
+	/** The screen to show. */
 	readonly screen: ModalScreen;
+	/** The session type currently selected. */
 	readonly protocol: ProtocolId;
+	/** Every session type the visitor may choose between. */
 	readonly protocols: readonly ProtocolOption[];
-	/**
-	 * Already filtered: wallets that do not support the protocol are absent.
-	 *
-	 * Shown on a wide viewport only. On a phone the operating system knows what
-	 * is installed and we do not, so the deep link asks it rather than the modal
-	 * guessing — see the sheet layout.
-	 */
+	/** Already filtered: wallets that do not support the protocol are absent. Shown on a wide viewport only. */
 	readonly wallets: readonly WalletOption[];
 	/** Every wallet worth installing, for the "Get a wallet" screen. */
 	readonly directory: readonly WalletDirectoryEntry[];
+	/** The network the connection would be made on. */
 	readonly network: Network;
+	/** Where the attempt currently is. */
 	readonly phase: ConnectPhase;
 }
 
-/**
- * User-facing copy for every failure.
- *
- * Second person, plain, no exclamation marks, and never a code, a URI or a
- * transport name — a person about to link a wallet holding money does not need
- * to learn our vocabulary to understand what went wrong.
- */
+// Second person, plain, no exclamation marks; never a code, URI, or transport name.
 export const FAILURE_COPY: Readonly<
 	Record<FailureReason, { readonly title: string; readonly detail: string }>
 > = {
@@ -159,18 +187,18 @@ export const FAILURE_COPY: Readonly<
 	},
 	aborted: {
 		title: "Connection stopped",
-		detail: "You cancelled before your wallet answered.",
+		detail: "The request ended before your wallet answered.",
 	},
 	transport: {
-		title: "Could not reach your wallet",
-		detail: "Check your internet connection, then try again.",
+		title: "Couldn't reach your wallet",
+		detail: "Try again in a moment.",
 	},
 	"network-mismatch": {
 		title: "Your wallet is on a different network",
 		detail: "Switch networks in your wallet, then connect again.",
 	},
 	unsupported: {
-		title: "That wallet cannot use this session type",
+		title: "That wallet can't use this session type",
 		detail: "Choose another session type, or another wallet.",
 	},
 };

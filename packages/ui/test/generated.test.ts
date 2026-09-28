@@ -31,6 +31,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const STYLES = join(HERE, "..", "src", "styles");
 const GENERATED = join(STYLES, "theme.generated.css");
 const TOKENS = join(STYLES, "tokens.css");
+const MODAL = join(STYLES, "modal.css");
+const TOAST = join(STYLES, "toast.css");
 const MANIFEST = join(
 	HERE,
 	"..",
@@ -102,22 +104,19 @@ describe("custom property references", () => {
 		expect(dangling).toEqual([]);
 	});
 
-	it("declares every semantic token the modal will reach for", async () => {
-		const declared = declaredIn(await readFile(GENERATED, "utf8"));
-		for (const token of [
-			"--bchc-surface",
-			"--bchc-surface-raised",
-			"--bchc-text",
-			"--bchc-text-muted",
-			"--bchc-accent",
-			"--bchc-accent-foreground",
-			"--bchc-accent-text",
-			"--bchc-focus",
-			"--bchc-danger",
-			"--bchc-overlay",
-		]) {
-			expect(declared.has(token), token).toBe(true);
-		}
+	it("declares every token the component stylesheets reach for", async () => {
+		// The hand-picked list this replaced could go stale the moment a
+		// component started reading a token nobody added here; this instead
+		// reads modal.css and toast.css themselves, so it can't miss one.
+		const [generated, tokens, modal, toast] = await Promise.all(
+			[GENERATED, TOKENS, MODAL, TOAST].map((file) => readFile(file, "utf8")),
+		);
+		const declared = declaredIn(`${generated}\n${tokens}\n${modal}\n${toast}`);
+		const referenced = referencedIn(`${modal}\n${toast}`);
+		const missing = [...referenced].filter(
+			(name) => !declared.has(name) && name !== "--bchc-font-brand-family",
+		);
+		expect(missing).toEqual([]);
 	});
 });
 

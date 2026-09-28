@@ -1,71 +1,19 @@
-/**
- * The connect modal, as a custom element.
- *
- * Renders a {@link ModalView} and emits intents. It holds no connection logic:
- * every state it can show is a state the caller can hand it, which is what lets
- * the lab drive the failure paths that are near-impossible to reach on demand
- * against a real wallet.
- *
- * The shell — scrim, card, header — is built once and then patched. Rebuilding
- * it on every render replayed the card's entrance animation each time any state
- * changed, so acknowledging a copy made the modal appear to close and reopen.
- *
- * ## What is re-templated and what is patched
- *
- * The body is rebuilt only when its *layout* changes: another screen, a
- * different protocol, a failure or a success replacing the code. Everything
- * else — the wallet engaging, the link arriving, the copy acknowledgement — is
- * patched onto the markup already there, so the code never redraws for a
- * change of caption and the tile never loses its place.
- *
- * Every rebuild is choreographed. Screens slide the way the visitor travels,
- * a change of protocol shuffles the wallet rows to their new places while the
- * code writes itself over the old one, and the card grows or shrinks to fit
- * rather than snapping. `motion.ts` owns the measuring; this file only decides
- * which choreography a change deserves.
- *
- * ## Two layouts, not one layout that narrows
- *
- * On a wide viewport the modal lists wallets, because nothing else on a desktop
- * tells you which wallets work — and a `WIZ://` link usually has no handler
- * registered there at all.
- *
- * On a phone it does not list them. The operating system knows what is
- * installed and we do not, so one deep link asks it. The code stays on screen
- * underneath for the case the deep link cannot serve: a wallet that is
- * installed but never registered the scheme.
- *
- * ## Closing
- *
- * Closing is asked for here — the cross, the scrim, Escape, a drag — but done
- * by the caller: the modal plays its exit and only then emits `bchc:close`, so
- * the caller can remove the element the moment it hears it and nothing is cut
- * short. A caller closing on its own terms, say on success, calls
- * {@link BchcModal.close} and gets the same exit and the same event.
- *
- * Provisional until SPEC section 8. The element name, the events and the view
- * shape are all expected to move once the spec pins them.
- *
- * @example
- * ```ts
- * const modal = document.createElement("bchc-modal") as BchcModal;
- * modal.view = view;
- * modal.addEventListener("bchc:protocol", (event) => { ... });
- * modal.addEventListener("bchc:close", () => modal.remove());
- * document.body.append(modal);
- * ```
- */
+// Renders a ModalView and emits intents; holds no connection logic.
+// Close is requested here but performed by the caller on `bchc-close`.
 
 import { type CodeRenderer, renderCode } from "./code.ts";
+import { ElementBase } from "./element.ts";
+import { escapeHtml, safeHref } from "./html.ts";
 import { icon } from "./icons.ts";
 import {
+	animationsFinished,
 	crossfade,
 	enter,
 	flipRows,
 	morphHeight,
+	namedAnimationsFinished,
 	type RowSnapshot,
 	retext,
-	settled,
 	snapshotRows,
 	tempoOf,
 } from "./motion.ts";
@@ -82,85 +30,52 @@ import theme from "./styles/theme.generated.css" with { type: "css" };
 import tokens from "./styles/tokens.css" with { type: "css" };
 
 /**
- * What the modal asks the caller to do. It never does these itself.
+ * Events representing what the modal asks the caller to do.
  *
- * There is no separate cancel. Closing while an attempt is in flight *is* the
- * cancel, and the close button, the scrim and the drag all already do it — a
- * further control for the same outcome only makes the user wonder how they
- * differ.
+ * @beta
  */
 export interface BchcModalEvents {
-	"bchc:protocol": CustomEvent<{ protocol: ProtocolId }>;
-	"bchc:screen": CustomEvent<{ screen: ModalScreen }>;
+	/** Fired when the visitor picks a different session type. */
+	"bchc-protocol": CustomEvent<{ protocol: ProtocolId }>;
+	/** Fired when the visitor moves between the connect and wallets screens. */
+	"bchc-screen": CustomEvent<{ screen: ModalScreen }>;
 	/** Fired once the exit has played. Remove the element on it. */
-	"bchc:close": CustomEvent<void>;
-	"bchc:retry": CustomEvent<void>;
+	"bchc-close": CustomEvent<void>;
+	/** Fired when "Try again" is pressed after a failure. */
+	"bchc-retry": CustomEvent<void>;
 }
 
-/** Below this the modal is a drawer, above it a dialog. */
-const SHEET_QUERY = "(max-width: 639px)";
-
-/**
- * How long to wait after a deep link before assuming nothing happened.
- *
- * A protocol handler that nobody claims fails silently — no prompt, no error.
- * If the page still has focus after this long, nothing opened.
- */
+/** Below this the modal is a drawer: the dialog needs its 760px card plus 16px overlay padding each side. */
+const SHEET_QUERY = "(max-width: 791px)";
+/** How long to wait after a deep link before assuming nothing opened (a failed handler gives no signal). */
 const DEEP_LINK_GRACE = 1500;
-
-/**
- * What is drawn while a relay is still producing the real link. Any fixed
- * string of about the right length gives a code of about the right density;
- * this one is just letters so it never resembles a real address or invite.
- */
 const PLACEHOLDER_LINK =
 	"bchconnect://placeholder/kqzvxwtnmrhpbdgjsfcylakqzvxwtnmrhpbdgjsfcylakqzvxwtnmrhpbdgjsfcylakqzvxwtnmrhpbdgjsfcyla";
-
-/** How long the copy acknowledgement stays before the button settles back. */
 const COPIED_FOR = 1800;
+/** `@keyframes` names. See `#close`. */
+const EXIT_ANIMATIONS = new Set(["lift", "sink", "sheet"]);
+const LOADING_DOTS = '<span class="dots"><i></i><i></i><i></i></span>';
 
-const DOTS = '<span class="dots"><i></i><i></i><i></i></span>';
-
-/** The copy control's two faces. Acknowledging in words alone reads as a label
- *  change; swapping the icon with it reads as the action having happened. */
 function copyFace(copied: boolean): string {
 	return copied ? `${icon("check")}Link copied` : `${icon("link")}Copy link`;
 }
 
-function escapeHtml(value: string): string {
-	return value.replace(
-		/[&<>"']/g,
-		(character) =>
-			({
-				"&": "&amp;",
-				"<": "&lt;",
-				">": "&gt;",
-				'"': "&quot;",
-				"'": "&#39;",
-			})[character] ?? character,
-	);
-}
-
-/** The caption under the code, for the phase the code is in. */
-function captionFor(view: ModalView, sheet: boolean): string {
+function captionFor(view: ModalView, linkFailed: boolean): string {
 	switch (view.phase.kind) {
 		case "initiating":
-			return `<span class="caption-text">Getting your connection link</span>${DOTS}`;
+			return `${LOADING_DOTS}<span class="caption-text">Getting your connection link</span>`;
 		case "awaiting-approval":
-			return `${icon("scanLine")}<span class="caption-text">${sheet ? "Or scan from another device" : "Scan with your wallet"}</span>`;
+			return linkFailed
+				? `${icon("info")}<span class="caption-text">Didn't open? Copy the link.</span>`
+				: `${icon("scanLine")}<span class="caption-text">Scan with your wallet</span>`;
 		default:
 			return "";
 	}
 }
 
-/** How many dots make the ring around a failure's mark. */
 const RING_DOTS = 14;
 
-/**
- * A ring of dots, in the same language as the code's modules, with a cross
- * inside it. Each dot carries its index so the stylesheet can bring them in
- * one after another, the way the code writes itself in.
- */
+/** Each dot carries its index (`--i`) so the stylesheet can animate them in order. */
 function ring(): string {
 	const dots = Array.from({ length: RING_DOTS }, (_, index) => {
 		const angle = (index / RING_DOTS) * Math.PI * 2 - Math.PI / 2;
@@ -171,14 +86,6 @@ function ring(): string {
 	return `<svg class="ring" width="96" height="96" viewBox="0 0 96 96" fill="currentColor" aria-hidden="true">${dots}</svg>`;
 }
 
-/**
- * What the code's place becomes when the attempt fails.
- *
- * Not a box: the paper leaves with the code, and the same area holds an open
- * composition — a ring of dots like the code's own, a cross that draws itself
- * inside it, the words, and the way forward. The rest of the modal stays put:
- * someone told to pick another wallet or session type can do it right there.
- */
 function statusFace(view: ModalView): string {
 	if (view.phase.kind !== "failed") return "";
 	const copy = FAILURE_COPY[view.phase.reason];
@@ -190,37 +97,46 @@ function statusFace(view: ModalView): string {
 	`;
 }
 
-export class BchcModal extends HTMLElement {
+// Injected by register.ts instead of importing code.ts directly, so
+// qr-code-styling stays out of modal.ts's own module graph.
+let codeRenderer: CodeRenderer | null = null;
+
+/** Sets the renderer, once, before any modal is created. @internal */
+export function useCodeRenderer(renderer: CodeRenderer): void {
+	codeRenderer = renderer;
+}
+
+/**
+ * The `<bchc-modal>` web component
+ *
+ * @example
+ * ```ts
+ * defineElements();
+ * const modal = document.createElement("bchc-modal") as BchcModal;
+ * modal.view = view;
+ * modal.addEventListener("bchc-protocol", (event) => { ... });
+ * modal.addEventListener("bchc-close", () => modal.remove());
+ * document.body.append(modal);
+ * ```
+ *
+ * @beta
+ */
+export class BchcModal extends ElementBase {
 	readonly #root: ShadowRoot;
 	#view: ModalView | null = null;
-	/** What the last render was built from, so the next can tell what moved. */
 	#shown: ModalView | null = null;
-	#codeRenderer: CodeRenderer | null = null;
 	#copyResetTimer: ReturnType<typeof setTimeout> | null = null;
 	#deepLinkTimer: ReturnType<typeof setTimeout> | null = null;
 	#copied = false;
-	#hintShown = false;
+	#linkFailed = false;
 	#closing = false;
-	/** Whether the contents have made their entrance. Once per appearance. */
 	#entered = false;
-
-	/** The persistent shell. Null until the first render builds it. */
 	#overlay: HTMLDivElement | null = null;
 	#releaseDrag: (() => void) | null = null;
-
-	readonly #media: MediaQueryList = matchMedia(SHEET_QUERY);
-
-	/**
-	 * What the body was last built from. Re-templating moves the code element
-	 * between parents, which the browser pays for in layout even when the code
-	 * itself is untouched, so the markup is rebuilt only when its shape changes.
-	 */
+	// Re-templating moves the code element between parents; skipped unless the body shape changed.
 	#bodyKey: string | null = null;
-
-	/**
-	 * The code lives on an element that outlives every re-render, so the
-	 * renderer updates the code it already drew rather than making a new one.
-	 */
+	readonly #media: MediaQueryList = matchMedia(SHEET_QUERY);
+	// Outlives every re-render, so the renderer updates the existing drawing instead of restarting it.
 	readonly #codeHost: HTMLButtonElement = document.createElement("button");
 
 	constructor() {
@@ -229,40 +145,36 @@ export class BchcModal extends HTMLElement {
 		this.#root.adoptedStyleSheets = [theme, tokens, modal];
 		this.#codeHost.className = "code";
 		this.#codeHost.type = "button";
-		this.#codeHost.dataset["act"] = "copy";
+		this.#codeHost.setAttribute("data-act", "copy");
 		this.#codeHost.setAttribute("aria-label", "Copy connection link");
 	}
 
-	/**
-	 * The code renderer. Injected rather than imported because
-	 * `qr-code-styling` ships no ES module entry, so the page has to load its
-	 * UMD build and hand the constructor in. Keeping it a parameter means this
-	 * file never reaches for a global, and the production path — a bundler
-	 * resolving a plain import — is a one-line change here rather than a
-	 * rewrite.
-	 */
-	set codeRenderer(renderer: CodeRenderer) {
-		this.#codeRenderer = renderer;
-		this.render();
-	}
-
+	/** The state to render. Setting it re-renders the modal. */
 	get view(): ModalView | null {
 		return this.#view;
 	}
 
 	set view(next: ModalView | null) {
 		this.#view = next;
-		this.render();
+		this.#render();
 	}
 
+	/** Called by the browser when the element is attached.
+	 *
+	 * @internal
+	 */
 	connectedCallback(): void {
 		this.#media.addEventListener("change", this.#onMediaChange);
 		document.addEventListener("visibilitychange", this.#onLeft);
 		document.addEventListener("keydown", this.#onKey);
 		addEventListener("blur", this.#onLeft);
-		this.render();
+		this.#render();
 	}
 
+	/** Called by the browser when the element is detached.
+	 *
+	 * @internal
+	 */
 	disconnectedCallback(): void {
 		this.#media.removeEventListener("change", this.#onMediaChange);
 		document.removeEventListener("visibilitychange", this.#onLeft);
@@ -270,8 +182,15 @@ export class BchcModal extends HTMLElement {
 		removeEventListener("blur", this.#onLeft);
 		this.#releaseDrag?.();
 		this.#releaseDrag = null;
-		if (this.#copyResetTimer !== null) clearTimeout(this.#copyResetTimer);
-		if (this.#deepLinkTimer !== null) clearTimeout(this.#deepLinkTimer);
+		if (this.#copyResetTimer !== null) {
+			clearTimeout(this.#copyResetTimer);
+			this.#copyResetTimer = null;
+		}
+		if (this.#deepLinkTimer !== null) {
+			clearTimeout(this.#deepLinkTimer);
+			this.#deepLinkTimer = null;
+		}
+		this.#copied = false;
 		// A re-attached modal is a new appearance: it enters again.
 		this.#root.replaceChildren();
 		this.#overlay = null;
@@ -282,33 +201,34 @@ export class BchcModal extends HTMLElement {
 	}
 
 	/**
-	 * Play the exit, then tell the caller. Resolves once `bchc:close` has been
-	 * dispatched; a second call while the first is still playing does nothing.
-	 *
-	 * @param how - `dragged` when the drawer was already carried off by hand,
-	 * so only the scrim has anything left to animate.
+	 * Plays the exit, then emits `bchc-close`. A second call while the first
+	 * is still playing does nothing.
 	 */
-	async close(how?: "dragged"): Promise<void> {
+	async close(): Promise<void> {
+		await this.#close(false);
+	}
+
+	// `dragged`: the sheet already left, so only the scrim animates out.
+	async #close(dragged: boolean): Promise<void> {
 		const overlay = this.#overlay;
 		if (overlay === null || this.#closing) return;
 		this.#closing = true;
 		overlay.classList.add("is-closing");
-		if (how === "dragged") overlay.classList.add("is-dragged");
-		await settled(overlay);
-		this.#emit("bchc:close");
+		if (dragged) overlay.classList.add("is-dragged");
+		// Waits only for the exit keyframes, not e.g. the code's write-in animation.
+		await namedAnimationsFinished(overlay, EXIT_ANIMATIONS);
+		this.#emit("bchc-close");
 	}
 
-	/** Crossing the breakpoint changes what the modal contains, not just how it
-	 *  is arranged, so it has to re-render rather than rely on CSS. */
+	// A sheet/split switch changes markup, not just layout, so it must re-render.
 	readonly #onMediaChange = (): void => {
 		this.#bodyKey = null;
-		this.render();
+		this.#render();
 	};
 
 	readonly #onKey = (event: KeyboardEvent): void => {
 		if (event.key !== "Escape" || event.defaultPrevented) return;
 		event.preventDefault();
-		// An open menu is the nearer thing to dismiss.
 		if (this.#menuOpen()) {
 			this.#closeMenu();
 			return;
@@ -316,10 +236,7 @@ export class BchcModal extends HTMLElement {
 		void this.close();
 	};
 
-	/**
-	 * The page losing focus means something else opened — so the deep link
-	 * worked and the hint would be a lie.
-	 */
+	// Focus leaving means the deep link opened something; don't report it failed.
 	readonly #onLeft = (): void => {
 		if (this.#deepLinkTimer !== null) {
 			clearTimeout(this.#deepLinkTimer);
@@ -336,16 +253,16 @@ export class BchcModal extends HTMLElement {
 		);
 	}
 
-	/** Built once. Everything inside `.body` is replaced per render. */
+	// Built once; everything inside `.body` is replaced per render.
 	#buildShell(): HTMLDivElement {
 		const overlay = document.createElement("div");
 		overlay.className = "overlay";
 		overlay.innerHTML = `
-			<div class="card" role="dialog" aria-modal="true" aria-label="Connect a wallet" tabindex="-1">
+			<div class="card" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
 				<div class="grabber" aria-hidden="true"></div>
 				<div class="head">
 					<button class="back" type="button" data-act="back" aria-label="Back" hidden>${icon("chevronLeft")}</button>
-					<h2 class="title">Connect a wallet</h2>
+					<h2 class="title" id="modal-title">Connect a wallet</h2>
 					<span class="badge" hidden></span>
 					<button class="close" type="button" aria-label="Close">${icon("x")}</button>
 				</div>
@@ -353,10 +270,8 @@ export class BchcModal extends HTMLElement {
 			</div>
 		`;
 
-		// Delegated, so re-templating never has to rewire anything.
 		overlay.addEventListener("click", (event) => {
 			const target = event.target;
-			// Clicking the scrim closes; clicking the card does not.
 			if (target === overlay) {
 				void this.close();
 				return;
@@ -371,27 +286,33 @@ export class BchcModal extends HTMLElement {
 				this.#choose(option);
 				return;
 			}
-			const action = target.closest("[data-act]")?.getAttribute("data-act");
+			const actionTarget = target.closest("[data-act]");
+			const action = actionTarget?.getAttribute("data-act");
 			if (action === "menu") {
 				if (this.#menuOpen()) this.#closeMenu();
 				else this.#openMenu();
 				return;
 			}
-			// Any other press while the menu is open only closes it.
 			if (this.#menuOpen()) {
 				this.#closeMenu(false);
 				return;
 			}
-			if (action === "retry") this.#emit("bchc:retry");
+			if (action === "retry") this.#emit("bchc-retry");
 			if (action === "copy") void this.#copyLink();
-			if (action === "back") this.#emit("bchc:screen", { screen: "connect" });
+			if (action === "back") this.#emit("bchc-screen", { screen: "connect" });
 			if (action === "wallets")
-				this.#emit("bchc:screen", { screen: "wallets" });
-			if (action === "open") this.#armDeepLinkHint();
+				this.#emit("bchc-screen", { screen: "wallets" });
+			if (
+				action === "open" &&
+				this.#view?.phase.kind === "awaiting-approval" &&
+				actionTarget instanceof HTMLAnchorElement &&
+				actionTarget.hasAttribute("href")
+			) {
+				this.#armDeepLinkHint();
+			}
 		});
 
-		// The listbox's keyboard: arrows move, Enter and Space choose. Escape is
-		// handled with the modal's own, so the menu closes before the modal does.
+		// Escape closes the menu here; the modal's own listener handles the rest.
 		overlay.addEventListener("keydown", (event) => {
 			if (!this.#menuOpen()) {
 				const target = event.target;
@@ -408,6 +329,9 @@ export class BchcModal extends HTMLElement {
 			if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 				event.preventDefault();
 				this.#stepMenu(event.key === "ArrowDown" ? 1 : -1);
+			} else if (event.key === "Home" || event.key === "End") {
+				event.preventDefault();
+				this.#focusMenuEdge(event.key === "Home" ? "first" : "last");
 			} else if (event.key === "Enter" || event.key === " ") {
 				const target = event.target;
 				if (target instanceof Element && target.closest(".option") !== null) {
@@ -423,7 +347,7 @@ export class BchcModal extends HTMLElement {
 		if (card instanceof HTMLElement) {
 			this.#releaseDrag = draggableSheet(card, {
 				isActive: () => this.#media.matches,
-				onDismiss: () => void this.close("dragged"),
+				onDismiss: () => void this.#close(true),
 			});
 		}
 
@@ -431,7 +355,7 @@ export class BchcModal extends HTMLElement {
 		return overlay;
 	}
 
-	render(): void {
+	#render(): void {
 		const view = this.#view;
 		if (view === null) {
 			this.#root.replaceChildren();
@@ -442,6 +366,14 @@ export class BchcModal extends HTMLElement {
 		}
 
 		const firstPaint = this.#overlay === null;
+
+		// First paint already connected: nothing to animate, so close directly
+		// (distinct from the success-closes-modal case handled further down).
+		if (firstPaint && view.phase.kind === "connected") {
+			this.#emit("bchc-close");
+			return;
+		}
+
 		const overlay = this.#overlay ?? this.#buildShell();
 		this.#overlay = overlay;
 		const sheet = this.#media.matches;
@@ -468,16 +400,15 @@ export class BchcModal extends HTMLElement {
 
 		const badge = overlay.querySelector(".badge");
 		if (badge instanceof HTMLElement) {
-			// Off mainnet only. An empty badge still reserves space and still
-			// reads as something that failed to load.
+			// Hidden rather than emptied, or it would still reserve space.
 			badge.hidden = view.network === "mainnet" || view.screen === "wallets";
 			badge.textContent = NETWORK_LABEL[view.network];
 		}
 
-		// Success is not a screen: the modal leaves and the caller takes over.
+		// Success isn't a screen: the modal exits and the caller takes over
+		// (first-paint case handled above, before a shell exists).
 		if (view.phase.kind === "connected") {
-			if (this.#overlay === null) this.#emit("bchc:close");
-			else void this.close();
+			void this.close();
 			return;
 		}
 
@@ -485,44 +416,34 @@ export class BchcModal extends HTMLElement {
 		if (key !== this.#bodyKey) {
 			this.#rebuild(card, body, view, sheet);
 			this.#bodyKey = key;
-			this.#hintShown = false;
+			this.#linkFailed = false;
 		}
 
-		this.#patch(body, view, sheet);
+		this.#patch(body, view);
 		if (view.screen === "connect") this.#paintCode(body, view);
 		this.#shown = view;
 
-		// Not tied to the shell's first build: a view set before the element is
-		// attached builds the shell while disconnected, and an entrance played
-		// there is an entrance nobody sees. It plays on the first connected paint.
+		// Nothing to animate if not yet connected.
 		if (!this.#entered && this.isConnected) {
 			this.#entered = true;
 			card.focus({ preventScroll: true });
 			enter(
-				// The tile is left out: the code writing itself in is its entrance,
-				// and a fade laid over that would hide it.
+				// .tile excluded: its own write-in animation is its entrance.
 				overlay.querySelectorAll(
 					".head, .left > *, .single > :not(.tile), .right > .footer",
 				),
 				tempoOf(card),
 			);
-			// The contents start a little below their places, which is overflow
-			// as far as the body's scroll container is concerned, and a browser
-			// with classic scrollbars shows one for those frames. The body clips
-			// until everything has landed.
+			// Entering content starts below its place, showing as scroll overflow until clipped.
 			overlay.classList.add("is-entering");
-			void settled(overlay).then(() => overlay.classList.remove("is-entering"));
+			void animationsFinished(overlay).then(() =>
+				overlay.classList.remove("is-entering"),
+			);
 		}
 	}
 
-	/**
-	 * Replace the body's markup with the choreography the change deserves.
-	 *
-	 * A change of protocol on the connect screen is the one the modal is built
-	 * around: the wallet rows shuffle to their new places while the code writes
-	 * itself over the old one, and nothing else moves. Every other change is a
-	 * screen replacing a screen, which slides the way the visitor is going.
-	 */
+	// A protocol change FLIPs the wallet rows while the code rewrites;
+	// every other change crossfades one screen for another.
 	#rebuild(
 		card: HTMLElement,
 		body: HTMLElement,
@@ -546,8 +467,7 @@ export class BchcModal extends HTMLElement {
 			previous.protocol !== view.protocol;
 
 		if (protocolSwitch) {
-			// The whole column, not just the list: the link under it moves too
-			// when the list changes length, and has to travel with the rows.
+			// Scoped to the column, not just the list, so the link travels with the rows.
 			const column = body.querySelector(".left");
 			const rows: Map<string, RowSnapshot> =
 				column instanceof HTMLElement
@@ -561,8 +481,7 @@ export class BchcModal extends HTMLElement {
 			return;
 		}
 
-		// Screens rise into place rather than sliding sideways: the card never
-		// changes width, so nothing should look as if it did.
+		// Direction 0: the card's width never changes, so nothing should slide sideways.
 		morphHeight(card, () => {
 			crossfade(
 				body,
@@ -574,8 +493,7 @@ export class BchcModal extends HTMLElement {
 		});
 	}
 
-	/** Everything that changes without changing the layout. */
-	#patch(body: HTMLElement, view: ModalView, sheet: boolean): void {
+	#patch(body: HTMLElement, view: ModalView): void {
 		if (view.screen !== "connect") return;
 		const live = view.phase.kind === "awaiting-approval";
 		const failed = view.phase.kind === "failed";
@@ -593,11 +511,10 @@ export class BchcModal extends HTMLElement {
 
 		const caption = body.querySelector(".caption");
 		if (caption instanceof HTMLElement)
-			retext(caption, captionFor(view, sheet));
+			retext(caption, captionFor(view, this.#linkFailed));
 
 		const footer = body.querySelector(".footer");
-		// Keeps its box while the failure shows, so the column — and with it
-		// the card — stays exactly the height it was.
+		// Keeps its box so the column/card height doesn't change.
 		if (footer instanceof HTMLElement)
 			footer.classList.toggle("is-void", failed);
 
@@ -607,35 +524,31 @@ export class BchcModal extends HTMLElement {
 
 		const open = body.querySelector("a[data-act='open']");
 		if (open instanceof HTMLAnchorElement) {
-			open.href = live ? view.phase.link : "#";
-			open.toggleAttribute("aria-disabled", !live);
+			// No href keeps the anchor inert and unfocusable, instead of navigating to `#`.
+			const href = live ? safeHref(view.phase.link) : null;
+			if (href === null) {
+				open.removeAttribute("href");
+				open.setAttribute("aria-disabled", "true");
+			} else {
+				open.href = href;
+				open.removeAttribute("aria-disabled");
+			}
 			open.hidden = failed;
 		}
-
-		const hint = body.querySelector(".hint");
-		if (hint instanceof HTMLElement) hint.hidden = failed;
 	}
 
-	/**
-	 * The session type, as a bespoke select.
-	 *
-	 * A native `<select>` opens the platform's own menu, which no stylesheet
-	 * reaches; here the menu is part of the design — the same surface as the
-	 * card, the protocols' own marks as row icons, the accent tint for the
-	 * row under the pointer and the row that is chosen. The trigger keeps
-	 * the ARIA of a select: a button that pops a listbox.
-	 */
+	// A native <select> opens an unstyleable platform menu, so this pops a styled listbox.
 	#sessionType(view: ModalView): string {
 		const current = view.protocols.find((entry) => entry.id === view.protocol);
 		return `
 			<div class="field">
 				<span class="label" id="session-type">Session type</span>
 				<div class="select-wrap">
-					<button class="select" type="button" data-act="menu" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="session-type select-value">
+					<button class="select" type="button" data-act="menu" aria-haspopup="listbox" aria-expanded="false" aria-controls="session-menu" aria-labelledby="session-type select-value">
 						<span id="select-value">${escapeHtml(current?.name ?? "")}</span>
 						${icon("chevronDown", 12)}
 					</button>
-					<ul class="menu" role="listbox" aria-labelledby="session-type" hidden>
+					<ul class="menu" id="session-menu" role="listbox" aria-labelledby="session-type" hidden>
 						${view.protocols
 							.map(
 								(entry) => `
@@ -652,7 +565,6 @@ export class BchcModal extends HTMLElement {
 		`;
 	}
 
-	/** The listbox, if the connect screen is showing one. */
 	#menu(): HTMLElement | null {
 		const menu = this.#overlay?.querySelector(".menu");
 		return menu instanceof HTMLElement ? menu : null;
@@ -663,12 +575,6 @@ export class BchcModal extends HTMLElement {
 		return menu !== null && !menu.hidden;
 	}
 
-	/**
-	 * Open the listbox and hand it focus, on the row that is chosen.
-	 *
-	 * The surface grows out of the pill's corner rather than fading in place:
-	 * a menu is something the control produces, not something that appears.
-	 */
 	#openMenu(): void {
 		const menu = this.#menu();
 		const trigger = this.#overlay?.querySelector(".select");
@@ -682,7 +588,7 @@ export class BchcModal extends HTMLElement {
 				{ opacity: 0, transform: "translateY(-6px) scale(0.94)" },
 				{ opacity: 1, transform: "none" },
 			],
-			{ duration: tempo.base * 0.8, easing: tempo.arrive },
+			{ duration: tempo.base * 0.8, easing: tempo.enter },
 		);
 		const chosen = menu.querySelector('[aria-selected="true"]');
 		if (chosen instanceof HTMLElement) chosen.focus({ preventScroll: true });
@@ -697,31 +603,29 @@ export class BchcModal extends HTMLElement {
 			if (refocus) trigger.focus({ preventScroll: true });
 		}
 		const tempo = tempoOf(menu);
-		const leaving = menu.animate(
+		const exiting = menu.animate(
 			[
 				{ opacity: 1, transform: "none" },
 				{ opacity: 0, transform: "translateY(-4px) scale(0.97)" },
 			],
 			{ duration: tempo.fast, easing: tempo.out, fill: "forwards" },
 		);
-		leaving.finished
+		exiting.finished
 			.catch(() => undefined)
 			.finally(() => {
 				menu.hidden = true;
-				// A forward fill outlives the animation; left in place it would
-				// keep the menu at opacity 0 the next time it opens.
-				leaving.cancel();
+				// Forward fill pins opacity; cancel or it stays hidden next open.
+				exiting.cancel();
 			});
 	}
 
-	/** Move focus through the options by `step`, wrapping at the ends. */
 	#stepMenu(step: 1 | -1): void {
 		const menu = this.#menu();
 		if (menu === null) return;
 		const options = [...menu.querySelectorAll<HTMLElement>(".option")];
 		if (options.length === 0) return;
 		const active = this.#root.activeElement;
-		const at = options.findIndex((option) => option === active);
+		const at = active instanceof HTMLElement ? options.indexOf(active) : -1;
 		const next =
 			at === -1
 				? options.findIndex(
@@ -731,25 +635,28 @@ export class BchcModal extends HTMLElement {
 		options[Math.max(next, 0)]?.focus({ preventScroll: true });
 	}
 
+	#focusMenuEdge(edge: "first" | "last"): void {
+		const menu = this.#menu();
+		if (menu === null) return;
+		const options = menu.querySelectorAll<HTMLElement>(".option");
+		const target = edge === "first" ? options[0] : options[options.length - 1];
+		target?.focus({ preventScroll: true });
+	}
+
 	#choose(option: Element): void {
 		const protocol = option.getAttribute("data-protocol");
 		this.#closeMenu();
 		if (protocol === null || protocol === this.#view?.protocol) return;
-		this.#emit("bchc:protocol", { protocol: protocol as ProtocolId });
+		this.#emit("bchc-protocol", { protocol: protocol as ProtocolId });
 	}
 
 	#walletPrompt(): string {
-		// Carries an identity like the rows above it, so it travels with them
-		// when the list changes length instead of jumping to its new place.
+		// data-id lets it FLIP with the rows instead of jumping to its new place.
 		return `<p class="get-one" data-id="get-one"><button type="button" data-act="wallets">Don't have a wallet?</button></p>`;
 	}
 
-	/**
-	 * The tile and its footer. The code host is slotted in by `#paintCode`;
-	 * the skeleton is the light that passes over it while there is no link yet,
-	 * and the status is the face the tile turns when the attempt fails.
-	 */
-	#code(view: ModalView, sheet: boolean): string {
+	// The code host is slotted into `.code` by #paintCode.
+	#code(view: ModalView): string {
 		const initiating = view.phase.kind === "initiating";
 		const failed = view.phase.kind === "failed";
 		const faces = `${initiating ? " is-initiating" : ""}${failed ? " is-failed" : ""}`;
@@ -761,7 +668,7 @@ export class BchcModal extends HTMLElement {
 				<div class="status" role="status">${statusFace(view)}</div>
 			</div>
 			<div class="footer${failed ? " is-void" : ""}">
-				<p class="caption">${captionFor(view, sheet)}</p>
+				<p class="caption">${captionFor(view, this.#linkFailed)}</p>
 				<button class="button pill" type="button" data-act="copy"${initiating ? " disabled" : ""}>${copyFace(this.#copied)}</button>
 			</div>
 		`;
@@ -770,18 +677,20 @@ export class BchcModal extends HTMLElement {
 	#connectScreen(view: ModalView, sheet: boolean): string {
 		const failed = view.phase.kind === "failed";
 		const link =
-			view.phase.kind === "awaiting-approval" ? view.phase.link : "#";
+			view.phase.kind === "awaiting-approval"
+				? safeHref(view.phase.link)
+				: null;
+		const wallets = view.wallets.map((wallet) => ({
+			...wallet,
+			href: wallet.href === null ? null : safeHref(wallet.href),
+		}));
 
 		if (sheet) {
-			// No wallet list: the operating system knows what is installed. The
-			// code stays for the wallet that is installed but never claimed the
-			// scheme, which is the one case the deep link cannot serve.
 			return `
 				<div class="single">
 					${this.#sessionType(view)}
-					${this.#code(view, sheet)}
-					<a class="button primary block" data-act="open" href="${escapeHtml(link)}"${failed ? " hidden" : ""}>Open in your wallet</a>
-					<p class="hint"${failed ? " hidden" : ""}>${icon("info")}<span>Nothing opened? Your wallet may not support links. Scan the code instead.</span></p>
+					${this.#code(view)}
+					<a class="button primary block" data-act="open"${link === null ? ' aria-disabled="true"' : ` href="${escapeHtml(link)}"`}${failed ? " hidden" : ""}>Open in your wallet</a>
 					${this.#walletPrompt()}
 				</div>
 			`;
@@ -793,10 +702,10 @@ export class BchcModal extends HTMLElement {
 					${this.#sessionType(view)}
 					<p class="section-label">Open in your wallet</p>
 					<div class="wallets">
-						${view.wallets
+						${wallets
 							.map(
 								(wallet) => `
-							<a class="wallet" data-id="${escapeHtml(wallet.id)}" href="${escapeHtml(wallet.href ?? "#")}"${wallet.href === null ? ' aria-disabled="true"' : ""}>
+							<a class="wallet" data-id="${escapeHtml(wallet.id)}"${wallet.href === null ? ' aria-disabled="true"' : ` href="${escapeHtml(wallet.href)}"`}>
 								<img src="${escapeHtml(wallet.logo)}" alt="" width="32" height="32" />
 								<span class="wallet-name">${escapeHtml(wallet.name)}</span>
 								${wallet.href === null ? "" : `<span class="go">${icon("arrowUpRight", 14)}</span>`}
@@ -807,29 +716,25 @@ export class BchcModal extends HTMLElement {
 					${this.#walletPrompt()}
 				</div>
 				<div class="right">
-					${this.#code(view, sheet)}
+					${this.#code(view)}
 				</div>
 			</div>
 		`;
 	}
 
-	/**
-	 * The directory, in the modal rather than on a website.
-	 *
-	 * Sending someone away to find a wallet is the moment a connection is
-	 * abandoned, and on a phone it is worse than that: with nothing installed,
-	 * the deep link does nothing and the native prompt shows nothing, so the
-	 * modal is the only thing that can answer.
-	 */
 	#walletsScreen(view: ModalView): string {
 		return `
 			<div class="single">
 				<p class="section-label">Bitcoin Cash wallets that work here</p>
 				<div class="directory">
 					${view.directory
+						.map((entry) => ({
+							...entry,
+							href: safeHref(entry.links[0]?.href ?? ""),
+						}))
 						.map(
 							(entry) => `
-						<a class="directory-row" href="${escapeHtml(entry.links[0]?.href ?? "#")}" target="_blank" rel="noreferrer">
+						<a class="directory-row"${entry.href === null || entry.href === "" ? "" : ` href="${escapeHtml(entry.href)}"`} target="_blank" rel="noreferrer">
 							<img class="directory-logo" src="${escapeHtml(entry.logo)}" alt="" width="36" height="36" />
 							<span class="wallet-name">${escapeHtml(entry.name)}</span>
 							<span class="directory-links">
@@ -843,19 +748,14 @@ export class BchcModal extends HTMLElement {
 		`;
 	}
 
-	/**
-	 * Pressing the code and pressing the button are the same action with the
-	 * same feedback. Two affordances for one outcome should not produce two
-	 * different acknowledgements.
-	 */
+	// The code and the button share this handler via data-act="copy".
 	async #copyLink(): Promise<void> {
 		const view = this.#view;
 		if (view === null || view.phase.kind !== "awaiting-approval") return;
 		try {
 			await navigator.clipboard.writeText(view.phase.link);
 		} catch {
-			// A refused clipboard is not worth an error state; the code is still
-			// on screen and still scannable.
+			// No error state: the code is still on screen and scannable.
 			return;
 		}
 		this.#setCopied(true);
@@ -871,39 +771,29 @@ export class BchcModal extends HTMLElement {
 		button.innerHTML = copyFace(copied);
 	}
 
-	/**
-	 * Watch whether the deep link actually went anywhere.
-	 *
-	 * Nothing here blocks or replaces the navigation — the anchor does its job
-	 * regardless. If the page is still in front of the user after the grace
-	 * period, the handler did not exist and a line appears explaining why. The
-	 * hint is informative, never an error: a wallet that does not claim the
-	 * scheme is not the user's mistake.
-	 */
+	// Only watches whether the deep link opened something; never blocks the navigation.
 	#armDeepLinkHint(): void {
-		if (this.#hintShown) return;
+		if (this.#linkFailed) return;
 		if (this.#deepLinkTimer !== null) clearTimeout(this.#deepLinkTimer);
 		this.#deepLinkTimer = setTimeout(() => {
 			this.#deepLinkTimer = null;
 			if (document.visibilityState !== "visible") return;
-			this.#hintShown = true;
-			const hint = this.#overlay?.querySelector(".hint");
-			if (hint instanceof HTMLElement) hint.classList.add("is-visible");
+			this.#linkFailed = true;
+			const caption = this.#overlay?.querySelector(".caption");
+			const view = this.#view;
+			if (caption instanceof HTMLElement && view !== null)
+				retext(caption, captionFor(view, true));
 		}, DEEP_LINK_GRACE);
 	}
 
 	#paintCode(body: HTMLElement, view: ModalView): void {
-		const renderer = this.#codeRenderer;
+		const renderer = codeRenderer;
 		if (renderer === null) return;
 
-		// Computed styles on a disconnected element are the browser's defaults,
-		// not ours, so drawing before the modal is in the document produces a
-		// code in black on transparent. `connectedCallback` renders again, and
-		// that is the pass that draws.
+		// Computed styles on a disconnected element are browser defaults (black on transparent).
 		if (!this.isConnected) return;
 
-		// The host takes the slot's place whenever the body was rebuilt, so the
-		// drawing it already holds survives the rebuild.
+		// The host replaces the fresh slot after a rebuild, so the drawing survives.
 		const slot = body.querySelector(".code");
 		if (slot instanceof HTMLElement && slot !== this.#codeHost) {
 			slot.replaceWith(this.#codeHost);
@@ -911,13 +801,7 @@ export class BchcModal extends HTMLElement {
 		const initiating = view.phase.kind === "initiating";
 		if (view.phase.kind !== "awaiting-approval" && !initiating) return;
 
-		// All three colours come off the probe, an empty element that resolves
-		// `--bchc-code-ink` into its `color`, `--bchc-code-paper` into its
-		// background and the accent into `accent-color`, a property the
-		// browser has to compute to a real colour. A dedicated element rather
-		// than the tile itself: the tile's colours transition — its paper goes
-		// when the attempt fails and comes back on retry — and a code drawn
-		// from a value caught mid-transition is a code drawn in the wrong ink.
+		// Colours come from the probe, not the tile, whose colours transition on failure/retry.
 		const probe = this.#codeHost.parentElement?.querySelector(".probe");
 		if (!(probe instanceof HTMLElement)) return;
 		const tileStyles = getComputedStyle(probe);
@@ -928,8 +812,7 @@ export class BchcModal extends HTMLElement {
 				view.phase.kind === "awaiting-approval"
 					? view.phase.link
 					: PLACEHOLDER_LINK,
-			// The stand-in carries the mark too, so what arrives is the same
-			// object at full strength rather than a different one.
+			// Placeholder carries the real mark too, so nothing shifts when the link arrives.
 			mark: protocol?.mark ?? null,
 			foreground: tileStyles.color,
 			background: tileStyles.backgroundColor,
@@ -937,8 +820,4 @@ export class BchcModal extends HTMLElement {
 			placeholder: initiating,
 		});
 	}
-}
-
-if (!customElements.get("bchc-modal")) {
-	customElements.define("bchc-modal", BchcModal);
 }

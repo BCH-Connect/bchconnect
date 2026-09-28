@@ -1,28 +1,6 @@
-/**
- * The connection code.
- *
- * Drawn with `qr-code-styling`, which ships a UMD build and no ES module entry,
- * so the constructor is passed in rather than imported. That keeps this file
- * free of any reach for a global and leaves the production path — a bundler
- * resolving a plain import — a one-line change.
- *
- * The protocol's mark is *buried* in the code: modules are knocked out around
- * it so it sits in the grid rather than on a plate laid over the top. Error
- * correction is at level H specifically to pay for that hole.
- *
- * ## The well
- *
- * A mark with transparent edges — a hat, a disc — floats loose in that hole.
- * Those are set on a faint accent plate first, composed into one SVG that the
- * library then treats as the mark. The plate is the dapp's accent at a tenth of
- * its strength: enough to place the glyph, not enough to fight it.
- *
- * ## Redraws
- *
- * `update()` tears the SVG down and draws a new one, which is a hard cut at the
- * exact moment the user is looking at the code. So a redraw keeps the old
- * drawing on screen as a ghost while the new one writes itself in over it.
- */
+// qr-code-styling is a UMD build; its constructor is injected by register.ts.
+// update() can't cross-fade, so a redraw keeps the outgoing drawing in place
+// while the new one writes over it (keepOutgoing/playWriteIn).
 
 import type { ProtocolMark } from "./state.ts";
 
@@ -59,104 +37,67 @@ interface CodeOptions {
 export interface CodeRequest {
 	readonly link: string;
 	readonly mark: ProtocolMark | null;
-	/**
-	 * Resolved colours, not token names.
-	 *
-	 * Reading `--bchc-text` off a computed style hands back the token's *text* —
-	 * `light-dark(a, b)` — because custom properties are not resolved past
-	 * substitution. Handing that to the renderer produced a code drawn in a
-	 * colour no canvas or SVG could parse. These must be used values, taken from
-	 * an element that actually renders them.
-	 */
+	// Resolved colours, not token names: a custom property can read back as
+	// `light-dark(a, b)` text, which no canvas or SVG can parse.
 	readonly foreground: string;
 	readonly background: string;
-	/** The accent, resolved the same way. Only the well uses it. */
 	readonly accent: string;
-	/**
-	 * A stand-in while the real link is still on its way. Drawn exactly like a
-	 * code, then shown faint under a passing light, so the shape of what is
-	 * coming is already there when it arrives.
-	 */
+	/** Whether this draws a placeholder shown faint with a light sweep, while the real link is on its way. */
 	readonly placeholder?: boolean;
 }
 
-/**
- * The tile is square and fluid, so the code is drawn once at a fixed large
- * size and scaled by CSS, which stays sharp on any display. The module grid is
- * not snapped to whole pixels at this size — see `dotsOptions` below.
- */
+/** Drawn once at a fixed size and scaled by CSS. */
 const SIZE = 512;
 
-/**
- * How much of the code a mark may cover.
- *
- * A tile fills its box, so at 0.18 it reads as sitting in the grid. A glyph is
- * drawn inside a plate that is larger than the glyph itself, so its box is a
- * little bigger to keep the glyph the same visual size as a tile would be.
- */
+/** How much of the code a mark may cover; a glyph's box is bigger to match a tile's visual size. */
 const MARK_SIZE = { tile: 0.18, glyph: 0.21 } as const;
 
-/** Inset of the glyph within its plate, as a fraction of the plate. */
-const WELL_INSET = 0.15;
+// Fractions of the plate itself, not the whole code.
+const PLATE_INSET = 0.15;
+const PLATE_RADIUS = 0.24;
+const PLATE_OPACITY = 0.1;
 
-/** The plate's corner radius, as a fraction of the plate. */
-const WELL_RADIUS = 0.24;
-
-/** The plate's opacity over the code's paper. */
-const WELL_OPACITY = 0.1;
-
-/**
- * Clear paper between the mark and the nearest module, in pixels of the drawn
- * code. About one module: enough that the plate reads as set into the grid
- * rather than jammed against it, not so much that the hole grows into a plate
- * of its own.
- */
+/** Gap between the mark and the nearest module, in pixels of the drawn code. */
 const MARK_MARGIN = 12;
 
-interface Drawn {
+interface RenderedCode {
 	readonly instance: CodeInstance;
-	/** Everything the drawn code depends on, so an unchanged code is left alone. */
 	readonly key: string;
 }
 
-const instances = new WeakMap<HTMLElement, Drawn>();
-
+const rendered = new WeakMap<HTMLElement, RenderedCode>();
 /** The latest request per container, so a slow fetch cannot overwrite a newer draw. */
-const latest = new WeakMap<HTMLElement, string>();
-
+const latestKey = new WeakMap<HTMLElement, string>();
 const dataUris = new Map<string, Promise<string>>();
 
-/**
- * The mark as a data URI, fetched once per source.
- *
- * Needed because the plate is composed as an SVG that has to embed the glyph:
- * an SVG used as an image cannot load external resources of its own.
- */
+async function fetchDataUri(src: string): Promise<string> {
+	const response = await fetch(src);
+	if (!response.ok) throw new Error(`Mark request failed: ${response.status}`);
+	const blob = await response.blob();
+	return new Promise<string>((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(String(reader.result));
+		reader.onerror = () => reject(reader.error);
+		reader.readAsDataURL(blob);
+	});
+}
+
+// Cached per source: an SVG used as an image can't load its own external
+// resources. Synchronous so concurrent callers share the in-flight request.
 function asDataUri(src: string): Promise<string> {
 	let pending = dataUris.get(src);
 	if (pending === undefined) {
-		pending = fetch(src)
-			.then((response) => response.blob())
-			.then(
-				(blob) =>
-					new Promise<string>((resolve, reject) => {
-						const reader = new FileReader();
-						reader.onload = () => resolve(String(reader.result));
-						reader.onerror = () => reject(reader.error);
-						reader.readAsDataURL(blob);
-					}),
-			);
+		pending = fetchDataUri(src);
 		pending.catch(() => dataUris.delete(src));
 		dataUris.set(src, pending);
 	}
 	return pending;
 }
 
-/** A glyph on its plate, as one image the library can bury. */
-function well(glyph: string, accent: string): string {
-	const inset = WELL_INSET * 100;
+function plate(glyph: string, accent: string): string {
+	const inset = PLATE_INSET * 100;
 	const size = 100 - inset * 2;
-	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="${WELL_RADIUS * 100}" fill="${accent}" fill-opacity="${WELL_OPACITY}"/><image href="${glyph}" x="${inset}" y="${inset}" width="${size}" height="${size}"/></svg>`;
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="${PLATE_RADIUS * 100}" fill="${accent}" fill-opacity="${PLATE_OPACITY}"/><image href="${glyph}" x="${inset}" y="${inset}" width="${size}" height="${size}"/></svg>`;
 	return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
@@ -166,27 +107,26 @@ async function markImage(
 ): Promise<string | undefined> {
 	if (mark === null) return undefined;
 	if (mark.shape === "tile") return mark.src;
-	return well(await asDataUri(mark.src), accent);
+	try {
+		return plate(await asDataUri(mark.src), accent);
+	} catch {
+		// A failed fetch draws the code without its mark rather than not at all.
+		return undefined;
+	}
 }
 
-/** The drawing the library owns, as opposed to a ghost of an earlier one. */
-function drawing(container: HTMLElement): SVGElement | null {
-	const current = container.querySelector(":scope > svg:not(.code-ghost)");
+function currentDrawing(container: HTMLElement): SVGElement | null {
+	const current = container.querySelector(":scope > svg:not(.code-outgoing)");
 	return current instanceof SVGElement ? current : null;
 }
 
-/**
- * Leave an earlier drawing behind as a ghost the new one writes over.
- *
- * Appended *after* the library has drawn, because `update()` empties the
- * container before it appends — anything left there beforehand is gone. The
- * ghost is a static clone with no behaviour; the stylesheet dissolves it and
- * it removes itself once that ends.
- */
-function ghost(container: HTMLElement, previous: SVGElement): void {
-	for (const stale of container.querySelectorAll(".code-ghost")) stale.remove();
-	previous.classList.remove("is-fresh");
-	previous.classList.add("code-ghost");
+// Appended after update() empties the container; a static clone the
+// stylesheet dissolves, removing itself once that finishes.
+function keepOutgoing(container: HTMLElement, previous: SVGElement): void {
+	for (const stale of container.querySelectorAll(".code-outgoing"))
+		stale.remove();
+	previous.classList.remove("is-writing");
+	previous.classList.add("code-outgoing");
 	previous.setAttribute("aria-hidden", "true");
 	previous.addEventListener("animationend", () => previous.remove(), {
 		once: true,
@@ -194,28 +134,21 @@ function ghost(container: HTMLElement, previous: SVGElement): void {
 	container.append(previous);
 }
 
-/**
- * Mark the drawing as newly made so it writes itself in.
- *
- * A class rather than a bare rule on the element: a CSS animation restarts
- * whenever its element is re-attached to the document, and the code host is
- * moved between parents every time the body is rebuilt. The class is dropped
- * once the write has played, so a code that merely changed places stays put.
- */
-function fresh(container: HTMLElement, placeholder: boolean): void {
-	const current = drawing(container);
+// A class, not a bare rule: re-attaching an element restarts a CSS
+// animation, and the code host moves parents on every rebuild.
+function playWriteIn(container: HTMLElement, placeholder: boolean): void {
+	const current = currentDrawing(container);
 	if (current === null) return;
-	current.classList.add("is-fresh");
+	current.classList.add("is-writing");
 	current.classList.toggle("is-placeholder", placeholder);
 	const done = (event: AnimationEvent): void => {
 		if (event.target !== current) return;
-		current.classList.remove("is-fresh");
+		current.classList.remove("is-writing");
 		current.removeEventListener("animationend", done);
 		current.removeEventListener("animationcancel", done);
 	};
 	current.addEventListener("animationend", done);
-	// Detaching the drawing mid-write cancels the animation without ending
-	// it; the class still has to go, or the write replays on re-attach.
+	// animationcancel too: a mid-write detach cancels without ending, but the class still must go.
 	current.addEventListener("animationcancel", done);
 }
 
@@ -227,12 +160,14 @@ export async function renderCode(
 	const { foreground, background, accent, mark } = request;
 	const placeholder = request.placeholder === true;
 	const key = `${request.link}|${mark?.src ?? ""}|${mark?.shape ?? ""}|${foreground}|${background}|${accent}|${placeholder}`;
-	if (instances.get(container)?.key === key) return;
-	latest.set(container, key);
+	if (rendered.get(container)?.key === key) return;
+	// Same request already in flight for this container: let it finish.
+	if (latestKey.get(container) === key) return;
+	latestKey.set(container, key);
 
 	const image = await markImage(mark, accent);
 	// Something newer was asked for while the mark was loading.
-	if (latest.get(container) !== key) return;
+	if (latestKey.get(container) !== key) return;
 
 	const options: CodeOptions = {
 		width: SIZE,
@@ -241,45 +176,36 @@ export async function renderCode(
 		data: request.link,
 		image,
 		margin: 0,
-		// Level H tolerates roughly 30% loss, which is what buys the hole the
-		// mark sits in.
+		// Level H (~30% loss tolerance) is what buys the hole the mark sits in.
 		qrOptions: { errorCorrectionLevel: "H" },
-		// A tight well, not a plate. At 0.32 the mark punched a hole big enough
-		// to read as something laid on top of the code; well under that keeps
-		// it sitting in the grid, which is what the accepted prototype does.
 		imageOptions: {
 			hideBackgroundDots: true,
 			imageSize: MARK_SIZE[mark?.shape ?? "tile"],
 			margin: MARK_MARGIN,
 			crossOrigin: "anonymous",
 		},
-		// Not snapped to whole pixels. Snapping leaves a margin that depends on
-		// how many modules the payload needs, so a stand-in and the real link
-		// drew at different sizes and the code appeared to grow on arrival. The
-		// drawing is scaled by the tile anyway, so snapping bought no crispness.
+		// roundSize:false: snapping ties margin to module count, so the placeholder
+		// and the real link would otherwise draw at different sizes.
 		dotsOptions: { color: foreground, type: "dots", roundSize: false },
-		// The finders are the same ink as the modules. Accenting them picks out
-		// the three corners as if they meant something, when they are just part
-		// of the code — and it leaves the eye reading a pattern instead of a
-		// single scannable object.
+		// Finder patterns use the foreground colour, not the accent.
 		cornersSquareOptions: { color: foreground, type: "extra-rounded" },
 		cornersDotOptions: { color: foreground, type: "dot" },
 		backgroundOptions: { color: background },
 	};
 
-	const existing = instances.get(container);
+	const existing = rendered.get(container);
 	if (existing !== undefined) {
-		const previous = drawing(container)?.cloneNode(true);
+		const previous = currentDrawing(container)?.cloneNode(true);
 		existing.instance.update(options);
-		fresh(container, placeholder);
-		if (previous instanceof SVGElement) ghost(container, previous);
-		instances.set(container, { instance: existing.instance, key });
+		playWriteIn(container, placeholder);
+		if (previous instanceof SVGElement) keepOutgoing(container, previous);
+		rendered.set(container, { instance: existing.instance, key });
 		return;
 	}
 
 	const instance = new Renderer(options);
 	container.replaceChildren();
 	instance.append(container);
-	fresh(container, placeholder);
-	instances.set(container, { instance, key });
+	playWriteIn(container, placeholder);
+	rendered.set(container, { instance, key });
 }

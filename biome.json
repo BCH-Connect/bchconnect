@@ -10,7 +10,8 @@
 			"**",
 			"!**/routeTree.gen.ts",
 			"!**/*.generated.*",
-			"!packages/*/assets"
+			"!packages/*/assets",
+			"!packages/ui/lab"
 		]
 	},
 	"linter": {

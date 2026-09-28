@@ -4,15 +4,6 @@
  * Source of truth: packages/ui/tools/palette/recipes.ts
  * Regenerate:      node packages/ui/tools/palette/generate.ts
  * Verify:          node packages/ui/tools/palette/check.ts
- *
- * Step semantics follow the Radix Colors contract:
- *   1 app bg  2 subtle bg  3 UI bg  4 hover  5 active  6 subtle border
- *   7 border  8 hovered border  9 solid  10 hovered solid
- *   11 low-contrast text  12 high-contrast text
- *
- * Steps 11 and 12 are solved for a WCAG ratio against step 3 rather than
- * placed on a curve, so their contrast holds for every hue. The focus ring
- * is solved against step 1 and kept off the ladder entirely.
  */
 
 @layer bchconnect.palette {
@@ -55,8 +46,8 @@
 		--bchc-radius-control: 14px;
 		--bchc-radius-pill: 999px;
 		--bchc-radius-media: 10px;
-		--bchc-code-ink: #101312;
-		--bchc-code-paper: #ffffff;
+		--bchc-code-foreground: #101312;
+		--bchc-code-background: #ffffff;
 		--bchc-overlay-blur: 8px;
 		--bchc-font-family: var(--bchc-font-brand-family, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
 		color-scheme: light dark;

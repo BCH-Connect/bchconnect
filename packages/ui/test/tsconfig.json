@@ -5,7 +5,9 @@
 		"noEmit": true,
 		"isolatedDeclarations": false,
 		"allowImportingTsExtensions": true,
-		"types": ["node"]
+		"types": ["node"],
+		// See ../tsconfig.json for why.
+		"skipLibCheck": true
 	},
-	"include": [".", "../tools", "../src"]
+	"include": [".", "../tools", "../src", "../../core/src"]
 }

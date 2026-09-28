@@ -4,7 +4,7 @@
 	"type": "module",
 	"packageManager": "pnpm@12.5.1",
 	"engines": {
-		"node": ">=22"
+		"node": ">=22.18"
 	},
 	"scripts": {
 		"typecheck": "tsc -b --noEmit",
@@ -15,6 +15,7 @@
 		"build": "pnpm -r --if-present run build",
 		"palette": "node packages/ui/tools/palette/generate.ts",
 		"palette:check": "node packages/ui/tools/palette/check.ts",
+		"assets": "node packages/ui/tools/assets/generate.ts",
 		"lab": "node packages/ui/lab/serve.js",
 		"check": "pnpm typecheck && pnpm lint && pnpm test && pnpm palette:check && pnpm build",
 		"changeset": "changeset"
@@ -31,7 +32,6 @@
 		"apcach": "0.6.4",
 		"colorjs.io": "0.7.1",
 		"publint": "0.3.24",
-		"qr-code-styling": "1.9.2",
 		"size-limit": "14.0.0",
 		"tsdown": "0.23.0",
 		"typescript": "7.0.2",

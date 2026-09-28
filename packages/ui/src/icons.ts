@@ -1,14 +1,7 @@
-/**
- * The modal's icons, from Lucide.
- *
- * Inlined rather than depended on: the runtime needs eight glyphs, not a
- * package, and a shadow-rooted component has no way to load an icon font or
- * a sprite from the host page anyway. Every icon here is Lucide's own path
- * data, unchanged, so a swap for the real package later is a rename.
- *
- * Lucide is ISC licensed: https://lucide.dev/license
- * Path data from lucide-static 1.47.0.
- */
+// Inlined: a shadow-rooted component can't load an icon font or sprite from
+// the host page.
+//
+// Path data from lucide-static 1.47.0 (ISC licensed: https://lucide.dev/license)
 
 const PATHS = {
 	x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
@@ -26,12 +19,7 @@ const PATHS = {
 
 export type IconName = keyof typeof PATHS;
 
-/**
- * An icon as inline SVG, decorative by default.
- *
- * Lucide draws on a 24-unit grid at stroke 2, so the stroke scales with the
- * box: 16px gives the 1.33px line the rest of the modal's hairlines sit at.
- */
+// Lucide's 24-unit grid at stroke 2; 16px default matches the modal's other hairlines.
 export function icon(name: IconName, size = 16): string {
 	return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name]}</svg>`;
 }

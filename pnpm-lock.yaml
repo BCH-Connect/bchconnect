@@ -199,9 +199,6 @@ importers:
       publint:
         specifier: 0.3.24
         version: 0.3.24
-      qr-code-styling:
-        specifier: 1.9.2
-        version: 1.9.2
       size-limit:
         specifier: 14.0.0
         version: 14.0.0
@@ -308,6 +305,16 @@ importers:
       '@bchconnect/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/ui:
+    dependencies:
+      qr-code-styling:
+        specifier: 1.9.2
+        version: 1.9.2
+    devDependencies:
+      lightningcss:
+        specifier: 1.33.0
+        version: 1.33.0
 
 packages:
 

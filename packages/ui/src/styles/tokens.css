@@ -1,26 +1,8 @@
-/*
- * BCH Connect tokens: the scales that are the same in every theme.
- *
- * Hand-authored, unlike `theme.generated.css`. The division is deliberate:
- * anything keyed by a developer knob, or with arithmetic behind it, is
- * generated from `tools/palette/recipes.ts`. Everything here is a flat ramp
- * that a person decided and a person should be able to read and change.
- *
- * Load order is `theme.generated.css` then this file. Both declare onto the
- * same host, and nothing here depends on a colour.
- */
+/* Loaded after `theme.generated.css`; both declare onto the same host. */
 
 @layer bchconnect.tokens {
 	:where(:root, :host) {
-		/* Spacing --------------------------------------------------------------
-		 * A 4px grid. Named by multiple rather than by role (`space-4`, not
-		 * `space-card-padding`) because role names in a spacing scale go stale the
-		 * first time a component uses one for something else, and then the name
-		 * actively lies about what the value is for.
-		 *
-		 * 7, 9 and 11 are absent. Every gap in this modal landed on an even
-		 * multiple, and an unused token is a decision nobody made.
-		 */
+		/* Named by multiple, not role: role names go stale once a second component reuses them. */
 		--bchc-space-1: 4px;
 		--bchc-space-2: 8px;
 		--bchc-space-3: 12px;
@@ -31,16 +13,7 @@
 		--bchc-space-10: 40px;
 		--bchc-space-12: 48px;
 
-		/* Type -----------------------------------------------------------------
-		 * Six sizes. The pair that carries the hierarchy is `xl` against `md`:
-		 * 22 over 15 is 1.47, which is a real step rather than the polite 1.1 that
-		 * makes a heading look like bold body text. `lg` sits closer to `md`
-		 * on purpose — it is a subheading, not a second title.
-		 *
-		 * The fallback stack is metrics-aware by design: the layout has to survive
-		 * on system fonts, because the brand face is injected at document level
-		 * and a dapp with a strict CSP may never load it.
-		 */
+		/* Must work on system fonts alone: a strict CSP may block the brand face. */
 		--bchc-text-2xs: 11px;
 		--bchc-text-xs: 12.5px;
 		--bchc-text-sm: 13.5px;
@@ -57,106 +30,99 @@
 		--bchc-weight-semibold: 600;
 		--bchc-weight-bold: 700;
 
-		/* Optical correction: large type needs tightening, uppercase micro-type
-		 * needs opening up, and body text needs neither. */
 		--bchc-tracking-tight: -0.02em;
 		--bchc-tracking-snug: -0.01em;
 		--bchc-tracking-normal: 0em;
 		--bchc-tracking-wide: 0.06em;
 
-		/* Motion ---------------------------------------------------------------
-		 * Durations and easings carried over from the accepted prototype, where
-		 * they were tuned against the real choreography rather than picked from a
-		 * scale. The two `linear()` curves are the grammar: `spring` overshoots
-		 * slightly and settles, `settle` arrives without overshoot. Nothing in
-		 * this system uses `ease` or `linear` — a wallet connection that moves
-		 * mechanically reads as a page, not as an object.
-		 */
 		--bchc-duration-fast: 160ms;
 		--bchc-duration-base: 320ms;
 		--bchc-duration-slow: 560ms;
+		--bchc-duration-press: 60ms;
 
 		--bchc-ease-out: cubic-bezier(0.2, 0.9, 0.2, 1);
 		--bchc-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-		/* Arrivals: a damped spring, sampled from the physics rather than drawn
-		 * by hand — damping ratio 0.72, launched with velocity so it leaves fast,
-		 * reaching the mark by 30%, carrying 6% past it on its own momentum by
-		 * 45%, and settling back over the rest. One bounce, no wobble. What
-		 * makes a thing feel light is how fast it leaves where it was and how
-		 * softly it comes to rest. */
-		--bchc-ease-arrive: linear(
-			0,
-			0.263 5%,
-			0.493 10%,
-			0.681 15%,
-			0.825 20%,
-			0.928 25%,
-			0.997 30%,
-			1.038 35%,
-			1.058 40%,
-			1.065 45%,
-			1.062 50%,
-			1.054 55%,
-			1.044 60%,
-			1.034 65%,
-			1.024 70%,
-			1.016 75%,
-			1.009 80%,
-			1.005 85%,
-			1.001 90%,
-			0.999 95%,
-			1
-		);
-		--bchc-ease-spring: linear(
-			0,
-			0.006,
-			0.025 2.8%,
-			0.101 6.1%,
-			0.539 18.9%,
-			0.721 25.3%,
-			0.849 31.5%,
-			0.937 38.1%,
-			0.968 41.8%,
-			0.991 45.7%,
-			1.006 50.1%,
-			1.01 54.2%,
-			1.006 62.9%,
-			1
-		);
-		--bchc-ease-settle: linear(
-			0,
-			0.4 9%,
-			0.72 18%,
-			0.92 28%,
-			1.02 40%,
-			0.995 55%,
-			1
-		);
+		/* Fallbacks for browsers without `linear()` (Safari < 17.2): WAAPI throws on an easing it can't parse. */
+		--bchc-ease-enter: cubic-bezier(0.34, 1.56, 0.64, 1);
+		--bchc-ease-spring: cubic-bezier(0.32, 1.15, 0.6, 1);
+		--bchc-ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
 
-		/* Sizing ---------------------------------------------------------------
-		 * Only the rules that belong to the system rather than to one component.
-		 * A touch target below 44px fails WCAG 2.5.8 whatever it contains.
-		 */
+		/* Sizing: a touch target below 44px fails WCAG 2.5.8. */
 		--bchc-hit-touch: 44px;
 		--bchc-hit-pointer: 32px;
 	}
 
-	/*
-	 * Reduced motion collapses the duration tokens themselves rather than
-	 * carpet-bombing every element with `* { animation-duration: 1ms !important }`.
-	 * That only works because every animation in the system reads these tokens,
-	 * which is the point of having them — and unlike the `!important` approach it
-	 * leaves a component free to keep a transition that genuinely carries meaning
-	 * by opting out explicitly, instead of being overridden from outside.
-	 */
+	@supports (transition-timing-function: linear(0, 1)) {
+		:where(:root, :host) {
+			--bchc-ease-enter: linear(
+				0,
+				0.263 5%,
+				0.493 10%,
+				0.681 15%,
+				0.825 20%,
+				0.928 25%,
+				0.997 30%,
+				1.038 35%,
+				1.058 40%,
+				1.065 45%,
+				1.062 50%,
+				1.054 55%,
+				1.044 60%,
+				1.034 65%,
+				1.024 70%,
+				1.016 75%,
+				1.009 80%,
+				1.005 85%,
+				1.001 90%,
+				0.999 95%,
+				1
+			);
+			--bchc-ease-spring: linear(
+				0,
+				0.006,
+				0.025 2.8%,
+				0.101 6.1%,
+				0.539 18.9%,
+				0.721 25.3%,
+				0.849 31.5%,
+				0.937 38.1%,
+				0.968 41.8%,
+				0.991 45.7%,
+				1.006 50.1%,
+				1.01 54.2%,
+				1.006 62.9%,
+				1
+			);
+			--bchc-ease-settle: linear(
+				0,
+				0.4 9%,
+				0.72 18%,
+				0.92 28%,
+				1.02 40%,
+				0.995 55%,
+				1
+			);
+		}
+	}
+
+	/* Collapses every token-timed animation, JS ones included (`tempoOf()`); literal loops are handled in modal.css. */
 	@media (prefers-reduced-motion: reduce) {
 		:where(:root, :host) {
 			--bchc-duration-fast: 1ms;
 			--bchc-duration-base: 1ms;
 			--bchc-duration-slow: 1ms;
-			--bchc-ease-spring: linear(0, 1);
-			--bchc-ease-arrive: linear(0, 1);
-			--bchc-ease-settle: linear(0, 1);
+			--bchc-duration-press: 1ms;
+			--bchc-ease-spring: cubic-bezier(0, 0, 1, 1);
+			--bchc-ease-enter: cubic-bezier(0, 0, 1, 1);
+			--bchc-ease-settle: cubic-bezier(0, 0, 1, 1);
+		}
+
+		@supports (transition-timing-function: linear(0, 1)) {
+			:where(:root, :host) {
+				--bchc-ease-spring: linear(0, 1);
+				--bchc-ease-enter: linear(0, 1);
+				--bchc-ease-settle: linear(0, 1);
+			}
 		}
 	}
 }

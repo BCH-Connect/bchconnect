@@ -1,0 +1,23 @@
+[
+	{
+		"name": "Elements (defineElements, with qr-code-styling)",
+		"path": "dist/index.js",
+		"import": "{ defineElements }",
+		"gzip": true,
+		"limit": "32 kB"
+	},
+	{
+		"name": "Default data (protocols, wallets, directory)",
+		"path": "dist/index.js",
+		"import": "{ BCHC_PROTOCOLS, BCHC_WALLETS, BCHC_DIRECTORY }",
+		"gzip": true,
+		"limit": "19.5 kB"
+	},
+	{
+		"name": "Theme constants only",
+		"path": "dist/index.js",
+		"import": "{ BCHC_ACCENTS, BCHC_NEUTRALS, BCHC_RADII, BCHC_FONTS, BCHC_BLURS }",
+		"gzip": true,
+		"limit": "250 B"
+	}
+]

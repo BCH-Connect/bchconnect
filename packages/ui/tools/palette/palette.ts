@@ -1,11 +1,6 @@
-/**
- * Resolves the recipes in `./recipes.ts` into actual colours.
- *
- * This module is deliberately free of any notion of CSS. `generate.ts` turns
- * what comes out of here into a stylesheet and `check.ts` gates it, and both
- * need to be looking at exactly the same colours — a checker that re-derives
- * its own values is checking its own arithmetic, not the shipped palette.
- */
+// Resolves the recipes in recipes.ts into actual colours, free of any notion
+// of CSS. generate.ts and check.ts both call this, so they see exactly the
+// same colours; check.ts must never re-derive its own.
 
 import { apcach, crToBg, type SearchDirection } from "apcach";
 import Color from "colorjs.io";
@@ -22,25 +17,14 @@ export type Mode = "light" | "dark";
 
 export const MODES: readonly Mode[] = ["light", "dark"];
 
-/**
- * A scale resolved for one mode: twelve steps, the solid's foreground, and any
- * off-ladder values solved against those steps.
- */
 export interface ResolvedScale {
 	readonly steps: readonly Color[];
 	readonly foreground: Color;
 	readonly derived: ReadonlyMap<string, Color>;
 }
 
-/**
- * Builds an OKLCH colour already mapped into the sRGB gamut.
- *
- * The mapping is not a formality. Maximum chroma varies by hue and by
- * lightness, and browsers have historically clipped out-of-gamut colours
- * channel by channel, which shifts hue — a "blue" that quietly turns purple at
- * its most saturated step. Mapping here, with the CSS Gamut Mapping Algorithm,
- * means the committed value is the one that renders.
- */
+// Gamut-maps into sRGB here (CSS Gamut Mapping Algorithm), not left to the
+// browser: per-channel clipping shifts hue at saturated steps.
 export function oklch(lightness: number, chroma: number, hue: number): Color {
 	return new Color("oklch", [lightness, chroma, hue]).toGamut({
 		space: "srgb",
@@ -48,16 +32,8 @@ export function oklch(lightness: number, chroma: number, hue: number): Color {
 	});
 }
 
-/**
- * OKLCH coordinates with missing components resolved to zero.
- *
- * Colour.js types each coordinate as `number | null` because CSS Color 4 lets a
- * component be `none`, and an achromatic colour's hue is genuinely powerless —
- * the `ink` accent and the `pure` neutral produce exactly that. CSS treats
- * `none` as zero in any computation, and so does this. Some conversion paths
- * surface the same idea as `NaN` rather than `null`, so both are folded here
- * instead of at each call site.
- */
+// A component can be `null` (CSS `none`, e.g. an achromatic hue) or `NaN`
+// depending on the conversion path; both fold to 0, as CSS does for `none`.
 export function oklchCoords(color: Color): readonly [number, number, number] {
 	const [lightness, chroma, hue] = color.to("oklch").coords;
 	const clean = (value: number | null): number =>
@@ -65,18 +41,12 @@ export function oklchCoords(color: Color): readonly [number, number, number] {
 	return [clean(lightness), clean(chroma), clean(hue)];
 }
 
-/** OKLCH lightness of a colour, 0-1. */
 export function lightnessOf(color: Color): number {
 	return oklchCoords(color)[0];
 }
 
-/**
- * Solves a colour's lightness so it hits `ratio` against `against`, keeping the
- * chroma and hue it was asked for.
- *
- * apcach defaults its colour space to P3; sRGB has to be requested explicitly,
- * or the lightness it solves is correct for a gamut we do not ship into.
- */
+// apcach defaults to P3; sRGB must be requested explicitly, or the solved
+// lightness is correct for a gamut this palette doesn't ship into.
 export function solveForContrast(
 	against: Color,
 	ratio: number,
@@ -99,7 +69,6 @@ export function solveForContrast(
 	return oklch(solved.lightness, chroma, hue);
 }
 
-/** Reads a step that must already be resolved, or fails loudly. */
 function stepColor(
 	resolved: Map<number, Color>,
 	step: number,
@@ -115,14 +84,8 @@ function stepColor(
 	return color;
 }
 
-/**
- * Resolves one scale's twelve steps for one mode.
- *
- * The passes run in dependency order rather than step order: curve steps stand
- * alone, contrast steps need only step 3, the solid may fall back to step 12
- * (the achromatic `ink` accent does), and `shift` needs the solid. Walking the
- * ladder in step order instead would ask for step 10 before step 9 exists.
- */
+// Passes run in dependency order, not step order: curve stands alone,
+// contrast needs step 3, solid may need step 12, shift needs the solid.
 function resolveSteps(
 	recipe: ScaleRecipe,
 	ladder: readonly StepStrategy[],
@@ -201,16 +164,9 @@ function resolveSteps(
 	);
 }
 
-/**
- * Picks the text colour that sits on a scale's solid.
- *
- * This is per-accent data, never a constant. Bitcoin Cash green sits at 2.33:1
- * against white, so a library that assumed white button text would ship a
- * failing default — and RainbowKit had to delete a curated accent post-release
- * for exactly this. The scale's own step 12 and step 1 are tried first, because
- * a tinted near-black or near-white belongs to the palette in a way that pure
- * black and pure white do not; the pure poles are the fallback.
- */
+// Per-accent, never a constant: BCH green sits at only 2.33:1 against white,
+// so hardcoding white text would fail for it. The scale's own step 12/1 are
+// tried before the pure black/white fallback.
 function resolveForeground(steps: readonly Color[], scale: string): Color {
 	const solid = steps[8];
 	if (solid === undefined) throw new Error(`Scale "${scale}" has no step 9.`);
@@ -230,19 +186,15 @@ function resolveForeground(steps: readonly Color[], scale: string): Color {
 			best = candidate;
 			bestRatio = ratio;
 		}
-		// Comfortably past the 4.5:1 floor these button labels need. Stopping
-		// early is what keeps the palette's own tinted poles in front of pure
-		// black and white.
+		// Past the 4.5:1 floor; stopping early keeps the palette's own tinted
+		// poles ahead of pure black/white.
 		if (bestRatio >= 4.8) break;
 	}
 	return best;
 }
 
-/**
- * Resolves the off-ladder values. The search direction follows the mode: in
- * light mode a ring has to go darker than the surface to be seen, in dark mode
- * lighter.
- */
+// Search direction follows the mode: light needs darker than the surface to
+// be seen, dark needs lighter.
 function resolveDerived(
 	recipe: ScaleRecipe,
 	steps: readonly Color[],
