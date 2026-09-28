@@ -1057,7 +1057,7 @@
 	}
 }
 
-/* `touch-action: pan-x` hands vertical gestures to the drag (see `sheet.ts`), not the browser's own scroll. */
+/* `touch-action: pan-x` stops the browser's own vertical pan outside the body; the body scrolls itself, and `sheet.ts` takes over a pull-down once it is at its top. */
 .overlay.is-sheet {
 	padding: 0;
 	place-items: end stretch;
