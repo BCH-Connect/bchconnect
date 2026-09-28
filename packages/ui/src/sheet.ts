@@ -199,6 +199,11 @@ export function draggableSheet(
 
 	const onPointerMove = (event: PointerEvent): void => {
 		if (event.pointerType === "touch" || pointerId !== event.pointerId) return;
+		// No button held means the release happened where no listener saw it.
+		if (event.buttons === 0) {
+			abandon();
+			return;
+		}
 		const result = move(
 			event.clientX,
 			event.clientY,
