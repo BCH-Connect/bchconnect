@@ -16,7 +16,7 @@ export default defineConfig({
 			globalOptions: {
 				mdxOptions: {
 					rehypeCodeOptions: {
-						themes: { light: "github-light", dark: "github-dark" },
+						themes: { light: "dracula", dark: "dracula" },
 						transformers: [
 							...(rehypeCodeDefaultOptions.transformers ?? []),
 							transformerTwoslash(),

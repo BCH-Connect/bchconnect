@@ -12,6 +12,7 @@ import {
 } from "fumadocs-ui/layouts/docs/page";
 import { Suspense, use } from "react";
 import { useMDXComponents } from "@/components/mdx";
+import { StarLine } from "@/components/star-line";
 import { baseOptions } from "@/lib/layout.shared";
 import { getPageMarkdownUrl, gitConfig } from "@/lib/shared";
 import { docs, source } from "@/lib/source";
@@ -62,6 +63,7 @@ function Content({ path, markdownUrl }: { path: string; markdownUrl: string }) {
 			<DocsBody>
 				<Mdx components={useMDXComponents()} />
 			</DocsBody>
+			<StarLine />
 		</DocsPage>
 	);
 }

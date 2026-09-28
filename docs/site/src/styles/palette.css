@@ -1,0 +1,60 @@
+/* mirrors @bchconnect/ui's generated palette (green, sage); regenerate from there, don't hand-tune. */
+:root {
+	--accent-1: #f8fffb;
+	--accent-2: #ecfdf5;
+	--accent-3: #dafaeb;
+	--accent-4: #c6f6e0;
+	--accent-5: #b1f0d4;
+	--accent-6: #98e8c6;
+	--accent-7: #7adeb5;
+	--accent-8: #54d2a3;
+	--accent-9: #08c18e;
+	--accent-10: #00b280;
+	--accent-11: #007e55;
+	--accent-12: #003923;
+	--accent-foreground: #003923;
+	--accent-focus: #009e72;
+
+	--neutral-1: #fcfdfc;
+	--neutral-2: #f7f9f8;
+	--neutral-3: #eff2f0;
+	--neutral-4: #e5eae8;
+	--neutral-5: #dbe1de;
+	--neutral-6: #cfd6d2;
+	--neutral-7: #c0c9c5;
+	--neutral-8: #b0bab5;
+	--neutral-9: #7e8984;
+	--neutral-10: #717c76;
+	--neutral-11: #616c67;
+	--neutral-12: #2a2f2d;
+}
+
+.dark {
+	--accent-1: #05150e;
+	--accent-2: #021f14;
+	--accent-3: #002c1b;
+	--accent-4: #003821;
+	--accent-5: #004329;
+	--accent-6: #005234;
+	--accent-7: #006543;
+	--accent-8: #008359;
+	--accent-9: #08c18e;
+	--accent-10: #2ed09c;
+	--accent-11: #45dfaa;
+	--accent-12: #c1f9e0;
+	--accent-foreground: #05150e;
+	--accent-focus: #007b53;
+
+	--neutral-1: #101211;
+	--neutral-2: #171918;
+	--neutral-3: #1f2321;
+	--neutral-4: #272d2a;
+	--neutral-5: #303733;
+	--neutral-6: #3c4440;
+	--neutral-7: #4b5550;
+	--neutral-8: #646f6a;
+	--neutral-9: #78837e;
+	--neutral-10: #85918b;
+	--neutral-11: #b9c6bf;
+	--neutral-12: #e4eae7;
+}
