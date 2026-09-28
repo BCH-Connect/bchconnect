@@ -214,6 +214,9 @@ importers:
 
   docs/site:
     dependencies:
+      '@bchconnect/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@fontsource-variable/figtree':
         specifier: 5.3.0
         version: 5.3.0
