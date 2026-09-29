@@ -28,6 +28,33 @@ const CSS_TARGETS: Targets = {
 // without its own CSS pipeline, and a real path keeps output names relative to `src`.
 const SUFFIX = "?sheet";
 
+/** The module that stands in for a stylesheet import: the same CSSStyleSheet, built from inlined, minified text. */
+export async function sheetModule(
+	file: string,
+	warn: (message: string) => void,
+): Promise<string> {
+	const { code, warnings } = transform({
+		filename: file,
+		code: await readFile(file),
+		minify: true,
+		targets: CSS_TARGETS,
+	});
+	for (const warning of warnings) {
+		warn(`${file}: ${warning.message}`);
+	}
+	const text = JSON.stringify(code.toString());
+	return [
+		`const text = ${text};`,
+		// @__PURE__: a consumer's bundler can drop this when nothing adopts it.
+		"export default /* @__PURE__ */ (() => {",
+		'\tif (typeof CSSStyleSheet !== "function") return null;',
+		"\tconst sheet = new CSSStyleSheet();",
+		"\tsheet.replaceSync(text);",
+		"\treturn sheet;",
+		"})();",
+	].join("\n");
+}
+
 export function cssSheets(): TsdownPlugin {
 	return {
 		name: "bchc:css-sheets",
@@ -42,28 +69,9 @@ export function cssSheets(): TsdownPlugin {
 			filter: { id: /\.css\?sheet$/ },
 			async handler(id) {
 				const file = id.slice(0, -SUFFIX.length);
-				const { code, warnings } = transform({
-					filename: file,
-					code: await readFile(file),
-					minify: true,
-					targets: CSS_TARGETS,
-				});
-				for (const warning of warnings) {
-					this.warn(`${file}: ${warning.message}`);
-				}
-				const text = JSON.stringify(code.toString());
 				return {
 					moduleType: "js",
-					code: [
-						`const text = ${text};`,
-						// @__PURE__: a consumer's bundler can drop this when nothing adopts it.
-						"export default /* @__PURE__ */ (() => {",
-						'\tif (typeof CSSStyleSheet !== "function") return null;',
-						"\tconst sheet = new CSSStyleSheet();",
-						"\tsheet.replaceSync(text);",
-						"\treturn sheet;",
-						"})();",
-					].join("\n"),
+					code: await sheetModule(file, (message) => this.warn(message)),
 				};
 			},
 		},

@@ -316,6 +316,24 @@
 				}
 			}
 		</style>
+		<script>
+			// A phone has no console: a script that fails to load or throws is shown on the page.
+			(() => {
+				const show = (text) => {
+					const box = document.createElement("pre");
+					box.textContent = text;
+					box.style.cssText =
+						"position:fixed;inset:auto 0 0 0;z-index:2147483647;margin:0;padding:12px;max-height:40vh;overflow:auto;background:#300;color:#fff;font:12px/1.4 monospace;white-space:pre-wrap";
+					(document.body ?? document.documentElement).append(box);
+				};
+				addEventListener("error", (event) => {
+					const where = event.filename ? ` (${event.filename}:${event.lineno})` : "";
+					const source = event.target instanceof Element ? ` <${event.target.localName} ${event.target.getAttribute("src") ?? ""}>` : "";
+					show(`${event.message ?? "Failed to load"}${where}${source}`);
+				}, true);
+				addEventListener("unhandledrejection", (event) => show(`Unhandled: ${event.reason}`));
+			})();
+		</script>
 	</head>
 	<body>
 		<aside>

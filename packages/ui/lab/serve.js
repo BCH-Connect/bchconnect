@@ -1,13 +1,13 @@
 /**
  * A static server for the lab, with no dependencies.
  *
- * The lab runs over HTTP rather than `file://` for one reason: the modal loads
- * its stylesheets as CSS module scripts (`import sheet from "./modal.css" with
- * { type: "css" }`), which is the mechanism the shipped library will use to get
- * a real `CSSStyleSheet` into its shadow root without a build step or a string
- * literal. `file://` blocks module loading outright, and the workaround — a
- * `<link>` inside the shadow root — is exactly the kind of prototype-only path
- * that makes a lab stop telling you the truth about the real component.
+ * The lab runs over HTTP rather than `file://` because `file://` blocks module
+ * loading outright.
+ *
+ * Stylesheet imports (`import sheet from "./modal.css" with { type: "css" }`)
+ * are served the way the build ships them: rewritten to a module that
+ * constructs the sheet from the compiled text. Safari has no CSS module
+ * scripts, so the raw import would stop the whole lab from loading there.
  *
  * The repository root is the document root so that `/node_modules/...` and
  * `/packages/...` both resolve, which is what lets the lab load
@@ -20,6 +20,7 @@ import { createServer } from "node:http";
 import { stripTypeScriptTypes } from "node:module";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sheetModule } from "../tools/css-sheets.ts";
 
 const ROOT = resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
 const ENTRY = "/packages/ui/lab/index.html";
@@ -36,6 +37,9 @@ const TYPES = new Map([
 	[".png", "image/png"],
 	[".woff2", "font/woff2"],
 ]);
+
+const SHEET_IMPORT =
+	/import\s+(\w+)\s+from\s+"([^"]+\.css)"\s+with\s*\{\s*type:\s*"css"\s*\};?/g;
 
 const server = createServer((request, response) => {
 	const url = new URL(request.url ?? "/", "http://localhost");
@@ -75,7 +79,24 @@ const server = createServer((request, response) => {
 			if (extname(target) === ".ts") {
 				const source = await readFile(target, "utf8");
 				response.writeHead(200, headers);
-				response.end(stripTypeScriptTypes(source, { mode: "strip" }));
+				response.end(
+					stripTypeScriptTypes(source, { mode: "strip" }).replace(
+						SHEET_IMPORT,
+						'import $1 from "$2?sheet";',
+					),
+				);
+				return;
+			}
+
+			if (extname(target) === ".css" && url.searchParams.has("sheet")) {
+				const module = await sheetModule(target, (message) =>
+					process.stderr.write(`${message}\n`),
+				);
+				response.writeHead(200, {
+					...headers,
+					"content-type": "text/javascript; charset=utf-8",
+				});
+				response.end(module);
 				return;
 			}
 
