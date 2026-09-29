@@ -430,3 +430,8 @@ setScheme(
 
 // Escape is the modal's own business: it plays its exit and then emits
 // `bchc-close`, which is the same path the cross and the scrim take.
+
+// The drag probe is dead weight on every other load, so it only loads behind ?probe.
+if (new URLSearchParams(location.search).has("probe")) {
+	import("./probe.js");
+}
