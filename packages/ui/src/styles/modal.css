@@ -508,6 +508,8 @@
 	position: relative;
 	width: 100%;
 	aspect-ratio: 1;
+	/* A flex item with aspect-ratio and padding gets an automatic minimum height in WebKit; this pins it to the ratio instead. */
+	min-height: 0;
 	display: grid;
 	place-items: center;
 	padding: var(--bchc-space-4);
@@ -881,6 +883,8 @@
 	min-width: 0;
 	font-size: var(--bchc-text-sm);
 	font-weight: var(--bchc-weight-medium);
+	/* Two lines still fit the row's 36px, so a caption that wraps on a narrow phone doesn't grow the sheet. */
+	line-height: var(--bchc-leading-snug);
 	color: var(--bchc-text-muted);
 }
 
@@ -1114,7 +1118,8 @@
 	touch-action: pan-x;
 	/* With the bleed's negative z-index, keeps it under the contents that leave during a slide. */
 	isolation: isolate;
-	/* Set from script: how far a shrinking sheet starts raised. */
+	/* Both are set from script: the measured height of everything but the tile, and how far a shrinking sheet starts raised. */
+	--bchc-sheet-rest: 333px;
 	--bchc-sheet-travel: 0px;
 	animation: sheet calc(var(--bchc-duration-slow) * 0.9) var(--bchc-ease-sheet)
 		both;
@@ -1191,8 +1196,23 @@
 	background: var(--bchc-border-hover);
 }
 
+/* A drawer closes by dragging or tapping outside, so the button is left to the keyboard. It keeps its box so the header doesn't shift. */
+.overlay.is-sheet .close {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.overlay.is-sheet .close:focus-visible {
+	opacity: 1;
+	pointer-events: auto;
+}
+
 .overlay.is-sheet .tile {
-	width: min(100%, 320px);
+	/* Full size wherever the sheet fits the viewport; smaller only when it would not, down to 232px. */
+	width: min(
+		100%,
+		clamp(232px, 100dvh - var(--bchc-space-10) - var(--bchc-sheet-rest), 320px)
+	);
 	margin: var(--bchc-space-1) auto;
 	padding: var(--bchc-space-3);
 }
@@ -1209,13 +1229,29 @@
 	border-radius: var(--bchc-radius-pill);
 }
 
-/* Both controls share one cell, so swapping them never changes the slot's size. */
+/* Both controls share one cell, so swapping them never changes the slot's size. It sticks to the bottom of a body that has to scroll, on the card's surface so nothing shows through around the pill. */
 .overlay.is-sheet .primary-slot {
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
 	display: grid;
+	background: var(--bchc-surface);
 }
 
 .overlay.is-sheet .primary-slot > * {
 	grid-area: 1 / 1;
+}
+
+/* Fades out what scrolls under the slot. Surface over surface otherwise, so it shows only then. */
+.overlay.is-sheet .primary-slot::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 100%;
+	height: 16px;
+	background: linear-gradient(to bottom, transparent, var(--bchc-surface));
+	pointer-events: none;
 }
 
 .overlay.is-sheet .primary-slot:not(.is-failed) [data-act="retry"],

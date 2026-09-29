@@ -376,6 +376,9 @@ export class BchcModal extends ElementBase {
 			return;
 		}
 
+		// A shadow tree built while detached answers computed styles with the page's defaults in WebKit, even right after attaching. connectedCallback renders instead.
+		if (!this.isConnected) return;
+
 		const firstPaint = this.#overlay === null;
 
 		// First paint already connected: nothing to animate, so close directly
@@ -432,6 +435,7 @@ export class BchcModal extends ElementBase {
 
 		this.#patch(body, view);
 		if (view.screen === "connect") this.#paintCode(body, view);
+		if (sheet && view.screen === "connect") this.#measureSheetRest(card, body);
 		this.#shown = view;
 
 		// Nothing to animate if not yet connected.
@@ -809,12 +813,22 @@ export class BchcModal extends ElementBase {
 		}, DEEP_LINK_GRACE);
 	}
 
+	// Everything in the sheet but the tile, which sizes itself from what is left of the viewport.
+	#measureSheetRest(card: HTMLElement, body: HTMLElement): void {
+		const tile = body.querySelector(".tile");
+		if (!(tile instanceof HTMLElement)) return;
+		// Rounded up: a fraction short would leave the body scrollable by that fraction.
+		const rest = Math.ceil(
+			card.offsetHeight -
+				body.clientHeight +
+				(body.scrollHeight - tile.offsetHeight),
+		);
+		card.style.setProperty("--bchc-sheet-rest", `${rest}px`);
+	}
+
 	#paintCode(body: HTMLElement, view: ModalView): void {
 		const renderer = codeRenderer;
 		if (renderer === null) return;
-
-		// Computed styles on a disconnected element are browser defaults (black on transparent).
-		if (!this.isConnected) return;
 
 		// The host replaces the fresh slot after a rebuild, so the drawing survives.
 		const slot = body.querySelector(".code");
