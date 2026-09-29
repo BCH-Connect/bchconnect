@@ -14,6 +14,7 @@ import {
 	namedAnimationsFinished,
 	type RowSnapshot,
 	retext,
+	slideSheet,
 	snapshotRows,
 	tempoOf,
 } from "./motion.ts";
@@ -479,6 +480,8 @@ export class BchcModal extends ElementBase {
 			view.screen === "connect" &&
 			previous.protocol !== view.protocol;
 
+		const resize = sheet ? slideSheet : morphHeight;
+
 		if (protocolSwitch) {
 			// Scoped to the column, not just the list, so the link travels with the rows.
 			const column = body.querySelector(".left");
@@ -486,7 +489,7 @@ export class BchcModal extends ElementBase {
 				column instanceof HTMLElement
 					? snapshotRows(column, "[data-id]")
 					: new Map<string, RowSnapshot>();
-			morphHeight(card, () => {
+			resize(card, () => {
 				body.innerHTML = html;
 				const next = body.querySelector(".left");
 				if (next instanceof HTMLElement) flipRows(next, "[data-id]", rows);
@@ -495,7 +498,7 @@ export class BchcModal extends ElementBase {
 		}
 
 		// Direction 0: the card's width never changes, so nothing should slide sideways.
-		morphHeight(card, () => {
+		resize(card, () => {
 			crossfade(
 				body,
 				() => {
@@ -546,7 +549,11 @@ export class BchcModal extends ElementBase {
 				open.href = href;
 				open.removeAttribute("aria-disabled");
 			}
-			open.hidden = failed;
+		}
+
+		const primarySlot = body.querySelector(".primary-slot");
+		if (primarySlot instanceof HTMLElement) {
+			primarySlot.classList.toggle("is-failed", failed);
 		}
 	}
 
@@ -703,7 +710,10 @@ export class BchcModal extends ElementBase {
 				<div class="single">
 					${this.#sessionType(view)}
 					${this.#code(view)}
-					<a class="button primary block" data-act="open"${link === null ? ' aria-disabled="true"' : ` href="${escapeHtml(link)}"`}${failed ? " hidden" : ""}>Open in your wallet</a>
+					<div class="primary-slot${failed ? " is-failed" : ""}">
+						<a class="button primary block" data-act="open"${link === null ? ' aria-disabled="true"' : ` href="${escapeHtml(link)}"`}>Open in your wallet</a>
+						<button class="button primary block retry" type="button" data-act="retry">${icon("rotateCcw", 15)}Try again</button>
+					</div>
 					${this.#walletPrompt()}
 				</div>
 			`;

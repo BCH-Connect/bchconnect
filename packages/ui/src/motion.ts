@@ -11,6 +11,10 @@ export interface Tempo {
 	readonly settle: string;
 	readonly spring: string;
 	readonly enter: string;
+	readonly sheet: string;
+	// The drawer's entrance and exit, as its keyframes in modal.css time them.
+	readonly sheetIn: number;
+	readonly sheetOut: number;
 }
 
 function milliseconds(value: string, fallback: number): number {
@@ -23,14 +27,19 @@ function milliseconds(value: string, fallback: number): number {
 export function tempoOf(element: Element): Tempo {
 	const styles = getComputedStyle(element);
 	const read = (name: string) => styles.getPropertyValue(name);
+	const base = milliseconds(read("--bchc-duration-base"), 320);
+	const slow = milliseconds(read("--bchc-duration-slow"), 560);
 	return {
 		fast: milliseconds(read("--bchc-duration-fast"), 160),
-		base: milliseconds(read("--bchc-duration-base"), 320),
-		slow: milliseconds(read("--bchc-duration-slow"), 560),
+		base,
+		slow,
 		out: read("--bchc-ease-out").trim() || "ease-out",
 		settle: read("--bchc-ease-settle").trim() || "ease-out",
 		spring: read("--bchc-ease-spring").trim() || "ease-out",
 		enter: read("--bchc-ease-enter").trim() || "ease-out",
+		sheet: read("--bchc-ease-sheet").trim() || "ease-out",
+		sheetIn: slow * 0.9,
+		sheetOut: base * 1.1,
 	};
 }
 
@@ -106,6 +115,29 @@ export function morphHeight(element: HTMLElement, mutate: () => void): void {
 		.finally(() => {
 			element.style.overflow = "";
 		});
+}
+
+// The drawer is anchored to the bottom of the viewport, so a height change moves its top
+// edge. The new layout applies at once and the card travels from where that edge was.
+export function slideSheet(card: HTMLElement, mutate: () => void): void {
+	const before = card.getBoundingClientRect().height;
+	mutate();
+	const delta = card.getBoundingClientRect().height - before;
+	if (Math.abs(delta) < 1) return;
+
+	const tempo = tempoOf(card);
+	// A shorter sheet starts raised, which would show the page under its bottom edge.
+	if (delta < 0) card.style.setProperty("--bchc-sheet-travel", `${-delta}px`);
+	card
+		.animate(
+			[{ transform: `translate3d(0, ${delta}px, 0)` }, { transform: "none" }],
+			{
+				duration: delta > 0 ? tempo.sheetIn : tempo.sheetOut,
+				easing: tempo.sheet,
+			},
+		)
+		.finished.catch(() => undefined)
+		.finally(() => card.style.removeProperty("--bchc-sheet-travel"));
 }
 
 /** Where a list's rows were, keyed by identity, before it was re-templated. */

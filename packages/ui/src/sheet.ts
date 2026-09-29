@@ -33,15 +33,6 @@ type Phase = "idle" | "pressed" | "dragging" | "passed";
 /** After a settle or dismiss, how long a resulting click stays swallowed. */
 const CLICK_GUARD_MS = 100;
 
-const SHEET_EASE_FALLBACK = "cubic-bezier(0.32, 0.72, 0, 1)";
-
-function sheetEase(element: Element): string {
-	const value = getComputedStyle(element)
-		.getPropertyValue("--bchc-ease-sheet")
-		.trim();
-	return value === "" ? SHEET_EASE_FALLBACK : value;
-}
-
 function readOffset(element: HTMLElement): number {
 	return new DOMMatrixReadOnly(getComputedStyle(element).transform).m42;
 }
@@ -150,9 +141,9 @@ export function draggableSheet(
 		// Speed toward `target`; zero or negative when the finger was still or moving away.
 		const speed = remaining === 0 ? 0 : velocity * Math.sign(remaining);
 		const tempo = tempoOf(card);
-		const longest = dismissing ? tempo.base * 1.1 : tempo.slow * 0.9;
+		const longest = dismissing ? tempo.sheetOut : tempo.sheetIn;
 		const duration = releaseDuration(Math.abs(remaining), speed, longest);
-		const easing = sheetEase(card);
+		const easing = tempo.sheet;
 		const toOpacity = dismissing ? 0 : 1;
 
 		setWillChange(true);

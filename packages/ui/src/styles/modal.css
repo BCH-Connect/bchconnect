@@ -1112,6 +1112,10 @@
 		calc(var(--bchc-space-6) + env(safe-area-inset-bottom, 0px));
 	border-radius: var(--bchc-radius-modal) var(--bchc-radius-modal) 0 0;
 	touch-action: pan-x;
+	/* With the bleed's negative z-index, keeps it under the contents that leave during a slide. */
+	isolation: isolate;
+	/* Set from script: how far a shrinking sheet starts raised. */
+	--bchc-sheet-travel: 0px;
 	animation: sheet calc(var(--bchc-duration-slow) * 0.9) var(--bchc-ease-sheet)
 		both;
 }
@@ -1122,16 +1126,17 @@
 	}
 }
 
-/* Continues the card's surface below its own bottom edge, so an upward pull never shows the page under the sheet. Out of flow: no layout effect, no presses. */
+/* Continues the card's surface below its bottom edge, so a sheet pulled up or starting raised never shows the page under it. */
 .overlay.is-sheet .card::after {
 	content: "";
 	position: absolute;
 	left: 0;
 	right: 0;
 	top: 100%;
-	height: 64px;
+	height: max(64px, var(--bchc-sheet-travel));
 	background: var(--bchc-surface);
 	pointer-events: none;
+	z-index: -1;
 }
 
 /* Own keyframes (only a `to` block): the sheet may be mid-drag when this starts, so the exit begins from wherever it already is, not always from the resting position. */
@@ -1192,11 +1197,35 @@
 	padding: var(--bchc-space-3);
 }
 
+/* The primary slot carries "Try again" in the drawer. */
+.overlay.is-sheet .status .retry {
+	display: none;
+}
+
 .button.block {
 	width: 100%;
 	min-height: 52px;
 	font-size: var(--bchc-text-md);
 	border-radius: var(--bchc-radius-pill);
+}
+
+/* Both controls share one cell, so swapping them never changes the slot's size. */
+.overlay.is-sheet .primary-slot {
+	display: grid;
+}
+
+.overlay.is-sheet .primary-slot > * {
+	grid-area: 1 / 1;
+}
+
+.overlay.is-sheet .primary-slot:not(.is-failed) [data-act="retry"],
+.overlay.is-sheet .primary-slot.is-failed [data-act="open"] {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	transition:
+		opacity var(--bchc-duration-fast) var(--bchc-ease-out),
+		visibility 0s var(--bchc-duration-fast);
 }
 
 /* Kept here, after every plain `<selector> svg` rule, so their higher specificity never sits ahead (noDescendingSpecificity). */
