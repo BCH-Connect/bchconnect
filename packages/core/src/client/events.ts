@@ -7,7 +7,10 @@ import type { Logger } from "../types/protocol.js";
  * @internal
  */
 export interface LifecycleEmitter {
-	/** Calls `listener` on every `event`. Returns unsubscribe. */
+	/**
+	 * Calls `listener` on every `event`. Returns unsubscribe, which removes
+	 * only this registration.
+	 */
 	on<E extends keyof LifecycleEvents>(
 		event: E,
 		listener: (payload: LifecycleEvents[E]) => void,
@@ -21,8 +24,12 @@ export interface LifecycleEmitter {
 	clear(): void;
 }
 
+// One entry per `on()` call, so unsubscribing removes only that call's
+// registration even when the same function is subscribed more than once.
 type ListenerMap = {
-	[E in keyof LifecycleEvents]: Set<(payload: LifecycleEvents[E]) => void>;
+	[E in keyof LifecycleEvents]: Set<{
+		listener: (payload: LifecycleEvents[E]) => void;
+	}>;
 };
 
 /**
@@ -57,19 +64,20 @@ export function createEmitter(logger: Logger): LifecycleEmitter {
 	return {
 		on(event, listener) {
 			const registered = listeners[event];
-			registered.add(listener);
+			const entry = { listener };
+			registered.add(entry);
 			return () => {
-				registered.delete(listener);
+				registered.delete(entry);
 			};
 		},
 		emit(event, payload) {
 			const registered = listeners[event];
 			// A copy, so that subscribing during an emit never grows the loop.
 			// `has` skips listeners that unsubscribed inside it.
-			for (const listener of [...registered]) {
-				if (!registered.has(listener)) continue;
+			for (const entry of [...registered]) {
+				if (!registered.has(entry)) continue;
 				try {
-					listener(payload);
+					entry.listener(payload);
 				} catch (error) {
 					logger.error(`A "${event}" listener threw`, error);
 				}
