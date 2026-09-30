@@ -6,7 +6,12 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"includes": ["**", "!**/routeTree.gen.ts"]
+		"includes": [
+			"**",
+			"!**/routeTree.gen.ts",
+			"!**/*.generated.*",
+			"!packages/*/assets"
+		]
 	},
 	"linter": {
 		"rules": {

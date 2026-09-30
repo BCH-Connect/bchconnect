@@ -1,0 +1,40 @@
+{
+	"name": "@bchconnect/ui",
+	"version": "0.0.0",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/BCH-Connect/bchconnect.git",
+		"directory": "packages/ui"
+	},
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=22"
+	},
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
+	"scripts": {
+		"build": "tsdown",
+		"api": "api-extractor run --local --verbose"
+	},
+	"dependencies": {
+		"qr-code-styling": "1.9.2"
+	},
+	"devDependencies": {
+		"lightningcss": "1.33.0"
+	}
+}

@@ -36,6 +36,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm test
+      - run: pnpm palette:check
 
   package:
     runs-on: ubuntu-latest
@@ -53,7 +54,10 @@ jobs:
             tgz="$RUNNER_TEMP/package.tgz"
             (cd "$dir" && pnpm pack --out "$tgz")
             pnpm exec publint run "$tgz" --strict
-            pnpm exec attw "$tgz"
+            # A package without a require condition is ESM-only on purpose.
+            profile=()
+            [ "$(jq -r '.exports["."].require // empty' "${dir}package.json")" ] || profile=(--profile esm-only)
+            pnpm exec attw "$tgz" "${profile[@]}"
           done
       - name: size-limit
         run: |
