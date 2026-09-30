@@ -5,6 +5,7 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import { RootProvider } from "fumadocs-ui/provider/tanstack";
+import { AccentLab } from "@/accent-lab/accent-lab";
 import appCss from "@/styles/app.css?url";
 
 export const Route = createRootRoute({
@@ -45,6 +46,7 @@ function RootComponent() {
 			<body className="flex flex-col min-h-screen">
 				<RootProvider>
 					<Outlet />
+					<AccentLab />
 				</RootProvider>
 				<Scripts />
 			</body>

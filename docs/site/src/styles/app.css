@@ -1,10 +1,11 @@
 @import "tailwindcss";
-@import "@fontsource-variable/figtree";
+@import "@fontsource-variable/plus-jakarta-sans";
 @import "@fontsource-variable/fira-code";
 @import "fumadocs-ui/css/lib/default-colors.css";
 @import "fumadocs-ui/css/preset.css";
 @import "fumadocs-twoslash/twoslash.css";
 @import "./palette.css";
+@import "./tokens.css";
 
 html {
 	scrollbar-gutter: stable;
@@ -16,6 +17,16 @@ html > body[data-scroll-locked] {
 }
 
 /*
+ * Until @bchconnect/ui gives its overlay a z-index, the header's z-40 would
+ * paint over the open modal. A positioned host stacks the whole modal above it.
+ */
+bchc-modal {
+	position: relative;
+	z-index: 50;
+	display: block;
+}
+
+/*
  * --color-fd-* aliases our palette instead of Fumadocs' defaults. The light
  * values live in @theme (Tailwind's theme layer, which correctly overrides
  * default-colors.css's own @theme block by source order); the dark values
@@ -23,7 +34,7 @@ html > body[data-scroll-locked] {
  * block is unlayered and would otherwise beat a layered @theme override.
  */
 @theme {
-	--font-sans: "Figtree Variable", system-ui, sans-serif;
+	--font-sans: "Plus Jakarta Sans Variable", system-ui, sans-serif;
 	--font-mono:
 		"FiraCode Nerd Font", "Fira Code Variable", ui-monospace, monospace;
 
@@ -79,7 +90,7 @@ body {
 .prose h1,
 #nd-page > h1 {
 	font-weight: 700;
-	letter-spacing: -0.03em;
+	letter-spacing: -0.025em;
 	text-wrap: balance;
 }
 
