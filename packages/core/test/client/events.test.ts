@@ -53,12 +53,37 @@ describe("createEmitter", () => {
 		expect(calls).toEqual(["first", "second"]);
 	});
 
-	it("should call a listener registered twice only once", () => {
+	it("should call a listener once per registration", () => {
 		const events = createEmitter(createLogger());
 		const listener = vi.fn();
 		events.on("session:disconnected", listener);
 		events.on("session:disconnected", listener);
 
+		events.emit("session:disconnected", disconnected);
+
+		expect(listener).toHaveBeenCalledTimes(2);
+	});
+
+	it("should remove only its own registration of a shared listener", () => {
+		const events = createEmitter(createLogger());
+		const listener = vi.fn();
+		const offFirst = events.on("session:disconnected", listener);
+		events.on("session:disconnected", listener);
+
+		offFirst();
+		events.emit("session:disconnected", disconnected);
+
+		expect(listener).toHaveBeenCalledOnce();
+	});
+
+	it("should keep a new registration when a stale unsubscribe runs", () => {
+		const events = createEmitter(createLogger());
+		const listener = vi.fn();
+		const staleOff = events.on("session:disconnected", listener);
+		staleOff();
+		events.on("session:disconnected", listener);
+
+		staleOff();
 		events.emit("session:disconnected", disconnected);
 
 		expect(listener).toHaveBeenCalledOnce();
