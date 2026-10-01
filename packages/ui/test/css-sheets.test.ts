@@ -57,6 +57,11 @@ describe("cssSheets", () => {
 		expect(hooks.resolveId.handler("./styles/modal.css", undefined)).toBe(null);
 	});
 
+	it("should leave stylesheets imported from outside the package source alone", () => {
+		const importer = join(HERE, "..", ".storybook", "preview.ts");
+		expect(hooks.resolveId.handler("./theme.css", importer)).toBe(null);
+	});
+
 	it("should inline the stylesheet minified", async () => {
 		const source = await readFile(STYLESHEET, "utf8");
 		const text = textOf(await emit("./styles/modal.css"));

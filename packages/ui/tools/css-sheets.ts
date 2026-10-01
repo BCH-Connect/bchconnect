@@ -1,9 +1,9 @@
-// tsdown plugin: replaces `with { type: "css" }` imports (unsupported by
-// Safari/most bundlers) with a module building the same CSSStyleSheet from
-// inlined, minified text. Default export is `null` on a server.
+// Build plugin for tsdown and Storybook's Vite: replaces `with { type: "css" }`
+// imports (unsupported by Safari/most bundlers) with a module building the same
+// CSSStyleSheet from inlined, minified text. Default export is `null` on a server.
 
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 import { type Targets, transform } from "lightningcss";
 import type { TsdownPlugin } from "tsdown";
 
@@ -26,7 +26,11 @@ const CSS_TARGETS: Targets = {
 
 // Real path + suffix, not a `\0` virtual id: tsdown refuses a bare `.css` id
 // without its own CSS pipeline, and a real path keeps output names relative to `src`.
-const SUFFIX = "?sheet";
+// No `?` query: Vite treats any `.css?…` id as CSS and would minify this module as CSS.
+const SUFFIX = ".sheet.js";
+
+// Only the package's own imports: Storybook's preview also imports ordinary CSS.
+const SOURCE_DIR = resolve(import.meta.dirname, "..", "src") + sep;
 
 /** The module that stands in for a stylesheet import: the same CSSStyleSheet, built from inlined, minified text. */
 export async function sheetModule(
@@ -61,12 +65,14 @@ export function cssSheets(): TsdownPlugin {
 		resolveId: {
 			filter: { id: /\.css$/ },
 			handler(source, importer) {
-				if (importer === undefined) return null;
+				if (importer === undefined || !importer.startsWith(SOURCE_DIR)) {
+					return null;
+				}
 				return resolve(importer, "..", source) + SUFFIX;
 			},
 		},
 		load: {
-			filter: { id: /\.css\?sheet$/ },
+			filter: { id: /\.css\.sheet\.js$/ },
 			async handler(id) {
 				const file = id.slice(0, -SUFFIX.length);
 				return {

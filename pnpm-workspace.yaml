@@ -7,3 +7,14 @@ strictPeerDependencies: true
 
 allowBuilds:
   esbuild: false
+  rs-module-lexer: false
+
+minimumReleaseAgeExclude:
+  - '@storybook/addon-vitest@10.6.1'
+  - storybook@10.6.1
+  - '@storybook/addon-a11y@10.6.1'
+  - '@storybook/addon-docs@10.6.1'
+  - '@storybook/builder-vite@10.6.1'
+  - '@storybook/react-dom-shim@10.6.1'
+  - '@storybook/web-components-vite@10.6.1'
+  - '@storybook/web-components@10.6.1'

@@ -7,7 +7,7 @@
 		"node": "^22.18.0 || >=24.2.0"
 	},
 	"scripts": {
-		"typecheck": "tsc -b --noEmit",
+		"typecheck": "tsc -b --noEmit && tsc -p packages/ui/stories",
 		"lint": "biome check .",
 		"format": "biome check --write .",
 		"test": "vitest run",
@@ -16,6 +16,7 @@
 		"palette": "node packages/ui/tools/palette/generate.ts",
 		"palette:check": "node packages/ui/tools/palette/check.ts",
 		"assets": "node packages/ui/tools/assets/generate.ts",
+		"storybook": "pnpm --filter @bchconnect/ui storybook",
 		"check": "pnpm typecheck && pnpm lint && pnpm test && pnpm palette:check && pnpm build",
 		"changeset": "changeset"
 	},
@@ -26,14 +27,18 @@
 		"@changesets/cli": "3.0.3",
 		"@microsoft/api-extractor": "7.59.1",
 		"@size-limit/preset-small-lib": "14.0.0",
+		"@storybook/addon-vitest": "10.6.1",
 		"@types/node": "26.6.2",
-		"@vitest/coverage-v8": "5.0.1",
+		"@vitest/browser": "5.0.2",
+		"@vitest/browser-playwright": "5.0.2",
+		"@vitest/coverage-v8": "5.0.2",
 		"apcach": "0.6.4",
 		"colorjs.io": "0.7.1",
+		"playwright": "1.63.0",
 		"publint": "0.3.24",
 		"size-limit": "14.0.0",
 		"tsdown": "0.23.0",
 		"typescript": "7.0.2",
-		"vitest": "5.0.1"
+		"vitest": "5.0.2"
 	}
 }

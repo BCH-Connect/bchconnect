@@ -29,12 +29,21 @@
 	},
 	"scripts": {
 		"build": "tsdown",
-		"api": "api-extractor run --local --verbose"
+		"api": "api-extractor run --local --verbose",
+		"storybook": "storybook dev -p 6006",
+		"build-storybook": "storybook build"
 	},
 	"dependencies": {
 		"qr-code-styling": "1.9.2"
 	},
 	"devDependencies": {
-		"lightningcss": "1.33.0"
+		"@custom-elements-manifest/analyzer": "0.11.0",
+		"@storybook/addon-a11y": "10.6.1",
+		"@storybook/addon-docs": "10.6.1",
+		"@storybook/web-components-vite": "10.6.1",
+		"lightningcss": "1.33.0",
+		"lit": "3.3.3",
+		"storybook": "10.6.1",
+		"vite": "8.3.1"
 	}
 }

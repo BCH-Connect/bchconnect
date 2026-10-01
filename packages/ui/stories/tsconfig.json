@@ -1,0 +1,16 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		// Not composite: CSF Next infers story types that name Storybook-internal
+		// modules, which declaration emit can't reference. Stories never ship.
+		"declaration": false,
+		"declarationMap": false,
+		"isolatedDeclarations": false,
+		"noEmit": true,
+		"allowImportingTsExtensions": true,
+		"types": ["node"],
+		// See ../tsconfig.json for why.
+		"skipLibCheck": true
+	},
+	"include": [".", "../.storybook/*.ts", "../tools", "../src"]
+}
