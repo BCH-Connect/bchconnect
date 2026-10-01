@@ -7,7 +7,7 @@
 		"node": "^22.18.0 || >=24.2.0"
 	},
 	"scripts": {
-		"typecheck": "tsc -b --noEmit && tsc -p packages/ui/stories",
+		"typecheck": "pnpm --filter @bchconnect/ui cem && tsc -b --noEmit && tsc -p packages/ui/stories",
 		"lint": "biome check .",
 		"format": "biome check --write .",
 		"test": "vitest run",

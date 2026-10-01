@@ -25,11 +25,16 @@
 			"ae-undocumented": {
 				"logLevel": "error"
 			},
-			// ElementBase is an unexported internal type api-extractor can't otherwise resolve.
 			"ae-forgotten-export": {
 				"logLevel": "none",
 				"addToApiReportFile": false
 			}
+		},
+		"tsdocMessageReporting": {
+			"tsdoc-escape-right-brace": { "logLevel": "none" },
+			"tsdoc-escape-greater-than": { "logLevel": "none" },
+			"tsdoc-malformed-inline-tag": { "logLevel": "none" },
+			"tsdoc-malformed-html-name": { "logLevel": "none" }
 		}
 	}
 }

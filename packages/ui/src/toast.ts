@@ -38,6 +38,18 @@ const SHOWN_FOR = 3600;
  * separate from the modal so it can outlive it; it never blocks the page, and a
  * dapp with its own notifications can leave it out.
  *
+ * @tag bchc-toast
+ *
+ * @attr {BchcAccent} data-bchc-accent - Curated accent color.
+ * @attr {BchcNeutral} data-bchc-neutral - Neutral family override; each accent has a default pairing.
+ * @attr {BchcRadius} data-bchc-radius - Corner radius preset applied to every rounded part.
+ * @attr {BchcFont} data-bchc-font - Font stack; `brand` falls back to `system` until a face is injected.
+ * @attr {BchcMode} data-bchc-mode - Color scheme; `auto` follows `prefers-color-scheme`.
+ *
+ * @fires {CustomEvent<void>} bchc-dismiss - Fired once the exit has played. Remove the element on it.
+ *
+ * @cssprop --bchc-font-brand-family - Brand font family read when `data-bchc-font="brand"`; falls back to the system stack until set.
+ *
  * @example
  * ```ts
  * defineElements();

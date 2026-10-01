@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 storybook-static/
+custom-elements.json
 
 # Test coverage
 coverage/

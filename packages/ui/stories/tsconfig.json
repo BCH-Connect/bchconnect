@@ -8,6 +8,8 @@
 		"isolatedDeclarations": false,
 		"noEmit": true,
 		"allowImportingTsExtensions": true,
+		// preview.ts imports the generated custom-elements.json with an import attribute.
+		"resolveJsonModule": true,
 		"types": ["node"],
 		// See ../tsconfig.json for why.
 		"skipLibCheck": true

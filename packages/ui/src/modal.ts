@@ -110,6 +110,22 @@ export function useCodeRenderer(renderer: CodeRenderer): void {
 /**
  * The `<bchc-modal>` web component
  *
+ * @tag bchc-modal
+ *
+ * @attr {BchcAccent} data-bchc-accent - Curated accent color.
+ * @attr {BchcNeutral} data-bchc-neutral - Neutral family override; each accent has a default pairing.
+ * @attr {BchcRadius} data-bchc-radius - Corner radius preset applied to every rounded part.
+ * @attr {BchcFont} data-bchc-font - Font stack; `brand` falls back to `system` until a face is injected.
+ * @attr {BchcBlur} data-bchc-blur - Backdrop blur behind the modal.
+ * @attr {BchcMode} data-bchc-mode - Color scheme; `auto` follows `prefers-color-scheme`.
+ *
+ * @fires {CustomEvent<{ protocol: ProtocolId }>} bchc-protocol - Fired when the visitor picks a different session type.
+ * @fires {CustomEvent<{ screen: ModalScreen }>} bchc-screen - Fired when the visitor moves between the connect and wallets screens.
+ * @fires {CustomEvent<void>} bchc-close - Fired once the exit has played. Remove the element on it.
+ * @fires {CustomEvent<void>} bchc-retry - Fired when "Try again" is pressed after a failure.
+ *
+ * @cssprop --bchc-font-brand-family - Brand font family read when `data-bchc-font="brand"`; falls back to the system stack until set.
+ *
  * @example
  * ```ts
  * defineElements();
