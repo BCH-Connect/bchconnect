@@ -80,7 +80,7 @@ describe("createStore", () => {
 		expect(order).toEqual(["first", "second"]);
 	});
 
-	it("should subscribe the same listener once", () => {
+	it("should call a listener once per registration", () => {
 		const store = createStore(0);
 		const listener = vi.fn();
 
@@ -88,7 +88,32 @@ describe("createStore", () => {
 		store.subscribe(listener);
 		store.setState(() => 1);
 
-		expect(listener).toHaveBeenCalledTimes(1);
+		expect(listener).toHaveBeenCalledTimes(2);
+	});
+
+	it("should remove only its own registration of a shared listener", () => {
+		const store = createStore(0);
+		const listener = vi.fn();
+		const unsubscribeFirst = store.subscribe(listener);
+		store.subscribe(listener);
+
+		unsubscribeFirst();
+		store.setState(() => 1);
+
+		expect(listener).toHaveBeenCalledOnce();
+	});
+
+	it("should keep a new registration when a stale unsubscribe runs", () => {
+		const store = createStore(0);
+		const listener = vi.fn();
+		const staleUnsubscribe = store.subscribe(listener);
+		staleUnsubscribe();
+		store.subscribe(listener);
+
+		staleUnsubscribe();
+		store.setState(() => 1);
+
+		expect(listener).toHaveBeenCalledOnce();
 	});
 
 	it("should stop notifying after unsubscribe", () => {
@@ -125,6 +150,18 @@ describe("createStore", () => {
 		store.setState(() => 1);
 
 		expect(second).not.toHaveBeenCalled();
+	});
+
+	it("should skip only the registration of a shared listener unsubscribed during a notification", () => {
+		const store = createStore(0);
+		const shared = vi.fn();
+
+		store.subscribe(() => unsubscribeSecond());
+		store.subscribe(shared);
+		const unsubscribeSecond = store.subscribe(shared);
+		store.setState(() => 1);
+
+		expect(shared).toHaveBeenCalledOnce();
 	});
 
 	it("should skip a listener subscribed during a notification", () => {
