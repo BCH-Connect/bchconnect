@@ -11,7 +11,7 @@ import type { Connector, RequestOptions, Session } from "../types/protocol.js";
 import { createClientRuntime } from "./runtime.js";
 
 // `Client` with every protocol-typed member loosened to `Session`.
-interface ClientImpl extends Omit<ClientLifecycle, "current"> {
+interface ClientImpl extends ClientLifecycle {
 	session(protocol: string): Session | null;
 	request(
 		session: Session,
@@ -95,6 +95,9 @@ export function createClient<const Connectors extends readonly Connector[]>(
 		},
 		get sessions() {
 			return store.getState().sessions;
+		},
+		get current() {
+			return null;
 		},
 		store: runtime.publicStore,
 		async init() {

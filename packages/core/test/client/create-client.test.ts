@@ -196,6 +196,7 @@ describe("createClient", () => {
 
 		expect(client.status).toBe(state.status);
 		expect(client.sessions).toBe(state.sessions);
+		expect(client.current).toBeNull();
 	});
 
 	it("should expose one store without a way to write to it", () => {
