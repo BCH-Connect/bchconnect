@@ -145,7 +145,8 @@ export type ConnectPhase =
 	 */
 	| {
 			readonly kind: "connected";
-			readonly walletName: string;
+			/** `null` when the wallet didn't identify itself. */
+			readonly walletName: string | null;
 			/** The wallet's logo, so the success moment shows who answered. */
 			readonly walletLogo: string | null;
 	  }

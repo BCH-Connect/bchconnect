@@ -15,8 +15,11 @@ import tokens from "./styles/tokens.css" with { type: "css" };
  * @beta
  */
 export interface ToastView {
-	/** The wallet that connected, shown alongside its logo. */
-	readonly walletName: string;
+	/**
+	 * The wallet that connected, shown alongside its logo. `null` when the
+	 * wallet didn't identify itself; the toast then says "Wallet connected".
+	 */
+	readonly walletName: string | null;
 	/** The wallet's logo, so the moment shows who answered. */
 	readonly walletLogo: string | null;
 }
@@ -31,7 +34,13 @@ export interface BchcToastEvents {
 	"bchc-dismiss": CustomEvent<void>;
 }
 
-const SHOWN_FOR = 3600;
+const DEFAULT_DURATION = 3600;
+
+function titleFor(view: ToastView): string {
+	return view.walletName === null
+		? "Wallet connected"
+		: `Connected to ${view.walletName}`;
+}
 
 /**
  * The `<bchc-toast>` custom element, confirming a successful connection. It is
@@ -66,9 +75,10 @@ export class BchcToast extends ElementBase {
 	#view: ToastView | null = null;
 	#timer: ReturnType<typeof setTimeout> | null = null;
 	#exiting = false;
+	#duration = DEFAULT_DURATION;
 
 	// Ticked down on pause, restarted with this value on resume.
-	#remainingMs = SHOWN_FOR;
+	#remainingMs = DEFAULT_DURATION;
 	#timerStartedAt = 0;
 	#pauseCount = 0;
 
@@ -92,10 +102,32 @@ export class BchcToast extends ElementBase {
 		this.#render();
 	}
 
+	/**
+	 * How long the toast stays before it dismisses itself, in milliseconds.
+	 * Hovering or focusing it pauses the countdown. `Infinity` keeps it until
+	 * {@link BchcToast.dismiss} is called or the visitor dismisses it. Setting
+	 * it while the toast is shown restarts the countdown.
+	 *
+	 * @defaultValue `3600`
+	 */
+	get duration(): number {
+		return this.#duration;
+	}
+
+	set duration(next: number) {
+		this.#duration = next;
+		if (!this.isConnected || this.#exiting) return;
+		if (this.#timer !== null) clearTimeout(this.#timer);
+		this.#timer = null;
+		this.#remainingMs = next;
+		if (this.#pauseCount === 0) this.#startTimer(next);
+	}
+
 	/** Called by the browser when the element is attached. @internal */
 	connectedCallback(): void {
 		this.#render();
-		this.#startTimer(SHOWN_FOR);
+		this.#remainingMs = this.#duration;
+		this.#startTimer(this.#duration);
 	}
 
 	/** Called by the browser when the element is detached. @internal */
@@ -103,7 +135,6 @@ export class BchcToast extends ElementBase {
 		if (this.#timer !== null) clearTimeout(this.#timer);
 		this.#timer = null;
 		this.#exiting = false;
-		this.#remainingMs = SHOWN_FOR;
 		this.#pauseCount = 0;
 		// A re-attached toast is a new appearance: it builds and enters again.
 		this.#root.replaceChildren();
@@ -124,6 +155,8 @@ export class BchcToast extends ElementBase {
 	}
 
 	#startTimer(duration: number): void {
+		// setTimeout fires at once for delays of 2^31 ms or more, Infinity included.
+		if (!(duration < 2 ** 31)) return;
 		this.#timerStartedAt = Date.now();
 		this.#timer = setTimeout(() => void this.dismiss(), duration);
 	}
@@ -167,7 +200,7 @@ export class BchcToast extends ElementBase {
 					${logo === null ? "" : `<img src="${escapeHtml(logo)}" alt="" width="44" height="44" />`}
 					<span class="check">${icon("check")}</span>
 				</span>
-				<span class="done-title">Connected to ${escapeHtml(view.walletName)}</span>
+				<span class="done-title">${escapeHtml(titleFor(view))}</span>
 			</span>
 			<button class="toast-dismiss" type="button" aria-label="Dismiss"></button>
 		`;
@@ -200,7 +233,7 @@ export class BchcToast extends ElementBase {
 		}
 		const title = element.querySelector(".done-title");
 		if (title instanceof HTMLElement) {
-			title.textContent = `Connected to ${view.walletName}`;
+			title.textContent = titleFor(view);
 		}
 	}
 }
