@@ -24,6 +24,24 @@ describe("mergeWalletIdentity", () => {
 		expect(mergeWalletIdentity(session)).toBe(session);
 	});
 
+	it("should return the same session when the selection is empty", () => {
+		const session = demoSession({ wallet: { source: "protocol" } });
+
+		expect(mergeWalletIdentity(session, {})).toBe(session);
+	});
+
+	it("should return the same session when the selection fills no gap", () => {
+		const session = demoSession({
+			wallet: { icon: "https://example.com/paytaca.svg", source: "protocol" },
+		});
+
+		expect(
+			mergeWalletIdentity(session, {
+				icon: "https://example.com/cashonize.svg",
+			}),
+		).toBe(session);
+	});
+
 	it("should fill every missing field from the selection", () => {
 		const session = demoSession({ wallet: { source: "protocol" } });
 
@@ -104,6 +122,20 @@ describe("mergeWalletIdentity", () => {
 		const merged = mergeWalletIdentity(session, { name: "Paytaca" });
 
 		expect(merged.wallet.source).toBe("selection");
+	});
+
+	it("should mark the selection as the source when neither side supplied a name", () => {
+		const session = demoSession({
+			wallet: { icon: "https://example.com/paytaca.svg", source: "protocol" },
+		});
+
+		const merged = mergeWalletIdentity(session, { id: "paytaca" });
+
+		expect(merged.wallet).toStrictEqual({
+			id: "paytaca",
+			icon: "https://example.com/paytaca.svg",
+			source: "selection",
+		});
 	});
 
 	it("should leave out fields that neither side supplied", () => {

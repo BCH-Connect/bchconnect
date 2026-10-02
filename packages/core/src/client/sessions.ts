@@ -7,8 +7,8 @@ import type { Session, WalletIdentity } from "../types/protocol.js";
  * empty. `source` is `"protocol"` when the protocol sent a name, else
  * `"selection"`.
  *
- * Without a pick, returns `session` as is. Otherwise returns a new session
- * and never modifies the original.
+ * Returns `session` as is when there is no pick or the pick fills none of
+ * its gaps. Otherwise returns a new session and never modifies the original.
  *
  * @example
  * ```ts
@@ -24,15 +24,17 @@ export function mergeWalletIdentity<S extends Session>(
 	session: S,
 	selection?: ConnectOptions["wallet"],
 ): S {
-	if (selection === undefined) return session;
-
 	const { wallet } = session;
+	const id = wallet.id ?? selection?.id;
+	const name = wallet.name ?? selection?.name;
+	const icon = wallet.icon ?? selection?.icon;
+	if (id === wallet.id && name === wallet.name && icon === wallet.icon) {
+		return session;
+	}
+
 	const merged: WalletIdentity = {
 		source: wallet.name !== undefined ? "protocol" : "selection",
 	};
-	const id = wallet.id ?? selection.id;
-	const name = wallet.name ?? selection.name;
-	const icon = wallet.icon ?? selection.icon;
 	if (id !== undefined) merged.id = id;
 	if (name !== undefined) merged.name = name;
 	if (icon !== undefined) merged.icon = icon;
