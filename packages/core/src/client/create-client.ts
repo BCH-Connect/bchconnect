@@ -1,18 +1,36 @@
 import { ConfigError } from "../errors.js";
 import { isNetwork } from "../snapshot.js";
+import type { CapabilityRegistry } from "../types/capabilities.js";
 import type {
 	Client,
 	ClientConfig,
 	ClientLifecycle,
 	ProtocolOf,
 } from "../types/client.js";
-import type { Connector } from "../types/protocol.js";
+import type { Connector, RequestOptions, Session } from "../types/protocol.js";
 import { createClientRuntime } from "./runtime.js";
 
-type ClientImpl = Pick<
-	ClientLifecycle,
-	"protocols" | "status" | "sessions" | "store"
->;
+// `Client` with every protocol-typed member loosened to `Session`.
+interface ClientImpl extends Omit<ClientLifecycle, "current"> {
+	session(protocol: string): Session | null;
+	request(
+		session: Session,
+		method: string,
+		params: unknown,
+		opts?: RequestOptions,
+	): Promise<unknown>;
+	subscribe(
+		session: Session,
+		event: string,
+		listener: (payload: unknown) => void,
+	): () => void;
+	capability(session: Session, name: keyof CapabilityRegistry): unknown;
+	can(session: Session, name: string): boolean;
+}
+
+function notImplemented(method: string): ConfigError {
+	return new ConfigError(`${method}() is not implemented yet`);
+}
 
 // thorough runtime validation for non-typescript consumers
 function validate(config: ClientConfig<readonly Connector[]>): void {
@@ -79,6 +97,39 @@ export function createClient<const Connectors extends readonly Connector[]>(
 			return store.getState().sessions;
 		},
 		store: runtime.publicStore,
+		async init() {
+			throw notImplemented("init");
+		},
+		async dispose() {
+			throw notImplemented("dispose");
+		},
+		async connect() {
+			throw notImplemented("connect");
+		},
+		async disconnect() {
+			throw notImplemented("disconnect");
+		},
+		setCurrent() {
+			throw notImplemented("setCurrent");
+		},
+		on() {
+			throw notImplemented("on");
+		},
+		session() {
+			throw notImplemented("session");
+		},
+		async request() {
+			throw notImplemented("request");
+		},
+		subscribe() {
+			throw notImplemented("subscribe");
+		},
+		capability() {
+			throw notImplemented("capability");
+		},
+		can() {
+			throw notImplemented("can");
+		},
 	};
 
 	// The protocol union only narrows types; at runtime the client is

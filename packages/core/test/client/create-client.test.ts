@@ -1,5 +1,5 @@
 import type { DemoAltProtocol, DemoProtocol } from "@bchconnect/test-utils";
-import { createFakeConnector } from "@bchconnect/test-utils";
+import { createFakeConnector, demoSession } from "@bchconnect/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { createClient } from "../../src/client/create-client.js";
 import type { ClientSnapshot } from "../../src/types/client.js";
@@ -44,6 +44,16 @@ const snapshot: ClientSnapshot = {
 		},
 	],
 };
+
+function createDemoClient() {
+	return createClient({
+		connectors: [createFakeConnector<DemoProtocol>({ protocol: "demo" })],
+		network: "chipnet",
+		appMetadata,
+	});
+}
+
+type DemoClient = ReturnType<typeof createDemoClient>;
 
 describe("createClient", () => {
 	it("should list protocol ids in registration order", () => {
@@ -257,5 +267,40 @@ describe("createClient", () => {
 		});
 
 		expect(client.store.getState().snapshot).toBeNull();
+	});
+
+	describe("members that are not implemented yet", () => {
+		const session = demoSession();
+
+		it.each<[string, (client: DemoClient) => Promise<unknown>]>([
+			["init", (client) => client.init()],
+			["dispose", (client) => client.dispose()],
+			["connect", (client) => client.connect("demo")],
+			["disconnect", (client) => client.disconnect()],
+			[
+				"request",
+				(client) => client.request(session, "get_addresses", undefined),
+			],
+		])("should reject %s() with CONFIG", async (method, call) => {
+			await expect(call(createDemoClient())).rejects.toThrow(
+				configError(`${method}() is not implemented yet`),
+			);
+		});
+
+		it.each<[string, (client: DemoClient) => unknown]>([
+			["setCurrent", (client) => client.setCurrent(null)],
+			["on", (client) => client.on("client:error", () => {})],
+			["session", (client) => client.session("demo")],
+			[
+				"subscribe",
+				(client) => client.subscribe(session, "wallet_ready", () => {}),
+			],
+			["capability", (client) => client.capability(session, "message-signing")],
+			["can", (client) => client.can(session, "message-signing")],
+		])("should throw CONFIG from %s()", (method, call) => {
+			expect(() => call(createDemoClient())).toThrow(
+				configError(`${method}() is not implemented yet`),
+			);
+		});
 	});
 });
