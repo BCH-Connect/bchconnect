@@ -12,8 +12,8 @@ export interface Store<T> {
 	 */
 	setState(update: (previous: T) => T): void;
 	/**
-	 * Calls `listener` once per state transition. Returns unsubscribe, which
-	 * removes only this registration.
+	 * Calls `listener` on every state transition, once for each time it is
+	 * subscribed. Returns unsubscribe, which removes only this registration.
 	 */
 	subscribe(listener: () => void): () => void;
 }
@@ -21,7 +21,8 @@ export interface Store<T> {
 /**
  * Creates a {@link Store} holding `initial`.
  *
- * Listeners run synchronously, in subscription order, once per transition.
+ * Listeners run synchronously, in subscription order, once per registration
+ * and transition.
  * A listener that throws stops the notification.
  *
  * @example

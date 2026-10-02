@@ -152,6 +152,18 @@ describe("createStore", () => {
 		expect(second).not.toHaveBeenCalled();
 	});
 
+	it("should skip only the registration of a shared listener unsubscribed during a notification", () => {
+		const store = createStore(0);
+		const shared = vi.fn();
+
+		store.subscribe(() => unsubscribeSecond());
+		store.subscribe(shared);
+		const unsubscribeSecond = store.subscribe(shared);
+		store.setState(() => 1);
+
+		expect(shared).toHaveBeenCalledOnce();
+	});
+
 	it("should skip a listener subscribed during a notification", () => {
 		const store = createStore(0);
 		const late = vi.fn();
