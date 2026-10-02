@@ -1,13 +1,10 @@
-// Type-level stand-ins for runtime that later phases add (createClient) or
-// that lives in binding packages (useClient, useSession).
-import type {
-	Client,
-	ClientConfig,
-	Connector,
-	ProtocolOf,
-	RegisteredClient,
-	RegisteredSession,
-	Session,
+// Type-level stand-ins for runtime that lives in binding packages
+// (useClient, useSession).
+import {
+	createClient,
+	type RegisteredClient,
+	type RegisteredSession,
+	type Session,
 } from "../../../src/index.js";
 import { type CashConnect, cashConnect } from "./cashconnect.js";
 import { alpha, bravo, charlie, delta, echo, foxtrot } from "./stress/index.js";
@@ -23,10 +20,6 @@ import {
 	type Wizard,
 	wizard,
 } from "./wizard.js";
-
-declare function createClient<const Connectors extends readonly Connector[]>(
-	config: ClientConfig<Connectors>,
-): Client<ProtocolOf<Connectors[number]>>;
 
 export declare function useClient(): RegisteredClient;
 export declare function useSession(): RegisteredSession | null;
