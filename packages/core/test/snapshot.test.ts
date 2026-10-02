@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	isClientSnapshot,
+	isNetwork,
 	parseSnapshot,
 	SNAPSHOT_KEY,
 	serializeSnapshot,
@@ -45,6 +46,17 @@ const VALID_SNAPSHOT: ClientSnapshot = {
 describe("snapshot", () => {
 	it("should expose the persisted snapshot storage key", () => {
 		expect(SNAPSHOT_KEY).toBe("bchconnect:client:v1");
+	});
+
+	describe("isNetwork", () => {
+		it("should accept every supported network", () => {
+			expect(["mainnet", "chipnet", "regtest"].every(isNetwork)).toBe(true);
+		});
+
+		it("should reject anything else", () => {
+			expect(isNetwork("testnet")).toBe(false);
+			expect(isNetwork(undefined)).toBe(false);
+		});
 	});
 
 	describe("isClientSnapshot", () => {

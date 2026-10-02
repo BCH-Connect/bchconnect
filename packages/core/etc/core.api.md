@@ -215,6 +215,9 @@ export interface ContractDisplay {
 }
 
 // @public
+export function createClient<const Connectors extends readonly Connector[]>(config: ClientConfig<Connectors>): Client<ProtocolOf<Connectors[number]>>;
+
+// @public
 export type EventName<P extends ProtocolDefinition> = keyof P["events"] & string;
 
 // @public

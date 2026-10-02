@@ -24,6 +24,21 @@ const WALLET_SOURCES: ReadonlySet<string> = new Set<WalletIdentity["source"]>([
 	"selection",
 ]);
 
+/**
+ * Whether `value` is one of the supported {@link Network} values.
+ *
+ * @example
+ * ```ts
+ * isNetwork("chipnet"); // true
+ * isNetwork("testnet"); // false
+ * ```
+ *
+ * @internal
+ */
+export function isNetwork(value: unknown): value is Network {
+	return typeof value === "string" && NETWORKS.has(value);
+}
+
 function isPlainObject(value: unknown): value is object {
 	if (typeof value !== "object" || value === null) return false;
 
@@ -55,8 +70,7 @@ function isSnapshotSession(
 	if (!("network" in value)) return false;
 
 	return (
-		typeof value.network === "string" &&
-		NETWORKS.has(value.network) &&
+		isNetwork(value.network) &&
 		"wallet" in value &&
 		isWalletIdentity(value.wallet)
 	);
