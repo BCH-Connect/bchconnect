@@ -1,5 +1,7 @@
 import { html, nothing } from "lit";
 import { action } from "storybook/actions";
+import { waitForAnimations } from "storybook/preview-api";
+import { expect, fn, userEvent, waitFor } from "storybook/test";
 import preview, { resolveMode } from "../.storybook/preview.ts";
 import type { ToastView } from "../src/toast.ts";
 import { CONNECTED_WALLET } from "./fixtures.ts";
@@ -12,6 +14,19 @@ interface ToastStoryArgs extends Omit<ThemeArgs, "backdropBlur"> {
 }
 
 const { backdropBlur: _, ...TOAST_ARG_TYPES } = THEME_ARG_TYPES;
+
+function toastHost(canvasElement: HTMLElement): HTMLElement {
+	const host = canvasElement.querySelector("bchc-toast");
+	if (!(host instanceof HTMLElement))
+		throw new Error("bchc-toast did not render");
+	return host;
+}
+
+function toastShadow(canvasElement: HTMLElement): ShadowRoot {
+	const shadow = toastHost(canvasElement).shadowRoot;
+	if (shadow === null) throw new Error("bchc-toast shadow root missing");
+	return shadow;
+}
 
 const meta = preview.type<{ args: ToastStoryArgs }>().meta({
 	component: "bchc-toast",
@@ -36,9 +51,30 @@ const meta = preview.type<{ args: ToastStoryArgs }>().meta({
 			@bchc-dismiss=${action("bchc-dismiss")}
 		></bchc-toast>
 	`,
+	// Fallback for stories with no play of their own: axe (which runs after
+	// play) must only see the settled entrance, never a mid-fade frame.
+	play: async () => {
+		await waitForAnimations();
+	},
 });
 
-export const Connected = meta.story({});
+export const Connected = meta.story({
+	play: async ({ canvasElement }) => {
+		const toast = toastHost(canvasElement);
+		const shadow = toastShadow(canvasElement);
+		const onDismiss = fn<(event: Event) => void>();
+		toast.addEventListener("bchc-dismiss", onDismiss);
+		const dismiss = shadow.querySelector<HTMLButtonElement>(
+			'[aria-label="Dismiss"]',
+		);
+		if (dismiss === null) throw new Error("dismiss button missing");
+		await userEvent.click(dismiss);
+		await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1), {
+			timeout: 5000,
+		});
+		await waitForAnimations();
+	},
+});
 
 export const NoLogo = meta.story({
 	args: { view: { walletName: CONNECTED_WALLET.name, walletLogo: null } },
@@ -50,4 +86,13 @@ export const Unidentified = meta.story({
 
 export const AutoDismiss = meta.story({
 	args: { duration: 3600 },
+	play: async ({ canvasElement }) => {
+		const toast = toastHost(canvasElement);
+		const onDismiss = fn<(event: Event) => void>();
+		toast.addEventListener("bchc-dismiss", onDismiss);
+		await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1), {
+			timeout: 6000,
+		});
+		await waitForAnimations();
+	},
 });

@@ -68,5 +68,7 @@ export default definePreview({
 	parameters: {
 		// Both elements are viewport overlays, not inline content.
 		layout: "fullscreen",
+		// Any axe violation fails the story's test instead of just warning.
+		a11y: { test: "error" },
 	},
 });

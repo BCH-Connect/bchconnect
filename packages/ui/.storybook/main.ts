@@ -3,7 +3,11 @@ import { cssSheets } from "../tools/css-sheets.ts";
 
 export default defineMain({
 	stories: ["../stories/**/*.stories.ts"],
-	addons: ["@storybook/addon-a11y", "@storybook/addon-docs"],
+	addons: [
+		"@storybook/addon-a11y",
+		"@storybook/addon-docs",
+		"@storybook/addon-vitest",
+	],
 	framework: "@storybook/web-components-vite",
 	core: {
 		disableTelemetry: true,
