@@ -1,46 +1,84 @@
-import preview from "../.storybook/preview.ts";
-import {
-	BCHC_DIRECTORY,
-	BCHC_PROTOCOLS,
-	BCHC_WALLETS,
-} from "../src/defaults.ts";
-import type { ModalView, ProtocolId, WalletOption } from "../src/state.ts";
+import { html, nothing } from "lit";
+import { action } from "storybook/actions";
+import preview, { resolveMode } from "../.storybook/preview.ts";
+import type { ModalView } from "../src/state.ts";
+import { viewFor } from "./fixtures.ts";
+import { THEME_ARG_TYPES, type ThemeArgs } from "./theme.ts";
 
-const WALLET_HREF: Readonly<Record<string, string>> = {
-	cashonize: "https://cashonize.com",
-	selene: "https://selene.cash",
-	paytaca: "https://paytaca.com",
-	optn: "https://optn.cash",
-};
-
-function walletsFor(protocol: ProtocolId): WalletOption[] {
-	return BCHC_WALLETS.filter((wallet) =>
-		wallet.protocols.includes(protocol),
-	).map((wallet) => ({
-		id: wallet.id,
-		name: wallet.name,
-		logo: wallet.logo,
-		href: WALLET_HREF[wallet.id] ?? null,
-	}));
+interface ModalStoryArgs extends ThemeArgs {
+	readonly view: ModalView;
 }
 
-const view: ModalView = {
-	screen: "connect",
-	protocol: "wizardconnect",
-	protocols: BCHC_PROTOCOLS,
-	wallets: walletsFor("wizardconnect"),
-	directory: BCHC_DIRECTORY,
-	network: "mainnet",
-	phase: {
-		kind: "awaiting-approval",
-		link: "WIZ://%3FP%3DLDT6EGH3WX8C47LZ4XFZ0EUFHUWVPMZPVHJEX4PP3ZMHD63SQFNQ%26S%3DQK7G6VT7GMDTV",
-	},
-};
-
-const meta = preview.meta({
+const meta = preview.type<{ args: ModalStoryArgs }>().meta({
 	component: "bchc-modal",
+	argTypes: THEME_ARG_TYPES,
+	args: { view: viewFor() },
+	render: (args, context) => html`
+		<bchc-modal
+			data-bchc-accent=${args.accent ?? nothing}
+			data-bchc-neutral=${args.neutral ?? nothing}
+			data-bchc-radius=${args.radius ?? nothing}
+			data-bchc-font=${args.font ?? nothing}
+			data-bchc-blur=${args.backdropBlur ?? nothing}
+			data-bchc-mode=${resolveMode(context.globals)}
+			.view=${args.view}
+			@bchc-protocol=${action("bchc-protocol")}
+			@bchc-screen=${action("bchc-screen")}
+			@bchc-close=${action("bchc-close")}
+			@bchc-retry=${action("bchc-retry")}
+		></bchc-modal>
+	`,
 });
 
-export const Default = meta.story({
-	args: { view },
+// WizardConnect on mainnet unless a story says otherwise.
+export const Scan = meta.story({});
+
+export const GettingLink = meta.story({
+	args: { view: viewFor({ phase: { kind: "initiating" } }) },
+});
+
+export const Declined = meta.story({
+	args: { view: viewFor({ phase: { kind: "failed", reason: "rejected" } }) },
+});
+
+export const TimedOut = meta.story({
+	args: { view: viewFor({ phase: { kind: "failed", reason: "timeout" } }) },
+});
+
+export const Stopped = meta.story({
+	args: { view: viewFor({ phase: { kind: "failed", reason: "aborted" } }) },
+});
+
+export const Offline = meta.story({
+	args: { view: viewFor({ phase: { kind: "failed", reason: "transport" } }) },
+});
+
+export const WrongNetwork = meta.story({
+	args: {
+		view: viewFor({ phase: { kind: "failed", reason: "network-mismatch" } }),
+	},
+});
+
+export const Unsupported = meta.story({
+	args: { view: viewFor({ phase: { kind: "failed", reason: "unsupported" } }) },
+});
+
+export const Wallets = meta.story({
+	args: { view: viewFor({ screen: "wallets" }) },
+});
+
+export const WalletConnect = meta.story({
+	args: { view: viewFor({ protocol: "walletconnect" }) },
+});
+
+export const CashConnect = meta.story({
+	args: { view: viewFor({ protocol: "cashconnect" }) },
+});
+
+export const Chipnet = meta.story({
+	args: { view: viewFor({ network: "chipnet" }) },
+});
+
+export const Regtest = meta.story({
+	args: { view: viewFor({ network: "regtest" }) },
 });
