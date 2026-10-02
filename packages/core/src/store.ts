@@ -11,7 +11,10 @@ export interface Store<T> {
 	 * unchanged notifies nobody.
 	 */
 	setState(update: (previous: T) => T): void;
-	/** Calls `listener` once per state transition. Returns unsubscribe. */
+	/**
+	 * Calls `listener` once per state transition. Returns unsubscribe, which
+	 * removes only this registration.
+	 */
 	subscribe(listener: () => void): () => void;
 }
 
@@ -34,7 +37,10 @@ export interface Store<T> {
  */
 export function createStore<T>(initial: T): Store<T> {
 	let state = initial;
-	const listeners = new Set<() => void>();
+	// One entry per `subscribe()` call, so unsubscribing removes only that
+	// call's registration even when the same function is subscribed more
+	// than once.
+	const listeners = new Set<{ listener: () => void }>();
 
 	return {
 		getState() {
@@ -47,14 +53,15 @@ export function createStore<T>(initial: T): Store<T> {
 			state = next;
 			// A copy, so that subscribing during a notification never grows the
 			// loop; `has` skips listeners that unsubscribed inside it.
-			for (const listener of [...listeners]) {
-				if (listeners.has(listener)) listener();
+			for (const entry of [...listeners]) {
+				if (listeners.has(entry)) entry.listener();
 			}
 		},
 		subscribe(listener) {
-			listeners.add(listener);
+			const entry = { listener };
+			listeners.add(entry);
 			return () => {
-				listeners.delete(listener);
+				listeners.delete(entry);
 			};
 		},
 	};
