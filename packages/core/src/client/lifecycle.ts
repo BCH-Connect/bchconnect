@@ -1,19 +1,16 @@
 import { ConfigError, TransportError } from "../errors.js";
 import { withTimeout } from "../internal/abort.js";
-import {
-	parseSnapshot,
-	SNAPSHOT_KEY,
-	serializeSnapshot,
-	toSnapshot,
-} from "../snapshot.js";
+import { parseSnapshot, SNAPSHOT_KEY } from "../snapshot.js";
 import { connectorPrefix, namespaced } from "../storage/namespace.js";
 import type {
 	ClientSnapshot,
 	ConnectorEventName,
 	LifecycleEvents,
 } from "../types/client.js";
-import type { ConnectorContext, Session } from "../types/protocol.js";
+import type { ConnectorContext, Network, Session } from "../types/protocol.js";
+import { createPersistence } from "./persistence.js";
 import type { ClientRuntime } from "./runtime.js";
+import { mergeWalletIdentity } from "./sessions.js";
 
 /**
  * Receives the session lifecycle events a connector emits through its
@@ -54,6 +51,33 @@ function selectCurrent(
 }
 
 /**
+ * Gives a restored session back the wallet identity saved for it, when the
+ * saved entry describes that same session.
+ */
+function withSavedIdentity(
+	session: Session,
+	entry: ClientSnapshot["sessions"][number] | undefined,
+	network: Network,
+) {
+	if (
+		entry === undefined ||
+		entry.protocol !== session.protocol ||
+		entry.network !== network
+	) {
+		return session;
+	}
+
+	const merged = mergeWalletIdentity(session, entry.wallet);
+	if (merged === session || session.wallet.name !== undefined) return merged;
+
+	// if the protocol hasn't provided the name, the saved entry defines the source
+	return {
+		...merged,
+		wallet: { ...merged.wallet, source: entry.wallet.source },
+	};
+}
+
+/**
  * Creates the {@link Lifecycle} of one client. Connector events are handed to
  * `onConnectorEvent`.
  *
@@ -81,44 +105,7 @@ export function createLifecycle(
 ): Lifecycle {
 	const { store } = runtime;
 	let initialization: Promise<void> | undefined;
-	let persisting = false;
-	// What storage holds: a snapshot, `undefined` for none, `null` for unknown
-	// after a failed write, so the next notification writes again.
-	let persisted: string | undefined | null;
-	let writes = Promise.resolve();
-
-	// Runs inside store notifications, so it must never throw: failures
-	// surface asynchronously through the write chain.
-	function persist() {
-		if (!persisting) return;
-
-		const state = store.getState();
-		const value =
-			state.sessions.size === 0
-				? undefined
-				: serializeSnapshot(toSnapshot(state, runtime.network));
-		if (value === persisted) return;
-
-		persisted = value;
-		writes = writes
-			.then(() =>
-				value === undefined
-					? runtime.clientStorage.delete(SNAPSHOT_KEY)
-					: runtime.clientStorage.set(SNAPSHOT_KEY, value),
-			)
-			.catch((error: unknown) => {
-				persisted = null;
-				runtime.reportError(
-					error,
-					(cause) =>
-						new TransportError("Writing the client snapshot failed", {
-							cause,
-						}),
-				);
-			});
-	}
-
-	store.subscribe(persist);
+	const persistence = createPersistence(runtime);
 
 	function contextFor(protocol: string) {
 		return {
@@ -150,14 +137,25 @@ export function createLifecycle(
 			}
 		}
 
-		const [reference, sessions] = await Promise.all([
+		const [reference, restored] = await Promise.all([
 			readSnapshot(),
 			restoreAll(),
 		]);
+		const saved = new Map(
+			reference?.sessions.map((entry) => [entry.id, entry] as const),
+		);
+		const sessions = new Map(
+			restored.map(
+				(session) =>
+					[
+						session.id,
+						withSavedIdentity(session, saved.get(session.id), runtime.network),
+					] as const,
+			),
+		);
 		const { snapshot } = store.getState();
 
-		persisted = reference && serializeSnapshot(reference);
-		persisting = true;
+		persistence.start(reference);
 		store.setState((state) => ({
 			...state,
 			status: "ready",
@@ -226,7 +224,7 @@ export function createLifecycle(
 				}),
 		);
 
-		return new Map(restored.flat().map((session) => [session.id, session]));
+		return restored.flat();
 	}
 
 	return {
