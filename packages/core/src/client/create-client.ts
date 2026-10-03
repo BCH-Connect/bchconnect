@@ -101,7 +101,11 @@ export function createClient<const Connectors extends readonly Connector[]>(
 			return store.getState().sessions;
 		},
 		get current() {
-			return null;
+			const { sessions, currentSessionId } = store.getState();
+			// A missing id shares the `null` path instead of needing its own guard.
+			return (
+				(currentSessionId !== null && sessions.get(currentSessionId)) || null
+			);
 		},
 		store: runtime.publicStore,
 		init() {

@@ -1,15 +1,48 @@
 import type { DemoAltProtocol, DemoProtocol } from "@bchconnect/test-utils";
-import { createFakeConnector, demoSession } from "@bchconnect/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import {
+	createFakeConnector,
+	demoAltSession,
+	demoSession,
+} from "@bchconnect/test-utils";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../src/client/create-client.js";
 import { TransportError } from "../../src/errors.js";
-import type { ClientStatus, LifecycleEvents } from "../../src/types/client.js";
+import { SNAPSHOT_KEY, serializeSnapshot } from "../../src/snapshot.js";
+import { memory } from "../../src/storage/memory.js";
+import type {
+	ClientSnapshot,
+	ClientStatus,
+	LifecycleEvents,
+} from "../../src/types/client.js";
 import type {
 	Connector,
 	ConnectorContext,
+	KeyValueStore,
 	Logger,
 	ProtocolDefinition,
 } from "../../src/types/protocol.js";
+
+function snapshotOf(
+	currentSessionId: string | null,
+	sessionIds: readonly string[],
+): ClientSnapshot {
+	return {
+		version: 1,
+		currentSessionId,
+		sessions: sessionIds.map((id) => ({
+			id,
+			protocol: "demo",
+			network: "chipnet",
+			wallet: { source: "protocol" },
+		})),
+	};
+}
+
+async function persistedStorage(snapshot: ClientSnapshot) {
+	const storage = memory();
+	await storage.set(SNAPSHOT_KEY, serializeSnapshot(snapshot));
+	return storage;
+}
 
 function createLogger(): Logger {
 	return {
@@ -20,11 +53,24 @@ function createLogger(): Logger {
 	};
 }
 
+function createStorage(): KeyValueStore {
+	return {
+		get: vi.fn(async () => undefined),
+		set: vi.fn(async () => {}),
+		delete: vi.fn(async () => {}),
+	};
+}
+
 const appMetadata = { name: "Test", url: "https://example.com" };
 
 function setupClient(
 	connectors: readonly Connector[],
-	options: { ssr?: boolean; logger?: Logger } = {},
+	options: {
+		ssr?: boolean;
+		initialState?: ClientSnapshot;
+		storage?: KeyValueStore;
+		logger?: Logger;
+	} = {},
 ) {
 	const client = createClient({
 		connectors,
@@ -77,7 +123,7 @@ describe("init", () => {
 		finishSetup();
 		await initialized;
 
-		expect(second.log).toEqual([{ kind: "setup" }]);
+		expect(second.log).toEqual([{ kind: "setup" }, { kind: "restore" }]);
 	});
 
 	it("should return the same promise from every call", async () => {
@@ -90,7 +136,7 @@ describe("init", () => {
 
 		expect(second).toBe(first);
 		expect(client.init()).toBe(first);
-		expect(connector.log).toEqual([{ kind: "setup" }]);
+		expect(connector.log).toEqual([{ kind: "setup" }, { kind: "restore" }]);
 	});
 
 	it("should return the same promise to a call made by a store subscriber", async () => {
@@ -106,7 +152,7 @@ describe("init", () => {
 
 		expect(nested).toHaveLength(1);
 		expect(nested[0]).toBe(first);
-		expect(connector.log).toEqual([{ kind: "setup" }]);
+		expect(connector.log).toEqual([{ kind: "setup" }, { kind: "restore" }]);
 	});
 
 	it("should be restoring as soon as init() returns", async () => {
@@ -200,7 +246,7 @@ describe("init", () => {
 
 		await client.init();
 
-		expect(healthy.log).toEqual([{ kind: "setup" }]);
+		expect(healthy.log).toEqual([{ kind: "setup" }, { kind: "restore" }]);
 		expect(client.status).toBe("ready");
 	});
 
@@ -219,6 +265,365 @@ describe("init", () => {
 		await client.init();
 
 		expect(listener).not.toHaveBeenCalled();
+	});
+
+	describe("restore", () => {
+		it("should restore the sessions of every connector in registration order", async () => {
+			const alt = demoAltSession({ id: "alt" });
+			const first = demoSession({ id: "first" });
+			const second = demoSession({ id: "second" });
+			const { client } = setupClient([
+				createFakeConnector<DemoAltProtocol>({
+					protocol: "demo-alt",
+					restore: [alt],
+				}),
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: [first, second],
+				}),
+			]);
+
+			await client.init();
+
+			expect([...client.sessions.values()]).toEqual([alt, first, second]);
+		});
+
+		it("should call only setup and restore on a connector with nothing persisted", async () => {
+			const connector = createFakeConnector<DemoProtocol>({
+				protocol: "demo",
+			});
+			const storage = createStorage();
+			const { client } = setupClient([connector], { storage });
+
+			await client.init();
+
+			expect(connector.log).toEqual([{ kind: "setup" }, { kind: "restore" }]);
+			expect(client.sessions.size).toBe(0);
+			expect(storage.set).not.toHaveBeenCalled();
+			expect(storage.delete).not.toHaveBeenCalled();
+		});
+
+		it("should not restore a connector whose setup failed", async () => {
+			const connector = createFakeConnector<DemoProtocol>({
+				protocol: "demo",
+				setup: "throw",
+				restore: [demoSession()],
+			});
+			const { client } = setupClient([connector]);
+
+			await client.init();
+
+			expect(connector.log).toEqual([{ kind: "setup" }]);
+			expect(client.protocols).toEqual(["demo"]);
+			expect(client.sessions.size).toBe(0);
+		});
+
+		it("should report a failed restore as a TRANSPORT client error and keep the others", async () => {
+			const alt = demoAltSession({ id: "alt" });
+			const { client, errors } = setupClient([
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: "throw",
+				}),
+				createFakeConnector<DemoAltProtocol>({
+					protocol: "demo-alt",
+					restore: [alt],
+				}),
+			]);
+
+			await client.init();
+
+			expect(errors).toEqual([
+				{
+					error: expect.objectContaining({
+						code: "TRANSPORT",
+						message: 'restore() failed for connector "demo"',
+						cause: expect.objectContaining({
+							message: 'Fake connector "demo" failed restore.',
+						}),
+					}),
+				},
+			]);
+			expect([...client.sessions.values()]).toEqual([alt]);
+			expect(client.status).toBe("ready");
+		});
+
+		it("should report a library error thrown by restore unchanged", async () => {
+			const failure = new TransportError("Relay unreachable");
+			const { client, errors } = setupClient([
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: () => Promise.reject(failure),
+				}),
+			]);
+
+			await client.init();
+
+			expect(errors).toEqual([{ error: failure }]);
+		});
+
+		describe("deadline", () => {
+			beforeEach(() => {
+				vi.useFakeTimers();
+			});
+
+			afterEach(() => {
+				vi.useRealTimers();
+			});
+
+			function hangingConnector() {
+				return createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: () => new Promise(() => {}),
+				});
+			}
+
+			it("should give up on a restore that outlasts the read timeout and keep the others", async () => {
+				const alt = demoAltSession({ id: "alt" });
+				const { client, errors } = setupClient([
+					hangingConnector(),
+					createFakeConnector<DemoAltProtocol>({
+						protocol: "demo-alt",
+						restore: [alt],
+					}),
+				]);
+
+				const initialized = client.init();
+				await vi.advanceTimersByTimeAsync(30_000);
+				await initialized;
+
+				expect(errors).toEqual([
+					{
+						error: expect.objectContaining({
+							code: "TIMEOUT",
+							message: 'restore() timed out for connector "demo"',
+						}),
+					},
+				]);
+				expect([...client.sessions.values()]).toEqual([alt]);
+				expect(client.status).toBe("ready");
+			});
+
+			it("should still be restoring just before the read timeout", async () => {
+				const { client } = setupClient([hangingConnector()]);
+
+				void client.init();
+				await vi.advanceTimersByTimeAsync(29_999);
+
+				expect(client.status).toBe("restoring");
+			});
+
+			it("should give up on a snapshot read that outlasts the read timeout", async () => {
+				const storage = {
+					...createStorage(),
+					get: () => new Promise<undefined>(() => {}),
+				};
+				const { client, errors } = setupClient(
+					[
+						createFakeConnector<DemoProtocol>({
+							protocol: "demo",
+							restore: [demoSession({ id: "first" })],
+						}),
+					],
+					{ storage },
+				);
+
+				const initialized = client.init();
+				await vi.advanceTimersByTimeAsync(30_000);
+				await initialized;
+
+				expect(errors).toEqual([
+					{
+						error: expect.objectContaining({
+							code: "TIMEOUT",
+							message: "Reading the client snapshot timed out",
+						}),
+					},
+				]);
+				expect(client.current?.id).toBe("first");
+				expect(client.status).toBe("ready");
+			});
+
+			it("should use the configured read timeout", async () => {
+				const client = createClient({
+					connectors: [hangingConnector()],
+					network: "chipnet",
+					appMetadata,
+					defaultTimeoutMs: { read: 5_000 },
+				});
+				const errors: LifecycleEvents["client:error"][] = [];
+				client.on("client:error", (payload) => errors.push(payload));
+
+				const initialized = client.init();
+				await vi.advanceTimersByTimeAsync(4_999);
+				expect(client.status).toBe("restoring");
+
+				await vi.advanceTimersByTimeAsync(1);
+				await initialized;
+
+				expect(client.status).toBe("ready");
+				expect(errors).toEqual([
+					{ error: expect.objectContaining({ code: "TIMEOUT" }) },
+				]);
+			});
+		});
+
+		it("should not announce restored sessions as connected", async () => {
+			const { client } = setupClient([
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: [demoSession()],
+				}),
+			]);
+			const connected = vi.fn();
+			client.on("session:connected", connected);
+
+			await client.init();
+
+			expect(connected).not.toHaveBeenCalled();
+		});
+
+		it("should publish the restored sessions, the current one and ready in one transition", async () => {
+			const { client } = setupClient([
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: [demoSession({ id: "first" })],
+				}),
+			]);
+			const seen: [ClientStatus, number, string | null][] = [];
+			client.store.subscribe(() => {
+				const state = client.store.getState();
+				seen.push([state.status, state.sessions.size, state.currentSessionId]);
+			});
+
+			await client.init();
+
+			expect(seen).toEqual([
+				["restoring", 0, null],
+				["ready", 1, "first"],
+			]);
+		});
+	});
+
+	describe("current session", () => {
+		const connector = () =>
+			createFakeConnector<DemoProtocol>({
+				protocol: "demo",
+				restore: [demoSession({ id: "first" }), demoSession({ id: "second" })],
+			});
+
+		it("should keep the session the stored snapshot marked current", async () => {
+			const storage = await persistedStorage(
+				snapshotOf("second", ["first", "second"]),
+			);
+			const { client } = setupClient([connector()], { storage });
+
+			await client.init();
+
+			expect(client.current?.id).toBe("second");
+		});
+
+		it("should keep the session the ssr snapshot marked current", async () => {
+			const { client } = setupClient([connector()], {
+				ssr: true,
+				initialState: snapshotOf("second", ["first", "second"]),
+			});
+
+			await client.init();
+
+			expect(client.current?.id).toBe("second");
+		});
+
+		it("should fall back to the first restored session when the marked one is gone", async () => {
+			const storage = await persistedStorage(
+				snapshotOf("gone", ["gone", "second"]),
+			);
+			const { client } = setupClient([connector()], { storage });
+
+			await client.init();
+
+			expect(client.current?.id).toBe("first");
+		});
+
+		it("should fall back to the first restored session without a snapshot", async () => {
+			const { client } = setupClient([connector()]);
+
+			await client.init();
+
+			expect(client.current?.id).toBe("first");
+		});
+
+		it("should fall back to the first restored session when the snapshot has no current", async () => {
+			const storage = await persistedStorage(
+				snapshotOf(null, ["first", "second"]),
+			);
+			const { client } = setupClient([connector()], { storage });
+
+			await client.init();
+
+			expect(client.current?.id).toBe("first");
+		});
+
+		it("should have no current session when nothing was restored", async () => {
+			const { client } = setupClient([
+				createFakeConnector<DemoProtocol>({ protocol: "demo" }),
+			]);
+
+			await client.init();
+
+			expect(client.current).toBeNull();
+		});
+
+		it("should derive the current session from the store", async () => {
+			const { client } = setupClient([connector()]);
+
+			await client.init();
+			const { sessions, currentSessionId } = client.store.getState();
+
+			expect(currentSessionId).toBe("first");
+			expect(client.current).toBe(sessions.get("first"));
+		});
+
+		it("should fall back to the first restored session when the stored snapshot is corrupt", async () => {
+			const storage = memory();
+			await storage.set(SNAPSHOT_KEY, "{not json");
+			const logger = createLogger();
+			const { client, errors } = setupClient([connector()], {
+				storage,
+				logger,
+			});
+
+			await client.init();
+
+			expect(client.current?.id).toBe("first");
+			expect(errors).toEqual([]);
+			expect(logger.debug).toHaveBeenCalledWith(
+				"Discarding unparsable client snapshot",
+				expect.any(SyntaxError),
+			);
+		});
+
+		it("should report unreadable storage as a TRANSPORT client error and restore anyway", async () => {
+			const failure = new Error("Storage unavailable");
+			const storage = {
+				...createStorage(),
+				get: () => Promise.reject(failure),
+			};
+			const { client, errors } = setupClient([connector()], { storage });
+
+			await client.init();
+
+			expect(errors).toEqual([
+				{
+					error: expect.objectContaining({
+						code: "TRANSPORT",
+						message: "Reading the client snapshot failed",
+						cause: failure,
+					}),
+				},
+			]);
+			expect(client.current?.id).toBe("first");
+		});
 	});
 
 	describe("connector context", () => {
@@ -272,11 +677,7 @@ describe("init", () => {
 		});
 
 		it("should never write connector storage to the client's storage", async () => {
-			const storage = {
-				get: vi.fn(async () => undefined),
-				set: vi.fn(async () => {}),
-				delete: vi.fn(async () => {}),
-			};
+			const storage = createStorage();
 			const { connectors, contextOf } = captureContexts(["demo"]);
 			const client = createClient({
 				connectors,
