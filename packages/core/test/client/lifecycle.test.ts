@@ -6,8 +6,14 @@ import {
 } from "@bchconnect/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../src/client/create-client.js";
+import { createLifecycle } from "../../src/client/lifecycle.js";
+import { createClientRuntime } from "../../src/client/runtime.js";
 import { TransportError } from "../../src/errors.js";
-import { SNAPSHOT_KEY, serializeSnapshot } from "../../src/snapshot.js";
+import {
+	SNAPSHOT_KEY,
+	serializeSnapshot,
+	toSnapshot,
+} from "../../src/snapshot.js";
 import { memory } from "../../src/storage/memory.js";
 import type {
 	ClientSnapshot,
@@ -42,6 +48,11 @@ async function persistedStorage(snapshot: ClientSnapshot) {
 	const storage = memory();
 	await storage.set(SNAPSHOT_KEY, serializeSnapshot(snapshot));
 	return storage;
+}
+
+// Lets queued storage writes run.
+function settle() {
+	return new Promise((resolve) => setTimeout(resolve));
 }
 
 function createLogger(): Logger {
@@ -623,6 +634,258 @@ describe("init", () => {
 				},
 			]);
 			expect(client.current?.id).toBe("first");
+		});
+	});
+
+	describe("persistence", () => {
+		it("should persist the restored sessions and the current one", async () => {
+			const first = demoSession({ id: "first" });
+			const storage = memory();
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [first],
+					}),
+				],
+				{ storage },
+			);
+
+			await client.init();
+			await settle();
+
+			await expect(storage.get(SNAPSHOT_KEY)).resolves.toBe(
+				serializeSnapshot(
+					toSnapshot(
+						{
+							sessions: new Map([["first", first]]),
+							currentSessionId: "first",
+						},
+						"chipnet",
+					),
+				),
+			);
+		});
+
+		it("should not rewrite a snapshot that already matches the restored state", async () => {
+			const first = demoSession({ id: "first" });
+			const storage = await persistedStorage(
+				toSnapshot(
+					{ sessions: new Map([["first", first]]), currentSessionId: "first" },
+					"chipnet",
+				),
+			);
+			const set = vi.spyOn(storage, "set");
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [first],
+					}),
+				],
+				{ storage },
+			);
+
+			await client.init();
+			await settle();
+
+			expect(set).not.toHaveBeenCalled();
+		});
+
+		it("should delete the stored snapshot when nothing comes back", async () => {
+			const storage = await persistedStorage(snapshotOf("gone", ["gone"]));
+			const { client } = setupClient(
+				[createFakeConnector<DemoProtocol>({ protocol: "demo" })],
+				{ storage },
+			);
+
+			await client.init();
+			await settle();
+
+			await expect(storage.get(SNAPSHOT_KEY)).resolves.toBeUndefined();
+		});
+
+		it("should write nothing when nothing was persisted or restored", async () => {
+			const storage = createStorage();
+			const { client } = setupClient(
+				[createFakeConnector<DemoProtocol>({ protocol: "demo" })],
+				{ storage },
+			);
+
+			await client.init();
+			await settle();
+
+			expect(storage.set).not.toHaveBeenCalled();
+			expect(storage.delete).not.toHaveBeenCalled();
+		});
+
+		it("should compare against the ssr snapshot instead of reading storage", async () => {
+			const first = demoSession({ id: "first" });
+			const storage = createStorage();
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [first],
+					}),
+				],
+				{
+					ssr: true,
+					initialState: toSnapshot(
+						{
+							sessions: new Map([["first", first]]),
+							currentSessionId: "first",
+						},
+						"chipnet",
+					),
+					storage,
+				},
+			);
+
+			await client.init();
+			await settle();
+
+			expect(storage.get).not.toHaveBeenCalled();
+			expect(storage.set).not.toHaveBeenCalled();
+		});
+
+		describe("after init", () => {
+			// No public method changes sessions yet, so these drive the store
+			// directly, the way connect() and disconnect() will.
+			async function initialized(storage: KeyValueStore) {
+				const runtime = createClientRuntime({
+					connectors: [
+						createFakeConnector<DemoProtocol>({
+							protocol: "demo",
+							restore: [demoSession({ id: "first" })],
+						}),
+					],
+					network: "chipnet",
+					appMetadata,
+					storage,
+				});
+				await createLifecycle(runtime, () => {}).init();
+				await settle();
+				return runtime.store;
+			}
+
+			it("should persist a session added after init", async () => {
+				const storage = memory();
+				const store = await initialized(storage);
+				const second = demoSession({ id: "second" });
+
+				store.setState((state) => ({
+					...state,
+					sessions: new Map(state.sessions).set("second", second),
+					currentSessionId: "second",
+				}));
+				await settle();
+
+				await expect(storage.get(SNAPSHOT_KEY)).resolves.toBe(
+					serializeSnapshot(toSnapshot(store.getState(), "chipnet")),
+				);
+			});
+
+			it("should delete the snapshot once the last session is gone", async () => {
+				const storage = memory();
+				const store = await initialized(storage);
+
+				store.setState((state) => ({
+					...state,
+					sessions: new Map(),
+					currentSessionId: null,
+				}));
+				await settle();
+
+				await expect(storage.get(SNAPSHOT_KEY)).resolves.toBeUndefined();
+			});
+
+			it("should write consecutive changes in order", async () => {
+				const storage = memory();
+				const store = await initialized(storage);
+				const set = vi.spyOn(storage, "set");
+				const switches = ["second", "first"] as const;
+				const written: string[] = [];
+
+				store.setState((state) => ({
+					...state,
+					sessions: new Map(state.sessions).set(
+						"second",
+						demoSession({ id: "second" }),
+					),
+				}));
+				for (const id of switches) {
+					store.setState((state) => ({ ...state, currentSessionId: id }));
+					written.push(
+						serializeSnapshot(toSnapshot(store.getState(), "chipnet")),
+					);
+				}
+				await settle();
+
+				expect(set.mock.calls.slice(-2).map(([, value]) => value)).toEqual(
+					written,
+				);
+				await expect(storage.get(SNAPSHOT_KEY)).resolves.toBe(written[1]);
+			});
+
+			it("should write again on the next notification after a failed write", async () => {
+				const storage = memory();
+				const store = await initialized(storage);
+				const set = vi
+					.spyOn(storage, "set")
+					.mockRejectedValueOnce(new Error("Quota exceeded"));
+
+				store.setState((state) => ({ ...state, currentSessionId: null }));
+				await settle();
+				store.setState((state) => ({ ...state, pendingRequests: new Map() }));
+				await settle();
+
+				expect(set).toHaveBeenCalledTimes(2);
+				await expect(storage.get(SNAPSHOT_KEY)).resolves.toBe(
+					serializeSnapshot(toSnapshot(store.getState(), "chipnet")),
+				);
+			});
+
+			it("should not rewrite on a change that leaves the snapshot as it was", async () => {
+				const storage = memory();
+				const store = await initialized(storage);
+				const set = vi.spyOn(storage, "set");
+
+				store.setState((state) => ({ ...state, pendingRequests: new Map() }));
+				await settle();
+
+				expect(set).not.toHaveBeenCalled();
+			});
+		});
+
+		it("should report a failed write as a TRANSPORT client error", async () => {
+			const failure = new Error("Quota exceeded");
+			const storage = {
+				...createStorage(),
+				set: () => Promise.reject(failure),
+			};
+			const { client, errors } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [demoSession()],
+					}),
+				],
+				{ storage },
+			);
+
+			await client.init();
+			await settle();
+
+			expect(errors).toEqual([
+				{
+					error: expect.objectContaining({
+						code: "TRANSPORT",
+						message: "Writing the client snapshot failed",
+						cause: failure,
+					}),
+				},
+			]);
 		});
 	});
 
