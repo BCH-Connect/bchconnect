@@ -14,6 +14,8 @@ export interface Persistence {
 	 * Nothing is written before this call.
 	 */
 	start(reference: ClientSnapshot | undefined): void;
+	/** Stops writing and resolves once the writes already queued have landed. */
+	stop(): Promise<void>;
 }
 
 /**
@@ -67,12 +69,16 @@ export function createPersistence(runtime: ClientRuntime): Persistence {
 			});
 	}
 
-	store.subscribe(persist);
+	const unsubscribe = store.subscribe(persist);
 
 	return {
 		start(reference) {
 			persisted = reference && serializeSnapshot(reference);
 			started = true;
+		},
+		stop() {
+			unsubscribe();
+			return writes;
 		},
 	};
 }

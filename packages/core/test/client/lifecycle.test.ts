@@ -1092,115 +1092,6 @@ describe("init", () => {
 			expect(storage.set).not.toHaveBeenCalled();
 		});
 
-		describe("after init", () => {
-			// No public method changes sessions yet, so these drive the store
-			// directly, the way connect() and disconnect() will.
-			async function initialized(storage: KeyValueStore) {
-				const runtime = createClientRuntime({
-					connectors: [
-						createFakeConnector<DemoProtocol>({
-							protocol: "demo",
-							restore: [demoSession({ id: "first" })],
-						}),
-					],
-					network: "chipnet",
-					appMetadata,
-					storage,
-				});
-				await createLifecycle(runtime, () => {}).init();
-				await settle();
-				return runtime.store;
-			}
-
-			it("should persist a session added after init", async () => {
-				const storage = memory();
-				const store = await initialized(storage);
-				const second = demoSession({ id: "second" });
-
-				store.setState((state) => ({
-					...state,
-					sessions: new Map(state.sessions).set("second", second),
-					currentSessionId: "second",
-				}));
-				await settle();
-
-				await expect(storage.get(SNAPSHOT_KEY)).resolves.toBe(
-					serializeSnapshot(toSnapshot(store.getState(), "chipnet")),
-				);
-			});
-
-			it("should delete the snapshot once the last session is gone", async () => {
-				const storage = memory();
-				const store = await initialized(storage);
-
-				store.setState((state) => ({
-					...state,
-					sessions: new Map(),
-					currentSessionId: null,
-				}));
-				await settle();
-
-				await expect(storage.get(SNAPSHOT_KEY)).resolves.toBeUndefined();
-			});
-
-			it("should write consecutive changes in order", async () => {
-				const storage = memory();
-				const store = await initialized(storage);
-				const set = vi.spyOn(storage, "set");
-				const switches = ["second", "first"] as const;
-				const written: string[] = [];
-
-				store.setState((state) => ({
-					...state,
-					sessions: new Map(state.sessions).set(
-						"second",
-						demoSession({ id: "second" }),
-					),
-				}));
-				for (const id of switches) {
-					store.setState((state) => ({ ...state, currentSessionId: id }));
-					written.push(
-						serializeSnapshot(toSnapshot(store.getState(), "chipnet")),
-					);
-				}
-				await settle();
-
-				expect(set.mock.calls.slice(-2).map(([, value]) => value)).toEqual(
-					written,
-				);
-				await expect(storage.get(SNAPSHOT_KEY)).resolves.toBe(written[1]);
-			});
-
-			it("should write again on the next notification after a failed write", async () => {
-				const storage = memory();
-				const store = await initialized(storage);
-				const set = vi
-					.spyOn(storage, "set")
-					.mockRejectedValueOnce(new Error("Quota exceeded"));
-
-				store.setState((state) => ({ ...state, currentSessionId: null }));
-				await settle();
-				store.setState((state) => ({ ...state, pendingRequests: new Map() }));
-				await settle();
-
-				expect(set).toHaveBeenCalledTimes(2);
-				await expect(storage.get(SNAPSHOT_KEY)).resolves.toBe(
-					serializeSnapshot(toSnapshot(store.getState(), "chipnet")),
-				);
-			});
-
-			it("should not rewrite on a change that leaves the snapshot as it was", async () => {
-				const storage = memory();
-				const store = await initialized(storage);
-				const set = vi.spyOn(storage, "set");
-
-				store.setState((state) => ({ ...state, pendingRequests: new Map() }));
-				await settle();
-
-				expect(set).not.toHaveBeenCalled();
-			});
-		});
-
 		it("should report a failed write as a TRANSPORT client error", async () => {
 			const failure = new Error("Quota exceeded");
 			const storage = {
@@ -1312,6 +1203,261 @@ describe("init", () => {
 
 			expect(connected).not.toHaveBeenCalled();
 			expect(client.store.getState()).toBe(state);
+		});
+	});
+});
+
+describe("dispose", () => {
+	// A promise that settles only through `open()`.
+	function gate<T>(value: T) {
+		let open = () => {};
+		const promise = new Promise<T>((resolve) => {
+			open = () => resolve(value);
+		});
+		return { promise, open };
+	}
+
+	it("should become disposed and keep its sessions without disconnecting them", async () => {
+		const connector = createFakeConnector<DemoProtocol>({
+			protocol: "demo",
+			restore: [demoSession({ id: "first" })],
+		});
+		const { client } = setupClient([connector]);
+		await client.init();
+
+		await client.dispose();
+
+		expect(client.status).toBe("disposed");
+		expect([...client.sessions.keys()]).toEqual(["first"]);
+		expect(connector.log).toEqual([
+			{ kind: "setup" },
+			{ kind: "restore" },
+			{ kind: "dispose" },
+		]);
+	});
+
+	it("should be disposed as soon as dispose() returns", () => {
+		const { client } = setupClient([
+			createFakeConnector<DemoProtocol>({ protocol: "demo" }),
+		]);
+
+		void client.dispose();
+
+		expect(client.status).toBe("disposed");
+	});
+
+	it("should dispose every connector in registration order", async () => {
+		const first = createFakeConnector<DemoProtocol>({ protocol: "demo" });
+		const second = createFakeConnector<DemoAltProtocol>({
+			protocol: "demo-alt",
+		});
+		const disposeFirst = vi.spyOn(first, "dispose");
+		const disposeSecond = vi.spyOn(second, "dispose");
+		const { client } = setupClient([first, second]);
+
+		await client.dispose();
+
+		expect(disposeFirst).toHaveBeenCalledBefore(disposeSecond);
+	});
+
+	it("should report a connector that fails to dispose and still dispose the others", async () => {
+		const healthy = createFakeConnector<DemoAltProtocol>({
+			protocol: "demo-alt",
+		});
+		const { client, errors } = setupClient([
+			createFakeConnector<DemoProtocol>({ protocol: "demo", dispose: "throw" }),
+			healthy,
+		]);
+
+		await client.dispose();
+
+		expect(errors).toEqual([
+			{
+				error: expect.objectContaining({
+					code: "TRANSPORT",
+					message: 'Connector "demo" failed to dispose',
+					cause: expect.objectContaining({
+						message: 'Fake connector "demo" failed dispose.',
+					}),
+				}),
+			},
+		]);
+		expect(healthy.log).toEqual([{ kind: "dispose" }]);
+	});
+
+	it("should report a library error thrown by dispose unchanged", async () => {
+		const failure = new TransportError("Relay unreachable");
+		const { client, errors } = setupClient([
+			{
+				...createFakeConnector<DemoProtocol>({ protocol: "demo" }),
+				dispose: () => Promise.reject(failure),
+			},
+		]);
+
+		await client.dispose();
+
+		expect(errors).toEqual([{ error: failure }]);
+	});
+
+	it("should return the same promise from every call", async () => {
+		const connector = createFakeConnector<DemoProtocol>({ protocol: "demo" });
+		const { client } = setupClient([connector]);
+
+		const first = client.dispose();
+		const second = client.dispose();
+		await first;
+
+		expect(second).toBe(first);
+		expect(client.dispose()).toBe(first);
+		expect(connector.log).toEqual([{ kind: "dispose" }]);
+	});
+
+	it("should dispose a client that was never initialized", async () => {
+		const connector = createFakeConnector<DemoProtocol>({ protocol: "demo" });
+		const { client } = setupClient([connector]);
+
+		await client.dispose();
+
+		expect(client.status).toBe("disposed");
+		expect(connector.log).toEqual([{ kind: "dispose" }]);
+	});
+
+	it("should empty the pending requests", async () => {
+		const runtime = createClientRuntime({
+			connectors: [],
+			network: "chipnet",
+			appMetadata,
+		});
+		runtime.store.setState((state) => ({
+			...state,
+			pendingRequests: new Map([
+				[
+					"request-1",
+					{
+						sessionId: "first",
+						method: "sign_message",
+						userInteraction: true,
+						startedAt: 0,
+					},
+				],
+			]),
+		}));
+
+		await createLifecycle(runtime, () => {}).dispose();
+
+		expect(runtime.store.getState().pendingRequests.size).toBe(0);
+	});
+
+	it("should remove every listener", async () => {
+		const runtime = createClientRuntime({
+			connectors: [],
+			network: "chipnet",
+			appMetadata,
+		});
+		const listener = vi.fn();
+		runtime.events.on("client:error", listener);
+
+		await createLifecycle(runtime, () => {}).dispose();
+		runtime.events.emit("client:error", {
+			error: new TransportError("After dispose"),
+		});
+
+		expect(listener).not.toHaveBeenCalled();
+	});
+
+	it("should wait for queued snapshot writes before resolving", async () => {
+		const write = gate(undefined);
+		const storage = { ...createStorage(), set: () => write.promise };
+		const { client } = setupClient(
+			[
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: [demoSession()],
+				}),
+			],
+			{ storage },
+		);
+		await client.init();
+		let disposed = false;
+
+		const disposing = client.dispose().then(() => {
+			disposed = true;
+		});
+		await settle();
+		expect(disposed).toBe(false);
+
+		write.open();
+		await disposing;
+		expect(disposed).toBe(true);
+	});
+
+	describe("during init", () => {
+		it("should let init resolve without publishing the restored sessions", async () => {
+			const restored = gate([demoSession({ id: "first" })]);
+			const storage = createStorage();
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: () => restored.promise,
+					}),
+				],
+				{
+					ssr: true,
+					initialState: snapshotOf("gone", ["gone"]),
+					storage,
+				},
+			);
+			const disconnected = vi.fn();
+			client.on("session:disconnected", disconnected);
+			const initialized = client.init();
+			await settle();
+
+			await client.dispose();
+			restored.open();
+			await initialized;
+			await settle();
+
+			expect(client.status).toBe("disposed");
+			expect(client.sessions.size).toBe(0);
+			expect(disconnected).not.toHaveBeenCalled();
+			expect(storage.set).not.toHaveBeenCalled();
+		});
+
+		it("should set up no further connector", async () => {
+			const setupDone = gate(undefined);
+			const second = createFakeConnector<DemoAltProtocol>({
+				protocol: "demo-alt",
+			});
+			const { client } = setupClient([
+				{
+					...createFakeConnector<DemoProtocol>({ protocol: "demo" }),
+					setup: () => setupDone.promise,
+				},
+				second,
+			]);
+			const initialized = client.init();
+
+			await client.dispose();
+			setupDone.open();
+			await initialized;
+
+			expect(second.log).toEqual([{ kind: "dispose" }]);
+		});
+
+		it("should restore nothing when disposed during the last setup", async () => {
+			const setupDone = gate(undefined);
+			const connector = createFakeConnector<DemoProtocol>({ protocol: "demo" });
+			const { client } = setupClient([
+				{ ...connector, setup: () => setupDone.promise },
+			]);
+			const initialized = client.init();
+
+			await client.dispose();
+			setupDone.open();
+			await initialized;
+
+			expect(connector.log).toEqual([{ kind: "dispose" }]);
 		});
 	});
 });

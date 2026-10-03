@@ -137,7 +137,7 @@ export interface ClientState {
 }
 
 // @public
-export type ClientStatus = "idle" | "restoring" | "ready";
+export type ClientStatus = "idle" | "restoring" | "ready" | "disposed";
 
 // @public
 export interface ClientStore {

@@ -36,6 +36,29 @@ export interface Lifecycle {
 	 * marks the client ready. Every call returns the promise of the first.
 	 */
 	init(): Promise<void>;
+	/**
+	 * Moves the client to `"disposed"`, disposes every connector in
+	 * registration order, then stops persistence once its queued writes have
+	 * landed. Every call returns the promise of the first.
+	 */
+	dispose(): Promise<void>;
+}
+
+// Runs `run` on the first call; every call gets its promise, including one
+// made while `run` is still starting, since `run`'s first `setState`
+// notifies subscribers synchronously and one of them may call again.
+function once(run: () => Promise<void>) {
+	let promise: Promise<void> | undefined;
+	return () => {
+		if (promise === undefined) {
+			let start = () => {};
+			promise = new Promise<void>((resolve) => {
+				start = () => resolve(run());
+			});
+			start();
+		}
+		return promise;
+	};
 }
 
 // The session the snapshot marked current when it was restored, else the
@@ -104,8 +127,11 @@ export function createLifecycle(
 	onConnectorEvent: ConnectorEventHandler,
 ): Lifecycle {
 	const { store } = runtime;
-	let initialization: Promise<void> | undefined;
 	const persistence = createPersistence(runtime);
+
+	function isDisposed() {
+		return store.getState().status === "disposed";
+	}
 
 	function contextFor(protocol: string) {
 		return {
@@ -125,6 +151,7 @@ export function createLifecycle(
 		);
 
 		for (const [protocol, connector] of runtime.connectors) {
+			if (isDisposed()) return;
 			try {
 				await connector.setup?.(contextFor(protocol));
 			} catch (error) {
@@ -137,10 +164,14 @@ export function createLifecycle(
 			}
 		}
 
+		if (isDisposed()) return;
+
 		const [reference, restored] = await Promise.all([
 			readSnapshot(),
 			restoreAll(),
 		]);
+		// Disposed while restoring: the results are discarded.
+		if (isDisposed()) return;
 		const saved = new Map(
 			reference?.sessions.map((entry) => [entry.id, entry] as const),
 		);
@@ -227,18 +258,30 @@ export function createLifecycle(
 		return restored.flat();
 	}
 
-	return {
-		init() {
-			if (initialization === undefined) {
-				// Stored before `initialize` runs: its first `setState` notifies
-				// subscribers synchronously, and one of them may call `init()` again.
-				let start = () => {};
-				initialization = new Promise<void>((resolve) => {
-					start = () => resolve(initialize());
-				});
-				start();
+	async function teardown() {
+		store.setState((state) => ({
+			...state,
+			status: "disposed",
+			pendingRequests: new Map(),
+		}));
+
+		for (const [protocol, connector] of runtime.connectors) {
+			try {
+				await connector.dispose?.();
+			} catch (error) {
+				runtime.reportError(
+					error,
+					(cause) =>
+						new TransportError(`Connector "${protocol}" failed to dispose`, {
+							cause,
+						}),
+				);
 			}
-			return initialization;
-		},
-	};
+		}
+
+		await persistence.stop();
+		runtime.events.clear();
+	}
+
+	return { init: once(initialize), dispose: once(teardown) };
 }

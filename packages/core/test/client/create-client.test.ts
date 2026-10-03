@@ -311,11 +311,70 @@ describe("createClient", () => {
 		expect(client.store.getState().snapshot).toBeNull();
 	});
 
+	describe("after dispose", () => {
+		const session = demoSession();
+
+		async function disposedClient() {
+			const client = createDemoClient();
+			await client.dispose();
+			return client;
+		}
+
+		it.each<[string, (client: DemoClient) => Promise<unknown>]>([
+			["init", (client) => client.init()],
+			["connect", (client) => client.connect("demo")],
+			["disconnect", (client) => client.disconnect()],
+			[
+				"request",
+				(client) => client.request(session, "get_addresses", undefined),
+			],
+		])("should reject %s() with CONFIG", async (method, call) => {
+			await expect(call(await disposedClient())).rejects.toThrow(
+				configError(`${method}() cannot be called after dispose()`),
+			);
+		});
+
+		it.each<[string, (client: DemoClient) => unknown]>([
+			["setCurrent", (client) => client.setCurrent(null)],
+			["on", (client) => client.on("client:error", () => {})],
+			[
+				"subscribe",
+				(client) => client.subscribe(session, "wallet_ready", () => {}),
+			],
+			["capability", (client) => client.capability(session, "message-signing")],
+			["can", (client) => client.can(session, "message-signing")],
+		])("should throw CONFIG from %s()", async (method, call) => {
+			const client = await disposedClient();
+
+			expect(() => call(client)).toThrow(
+				configError(`${method}() cannot be called after dispose()`),
+			);
+		});
+
+		it("should reject init() even when it ran before dispose()", async () => {
+			const client = createDemoClient();
+			await client.init();
+			await client.dispose();
+
+			await expect(client.init()).rejects.toThrow(
+				configError("init() cannot be called after dispose()"),
+			);
+		});
+
+		it("should keep answering through the derived getters", async () => {
+			const client = await disposedClient();
+
+			expect(client.status).toBe("disposed");
+			expect(client.sessions.size).toBe(0);
+			expect(client.current).toBeNull();
+			expect(client.protocols).toEqual(["demo"]);
+		});
+	});
+
 	describe("members that are not implemented yet", () => {
 		const session = demoSession();
 
 		it.each<[string, (client: DemoClient) => Promise<unknown>]>([
-			["dispose", (client) => client.dispose()],
 			["connect", (client) => client.connect("demo")],
 			["disconnect", (client) => client.disconnect()],
 			[
