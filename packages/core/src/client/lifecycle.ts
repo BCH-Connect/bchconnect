@@ -1,11 +1,6 @@
 import { ConfigError, TransportError } from "../errors.js";
 import { withTimeout } from "../internal/abort.js";
-import {
-	parseSnapshot,
-	SNAPSHOT_KEY,
-	serializeSnapshot,
-	toSnapshot,
-} from "../snapshot.js";
+import { parseSnapshot, SNAPSHOT_KEY } from "../snapshot.js";
 import { connectorPrefix, namespaced } from "../storage/namespace.js";
 import type {
 	ClientSnapshot,
@@ -13,6 +8,7 @@ import type {
 	LifecycleEvents,
 } from "../types/client.js";
 import type { ConnectorContext, Network, Session } from "../types/protocol.js";
+import { createPersistence } from "./persistence.js";
 import type { ClientRuntime } from "./runtime.js";
 import { mergeWalletIdentity } from "./sessions.js";
 
@@ -109,44 +105,7 @@ export function createLifecycle(
 ): Lifecycle {
 	const { store } = runtime;
 	let initialization: Promise<void> | undefined;
-	let persisting = false;
-	// What storage holds: a snapshot, `undefined` for none, `null` for unknown
-	// after a failed write, so the next notification writes again.
-	let persisted: string | undefined | null;
-	let writes = Promise.resolve();
-
-	// Runs inside store notifications, so it must never throw: failures
-	// surface asynchronously through the write chain.
-	function persist() {
-		if (!persisting) return;
-
-		const state = store.getState();
-		const value =
-			state.sessions.size === 0
-				? undefined
-				: serializeSnapshot(toSnapshot(state, runtime.network));
-		if (value === persisted) return;
-
-		persisted = value;
-		writes = writes
-			.then(() =>
-				value === undefined
-					? runtime.clientStorage.delete(SNAPSHOT_KEY)
-					: runtime.clientStorage.set(SNAPSHOT_KEY, value),
-			)
-			.catch((error: unknown) => {
-				persisted = null;
-				runtime.reportError(
-					error,
-					(cause) =>
-						new TransportError("Writing the client snapshot failed", {
-							cause,
-						}),
-				);
-			});
-	}
-
-	store.subscribe(persist);
+	const persistence = createPersistence(runtime);
 
 	function contextFor(protocol: string) {
 		return {
@@ -196,8 +155,7 @@ export function createLifecycle(
 		);
 		const { snapshot } = store.getState();
 
-		persisted = reference && serializeSnapshot(reference);
-		persisting = true;
+		persistence.start(reference);
 		store.setState((state) => ({
 			...state,
 			status: "ready",
