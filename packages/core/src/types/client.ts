@@ -169,7 +169,7 @@ export interface ClientLifecycle {
 	/** The external store. The single source of truth. */
 	readonly store: ClientStore;
 
-	/** Runs connector setup, then restores persisted sessions. Idempotent. */
+	/** Runs connector setup, then restores persisted sessions idempotently */
 	init(): Promise<void>;
 	/** Releases every resource. The client is unusable afterwards. */
 	dispose(): Promise<void>;

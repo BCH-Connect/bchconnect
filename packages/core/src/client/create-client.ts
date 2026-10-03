@@ -8,6 +8,7 @@ import type {
 	ProtocolOf,
 } from "../types/client.js";
 import type { Connector, RequestOptions, Session } from "../types/protocol.js";
+import { createLifecycle } from "./lifecycle.js";
 import { createClientRuntime } from "./runtime.js";
 
 // `Client` with every protocol-typed member loosened to `Session`.
@@ -27,6 +28,8 @@ interface ClientImpl extends ClientLifecycle {
 	capability(session: Session, name: keyof CapabilityRegistry): unknown;
 	can(session: Session, name: string): boolean;
 }
+
+function ignoreConnectorEvent() {}
 
 function notImplemented(method: string): ConfigError {
 	return new ConfigError(`${method}() is not implemented yet`);
@@ -87,6 +90,7 @@ export function createClient<const Connectors extends readonly Connector[]>(
 	validate(config);
 
 	const runtime = createClientRuntime(config);
+	const lifecycle = createLifecycle(runtime, ignoreConnectorEvent);
 	const { store } = runtime;
 	const client: ClientImpl = {
 		protocols: runtime.protocols,
@@ -100,8 +104,8 @@ export function createClient<const Connectors extends readonly Connector[]>(
 			return null;
 		},
 		store: runtime.publicStore,
-		async init() {
-			throw notImplemented("init");
+		init() {
+			return lifecycle.init();
 		},
 		async dispose() {
 			throw notImplemented("dispose");
@@ -115,8 +119,8 @@ export function createClient<const Connectors extends readonly Connector[]>(
 		setCurrent() {
 			throw notImplemented("setCurrent");
 		},
-		on() {
-			throw notImplemented("on");
+		on(event, listener) {
+			return runtime.events.on(event, listener);
 		},
 		session() {
 			throw notImplemented("session");

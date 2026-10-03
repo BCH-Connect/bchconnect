@@ -1,4 +1,6 @@
+import { type BchConnectError, isBchConnectError } from "../errors.js";
 import { isClientSnapshot } from "../snapshot.js";
+import { memory } from "../storage/memory.js";
 import { createStore, type Store } from "../store.js";
 import type {
 	ClientConfig,
@@ -6,7 +8,14 @@ import type {
 	ClientState,
 	ClientStore,
 } from "../types/client.js";
-import type { Connector, Logger } from "../types/protocol.js";
+import type {
+	AppMetadata,
+	Connector,
+	KeyValueStore,
+	Logger,
+	Network,
+} from "../types/protocol.js";
+import { createEmitter, type LifecycleEmitter } from "./events.js";
 
 /**
  * State shared by the parts of one client. Never handed to dapps.
@@ -16,10 +25,27 @@ import type { Connector, Logger } from "../types/protocol.js";
 export interface ClientRuntime {
 	/** Registered protocol ids, in registration order. */
 	readonly protocols: readonly string[];
+	/** Connectors by protocol id, in registration order. */
+	readonly connectors: ReadonlyMap<string, Connector>;
+	/** The dapp's network. */
+	readonly network: Network;
+	/** The dapp's identity. */
+	readonly appMetadata: AppMetadata;
+	/** The configured logger, or one that discards everything. */
+	readonly logger: Logger;
+	/** Storage the connector namespaces live in. Never the client tier. */
+	readonly connectorStorage: KeyValueStore;
 	/** The store behind the client. */
 	readonly store: Store<ClientState>;
 	/** The view of {@link ClientRuntime.store} that dapps get, without `setState`. */
 	readonly publicStore: ClientStore;
+	/** The client's lifecycle events. */
+	readonly events: LifecycleEmitter;
+	/**
+	 * Emits `client:error` for a failure no caller can receive. A
+	 * {@link BchConnectError} passes through; anything else is wrapped by `wrap`.
+	 */
+	reportError(error: unknown, wrap: (cause: unknown) => BchConnectError): void;
 }
 
 function noop() {}
@@ -69,13 +95,27 @@ export function createClientRuntime(
 		pendingRequests: new Map(),
 		snapshot: ssr ? seedSnapshot(config.initialState, logger) : null,
 	});
+	const events = createEmitter(logger);
 
 	// The store's methods are closures, so they work detached from it.
 	const { getState, subscribe } = store;
 
 	return {
 		protocols: config.connectors.map((connector) => connector.protocol),
+		connectors: new Map(
+			config.connectors.map((connector) => [connector.protocol, connector]),
+		),
+		network: config.network,
+		appMetadata: config.appMetadata,
+		logger,
+		connectorStorage: memory(),
 		store,
 		publicStore: { getState, subscribe },
+		events,
+		reportError(error, wrap) {
+			events.emit("client:error", {
+				error: isBchConnectError(error) ? error : wrap(error),
+			});
+		},
 	};
 }
