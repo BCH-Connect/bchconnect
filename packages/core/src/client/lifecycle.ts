@@ -35,8 +35,8 @@ export type ConnectorEventHandler = <E extends ConnectorEventName>(
 export interface Lifecycle {
 	/**
 	 * Sets up every connector, in registration order, restores the sessions of
-	 * every connector whose setup succeeded, and marks the client ready. Every
-	 * call returns the promise of the first.
+	 * every connector whose setup succeeded, reconciles the ssr snapshot, and
+	 * marks the client ready. Every call returns the promise of the first.
 	 */
 	init(): Promise<void>;
 }
@@ -62,6 +62,10 @@ function selectCurrent(
  * `restore()`, or one that outlasts the read timeout, is reported the same way
  * and never stops the others. Reading the client snapshot is bounded by the
  * same timeout; a failed read counts as no snapshot.
+ *
+ * Every ssr snapshot session that did not come back is announced as
+ * `session:disconnected` with reason `"expired"`, after the state is ready
+ * and before `init()` resolves.
  *
  * @example
  * ```ts
@@ -150,6 +154,7 @@ export function createLifecycle(
 			readSnapshot(),
 			restoreAll(),
 		]);
+		const { snapshot } = store.getState();
 
 		persisted = reference && serializeSnapshot(reference);
 		persisting = true;
@@ -158,7 +163,16 @@ export function createLifecycle(
 			status: "ready",
 			sessions,
 			currentSessionId: selectCurrent(sessions, reference),
+			snapshot: null,
 		}));
+
+		for (const { id } of snapshot?.sessions ?? []) {
+			if (sessions.has(id)) continue;
+			runtime.events.emit("session:disconnected", {
+				sessionId: id,
+				reason: "expired",
+			});
+		}
 	}
 
 	// The snapshot the previous page load left: the ssr seed, else the one in

@@ -637,6 +637,98 @@ describe("init", () => {
 		});
 	});
 
+	describe("ssr reconciliation", () => {
+		it("should announce every ssr snapshot session that did not come back as expired", async () => {
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [demoSession({ id: "kept" })],
+					}),
+				],
+				{ ssr: true, initialState: snapshotOf("kept", ["kept", "gone"]) },
+			);
+			const disconnected = vi.fn();
+			client.on("session:disconnected", disconnected);
+
+			await client.init();
+
+			expect(disconnected).toHaveBeenCalledExactlyOnceWith({
+				sessionId: "gone",
+				reason: "expired",
+			});
+		});
+
+		it("should announce each lost session in snapshot order, including those of a connector whose setup failed", async () => {
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						setup: "throw",
+						restore: [demoSession({ id: "first" })],
+					}),
+				],
+				{
+					ssr: true,
+					initialState: snapshotOf("first", ["first", "second"]),
+				},
+			);
+			const expired: string[] = [];
+			client.on("session:disconnected", ({ sessionId }) => {
+				expired.push(sessionId);
+			});
+
+			await client.init();
+
+			expect(expired).toEqual(["first", "second"]);
+		});
+
+		it("should clear the snapshot once init resolves", async () => {
+			const { client } = setupClient(
+				[createFakeConnector<DemoProtocol>({ protocol: "demo" })],
+				{ ssr: true, initialState: snapshotOf("gone", ["gone"]) },
+			);
+
+			await client.init();
+
+			expect(client.store.getState().snapshot).toBeNull();
+			expect(client.status).toBe("ready");
+		});
+
+		it("should announce expired sessions after the state is ready and before init resolves", async () => {
+			const { client } = setupClient(
+				[createFakeConnector<DemoProtocol>({ protocol: "demo" })],
+				{ ssr: true, initialState: snapshotOf("gone", ["gone"]) },
+			);
+			let resolved = false;
+			const seen: [ClientStatus, boolean, boolean][] = [];
+			client.on("session:disconnected", () => {
+				const state = client.store.getState();
+				seen.push([state.status, state.snapshot === null, resolved]);
+			});
+
+			await client.init().then(() => {
+				resolved = true;
+			});
+
+			expect(seen).toEqual([["ready", true, false]]);
+		});
+
+		it("should not announce sessions that only the stored snapshot listed", async () => {
+			const storage = await persistedStorage(snapshotOf("gone", ["gone"]));
+			const { client } = setupClient(
+				[createFakeConnector<DemoProtocol>({ protocol: "demo" })],
+				{ storage },
+			);
+			const disconnected = vi.fn();
+			client.on("session:disconnected", disconnected);
+
+			await client.init();
+
+			expect(disconnected).not.toHaveBeenCalled();
+		});
+	});
+
 	describe("persistence", () => {
 		it("should persist the restored sessions and the current one", async () => {
 			const first = demoSession({ id: "first" });
