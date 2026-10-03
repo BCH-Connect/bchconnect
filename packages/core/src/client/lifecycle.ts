@@ -12,8 +12,9 @@ import type {
 	ConnectorEventName,
 	LifecycleEvents,
 } from "../types/client.js";
-import type { ConnectorContext, Session } from "../types/protocol.js";
+import type { ConnectorContext, Network, Session } from "../types/protocol.js";
 import type { ClientRuntime } from "./runtime.js";
+import { mergeWalletIdentity } from "./sessions.js";
 
 /**
  * Receives the session lifecycle events a connector emits through its
@@ -51,6 +52,33 @@ function selectCurrent(
 	if (preferred !== null && sessions.has(preferred)) return preferred;
 
 	return sessions.keys().next().value ?? null;
+}
+
+/**
+ * Gives a restored session back the wallet identity saved for it, when the
+ * saved entry describes that same session.
+ */
+function withSavedIdentity(
+	session: Session,
+	entry: ClientSnapshot["sessions"][number] | undefined,
+	network: Network,
+) {
+	if (
+		entry === undefined ||
+		entry.protocol !== session.protocol ||
+		entry.network !== network
+	) {
+		return session;
+	}
+
+	const merged = mergeWalletIdentity(session, entry.wallet);
+	if (merged === session || session.wallet.name !== undefined) return merged;
+
+	// if the protocol hasn't provided the name, the saved entry defines the source
+	return {
+		...merged,
+		wallet: { ...merged.wallet, source: entry.wallet.source },
+	};
 }
 
 /**
@@ -150,10 +178,22 @@ export function createLifecycle(
 			}
 		}
 
-		const [reference, sessions] = await Promise.all([
+		const [reference, restored] = await Promise.all([
 			readSnapshot(),
 			restoreAll(),
 		]);
+		const saved = new Map(
+			reference?.sessions.map((entry) => [entry.id, entry] as const),
+		);
+		const sessions = new Map(
+			restored.map(
+				(session) =>
+					[
+						session.id,
+						withSavedIdentity(session, saved.get(session.id), runtime.network),
+					] as const,
+			),
+		);
 		const { snapshot } = store.getState();
 
 		persisted = reference && serializeSnapshot(reference);
@@ -226,7 +266,7 @@ export function createLifecycle(
 				}),
 		);
 
-		return new Map(restored.flat().map((session) => [session.id, session]));
+		return restored.flat();
 	}
 
 	return {

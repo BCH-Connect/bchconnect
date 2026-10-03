@@ -729,6 +729,257 @@ describe("init", () => {
 		});
 	});
 
+	describe("saved wallet identity", () => {
+		function savedSnapshot(
+			entry: Partial<ClientSnapshot["sessions"][number]>,
+		): ClientSnapshot {
+			return {
+				version: 1,
+				currentSessionId: null,
+				sessions: [
+					{
+						id: "first",
+						protocol: "demo",
+						network: "chipnet",
+						wallet: { id: "cashonize", name: "Cashonize", source: "selection" },
+						...entry,
+					},
+				],
+			};
+		}
+
+		async function restoreWith(
+			restored: ReturnType<typeof demoSession>,
+			snapshot: ClientSnapshot,
+		) {
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [restored],
+					}),
+				],
+				{ storage: await persistedStorage(snapshot) },
+			);
+			await client.init();
+			return client.sessions.get(restored.id);
+		}
+
+		it("should put back the saved wallet identity of the same session", async () => {
+			const restored = demoSession({
+				id: "first",
+				wallet: { source: "protocol" },
+			});
+
+			const session = await restoreWith(restored, savedSnapshot({}));
+
+			expect(session?.wallet).toStrictEqual({
+				id: "cashonize",
+				name: "Cashonize",
+				source: "selection",
+			});
+		});
+
+		it("should keep the fields the protocol supplied on restore", async () => {
+			const restored = demoSession({
+				id: "first",
+				wallet: { name: "Paytaca", source: "protocol" },
+			});
+
+			const session = await restoreWith(restored, savedSnapshot({}));
+
+			expect(session?.wallet).toStrictEqual({
+				id: "cashonize",
+				name: "Paytaca",
+				source: "protocol",
+			});
+		});
+
+		it("should ignore a saved entry for another protocol", async () => {
+			const restored = demoSession({
+				id: "first",
+				wallet: { source: "protocol" },
+			});
+
+			const session = await restoreWith(
+				restored,
+				savedSnapshot({ protocol: "demo-alt" }),
+			);
+
+			expect(session).toBe(restored);
+		});
+
+		it("should ignore a saved entry for another network", async () => {
+			const restored = demoSession({
+				id: "first",
+				wallet: { source: "protocol" },
+			});
+
+			const session = await restoreWith(
+				restored,
+				savedSnapshot({ network: "mainnet" }),
+			);
+
+			expect(session).toBe(restored);
+		});
+
+		it("should keep a session with no saved entry as the connector returned it", async () => {
+			const restored = demoSession({
+				id: "other",
+				wallet: { source: "protocol" },
+			});
+
+			const session = await restoreWith(restored, savedSnapshot({}));
+
+			expect(session).toBe(restored);
+		});
+
+		it("should put back the wallet identity saved in the ssr snapshot", async () => {
+			const restored = demoSession({
+				id: "first",
+				wallet: { source: "protocol" },
+			});
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [restored],
+					}),
+				],
+				{ ssr: true, initialState: savedSnapshot({}) },
+			);
+
+			await client.init();
+
+			expect(client.sessions.get("first")?.wallet.name).toBe("Cashonize");
+		});
+
+		it("should put back a name the protocol sent at connect but not on restore, still as the protocol's", async () => {
+			const restored = demoSession({
+				id: "first",
+				wallet: { source: "protocol" },
+			});
+
+			const session = await restoreWith(
+				restored,
+				savedSnapshot({ wallet: { name: "Paytaca", source: "protocol" } }),
+			);
+
+			expect(session?.wallet).toStrictEqual({
+				name: "Paytaca",
+				source: "protocol",
+			});
+		});
+
+		it("should keep a picked id next to the protocol's name across reloads", async () => {
+			const storage = await persistedStorage(
+				toSnapshot(
+					{
+						sessions: new Map([
+							[
+								"first",
+								demoSession({
+									id: "first",
+									wallet: {
+										id: "paytaca",
+										name: "Paytaca",
+										source: "protocol",
+									},
+								}),
+							],
+						]),
+						currentSessionId: "first",
+					},
+					"chipnet",
+				),
+			);
+			const set = vi.spyOn(storage, "set");
+
+			for (let reload = 0; reload < 2; reload++) {
+				const { client } = setupClient(
+					[
+						createFakeConnector<DemoProtocol>({
+							protocol: "demo",
+							restore: [
+								demoSession({
+									id: "first",
+									wallet: { name: "Paytaca", source: "protocol" },
+								}),
+							],
+						}),
+					],
+					{ storage },
+				);
+				await client.init();
+				await settle();
+
+				expect(client.sessions.get("first")?.wallet).toStrictEqual({
+					id: "paytaca",
+					name: "Paytaca",
+					source: "protocol",
+				});
+			}
+			expect(set).not.toHaveBeenCalled();
+		});
+
+		it("should not rewrite the stored snapshot when the restored session matches it", async () => {
+			// Built the way the client writes it, so the key order matches.
+			const snapshot = toSnapshot(
+				{
+					sessions: new Map([
+						[
+							"first",
+							demoSession({
+								id: "first",
+								wallet: {
+									id: "cashonize",
+									name: "Cashonize",
+									source: "selection",
+								},
+							}),
+						],
+					]),
+					currentSessionId: "first",
+				},
+				"chipnet",
+			);
+			const storage = await persistedStorage(snapshot);
+			const set = vi.spyOn(storage, "set");
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [
+							demoSession({ id: "first", wallet: { source: "protocol" } }),
+						],
+					}),
+				],
+				{ storage },
+			);
+
+			await client.init();
+			await settle();
+
+			expect(client.sessions.get("first")?.wallet).toStrictEqual(
+				snapshot.sessions[0]?.wallet,
+			);
+			expect(set).not.toHaveBeenCalled();
+		});
+
+		it("should never mutate the session the connector restored", async () => {
+			const restored = demoSession({
+				id: "first",
+				wallet: { source: "protocol" },
+			});
+			const wallet = restored.wallet;
+
+			await restoreWith(restored, savedSnapshot({}));
+
+			expect(restored.wallet).toBe(wallet);
+			expect(wallet).toStrictEqual({ source: "protocol" });
+		});
+	});
+
 	describe("persistence", () => {
 		it("should persist the restored sessions and the current one", async () => {
 			const first = demoSession({ id: "first" });
