@@ -33,8 +33,17 @@ export interface ClientRuntime {
 	readonly appMetadata: AppMetadata;
 	/** The configured logger, or one that discards everything. */
 	readonly logger: Logger;
+	/** Deadline for a machine round trip, such as a connector's `restore()`. */
+	readonly readTimeoutMs: number;
+	/** Where the client snapshot is persisted: the configured storage, else memory. */
+	readonly clientStorage: KeyValueStore;
 	/** Storage the connector namespaces live in. Never the client tier. */
 	readonly connectorStorage: KeyValueStore;
+	/**
+	 * Protocols whose connector failed setup, with the error it threw. They
+	 * stay registered but unusable.
+	 */
+	readonly disabled: Map<string, unknown>;
 	/** The store behind the client. */
 	readonly store: Store<ClientState>;
 	/** The view of {@link ClientRuntime.store} that dapps get, without `setState`. */
@@ -108,7 +117,10 @@ export function createClientRuntime(
 		network: config.network,
 		appMetadata: config.appMetadata,
 		logger,
+		readTimeoutMs: config.defaultTimeoutMs?.read ?? 30_000,
+		clientStorage: config.storage ?? memory(),
 		connectorStorage: memory(),
+		disabled: new Map(),
 		store,
 		publicStore: { getState, subscribe },
 		events,
