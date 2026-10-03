@@ -142,30 +142,23 @@ describe("withTimeout", () => {
 	});
 
 	it("should resolve with the result of run", async () => {
-		await expect(
-			withTimeout(async () => "value", { timeoutMessage: "timed out" }),
-		).resolves.toBe("value");
+		await expect(withTimeout(async () => "value", {})).resolves.toBe("value");
 	});
 
 	it("should reject with the rejection of run", async () => {
 		const failure = new Error("failed");
 
-		await expect(
-			withTimeout(() => Promise.reject(failure), {
-				timeoutMessage: "timed out",
-			}),
-		).rejects.toBe(failure);
+		await expect(withTimeout(() => Promise.reject(failure), {})).rejects.toBe(
+			failure,
+		);
 	});
 
 	it("should pass run a signal that is not aborted", async () => {
 		let received: AbortSignal | undefined;
 
-		await withTimeout(
-			async (signal) => {
-				received = signal;
-			},
-			{ timeoutMessage: "timed out" },
-		);
+		await withTimeout(async (signal) => {
+			received = signal;
+		}, {});
 
 		expect(received?.aborted).toBe(false);
 	});
@@ -215,9 +208,7 @@ describe("withTimeout", () => {
 
 	it("should run no timer without timeoutMs", async () => {
 		const run = deferred<string>();
-		const pending = withTimeout(() => run.promise, {
-			timeoutMessage: "timed out",
-		});
+		const pending = withTimeout(() => run.promise, {});
 
 		expect(vi.getTimerCount()).toBe(0);
 		run.resolve("value");
@@ -228,7 +219,6 @@ describe("withTimeout", () => {
 		const caller = new AbortController();
 		const pending = withTimeout(() => deferred<string>().promise, {
 			signal: caller.signal,
-			timeoutMessage: "timed out",
 		});
 
 		caller.abort("user closed the modal");
@@ -239,6 +229,18 @@ describe("withTimeout", () => {
 		});
 	});
 
+	it("should reject with the caller's reason when it is already an AbortedError", async () => {
+		const caller = new AbortController();
+		const reason = new AbortedError("The client was disposed");
+		const pending = withTimeout(() => deferred<string>().promise, {
+			signal: caller.signal,
+		});
+
+		caller.abort(reason);
+
+		await expect(pending).rejects.toBe(reason);
+	});
+
 	it("should abort the signal passed to run with the caller's reason", async () => {
 		const caller = new AbortController();
 		let received: AbortSignal | undefined;
@@ -247,7 +249,7 @@ describe("withTimeout", () => {
 				received = signal;
 				return deferred<string>().promise;
 			},
-			{ signal: caller.signal, timeoutMessage: "timed out" },
+			{ signal: caller.signal },
 		);
 
 		caller.abort("reason");
@@ -262,7 +264,7 @@ describe("withTimeout", () => {
 		const run = vi.fn(() => deferred<string>().promise);
 
 		await expect(
-			withTimeout(run, { signal: caller.signal, timeoutMessage: "timed out" }),
+			withTimeout(run, { signal: caller.signal }),
 		).rejects.toMatchObject({ code: "ABORTED", cause: "already" });
 		expect(run).not.toHaveBeenCalled();
 	});
@@ -287,7 +289,6 @@ describe("withTimeout", () => {
 		const run = deferred<string>();
 		const pending = withTimeout(() => run.promise, {
 			signal: caller.signal,
-			timeoutMessage: "timed out",
 		});
 
 		caller.abort("reason");
@@ -325,7 +326,6 @@ describe("withTimeout", () => {
 
 		await withTimeout(async () => "value", {
 			signal: caller.signal,
-			timeoutMessage: "timed out",
 		});
 
 		expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));

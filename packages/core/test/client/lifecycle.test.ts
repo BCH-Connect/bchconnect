@@ -1461,3 +1461,85 @@ describe("dispose", () => {
 		});
 	});
 });
+
+describe("whenReady", () => {
+	function setup(connectors: readonly Connector[] = []) {
+		const runtime = createClientRuntime({
+			connectors,
+			network: "chipnet",
+			appMetadata,
+		});
+		return createLifecycle(runtime, () => {});
+	}
+
+	it("should reject CONFIG when init() was never called", async () => {
+		await expect(setup().whenReady("connect")).rejects.toThrow(
+			expect.objectContaining({
+				code: "CONFIG",
+				message: "connect() was called before init()",
+			}),
+		);
+	});
+
+	it("should wait for an init() that has started", async () => {
+		let finishSetup = () => {};
+		const setupDone = new Promise<void>((resolve) => {
+			finishSetup = resolve;
+		});
+		const lifecycle = setup([
+			{
+				...createFakeConnector<DemoProtocol>({ protocol: "demo" }),
+				setup: () => setupDone,
+			},
+		]);
+		void lifecycle.init();
+		let ready = false;
+
+		const waiting = lifecycle.whenReady("connect").then(() => {
+			ready = true;
+		});
+		await settle();
+		expect(ready).toBe(false);
+
+		finishSetup();
+		await waiting;
+		expect(ready).toBe(true);
+	});
+
+	it("should resolve once init() has finished", async () => {
+		const lifecycle = setup();
+		await lifecycle.init();
+
+		await expect(lifecycle.whenReady("connect")).resolves.toBeUndefined();
+	});
+
+	it("should reject ABORTED when the client is disposed while waiting", async () => {
+		const lifecycle = setup([
+			{
+				...createFakeConnector<DemoProtocol>({ protocol: "demo" }),
+				setup: () => new Promise<void>(() => {}),
+			},
+		]);
+		void lifecycle.init();
+		const waiting = lifecycle.whenReady("connect");
+
+		await lifecycle.dispose();
+
+		await expect(waiting).rejects.toThrow(
+			expect.objectContaining({
+				code: "ABORTED",
+				message: "The client was disposed",
+			}),
+		);
+	});
+
+	it("should reject ABORTED once the client is disposed", async () => {
+		const lifecycle = setup();
+		await lifecycle.init();
+		await lifecycle.dispose();
+
+		await expect(lifecycle.whenReady("connect")).rejects.toThrow(
+			expect.objectContaining({ code: "ABORTED" }),
+		);
+	});
+});
