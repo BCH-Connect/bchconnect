@@ -93,6 +93,33 @@ describe("init", () => {
 		expect(connector.log).toEqual([{ kind: "setup" }]);
 	});
 
+	it("should return the same promise to a call made by a store subscriber", async () => {
+		const connector = createFakeConnector<DemoProtocol>({ protocol: "demo" });
+		const { client } = setupClient([connector]);
+		const nested: Promise<void>[] = [];
+		client.store.subscribe(() => {
+			if (client.status === "restoring") nested.push(client.init());
+		});
+
+		const first = client.init();
+		await first;
+
+		expect(nested).toHaveLength(1);
+		expect(nested[0]).toBe(first);
+		expect(connector.log).toEqual([{ kind: "setup" }]);
+	});
+
+	it("should be restoring as soon as init() returns", async () => {
+		const { client } = setupClient([
+			createFakeConnector<DemoProtocol>({ protocol: "demo" }),
+		]);
+
+		const initialized = client.init();
+
+		expect(client.status).toBe("restoring");
+		await initialized;
+	});
+
 	it("should move from idle through restoring to ready", async () => {
 		const { client } = setupClient([
 			createFakeConnector<DemoProtocol>({ protocol: "demo" }),

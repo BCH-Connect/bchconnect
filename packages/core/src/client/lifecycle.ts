@@ -85,7 +85,15 @@ export function createLifecycle(
 
 	return {
 		init() {
-			initialization ??= initialize();
+			if (initialization === undefined) {
+				// Stored before `initialize` runs: its first `setState` notifies
+				// subscribers synchronously, and one of them may call `init()` again.
+				let start = () => {};
+				initialization = new Promise<void>((resolve) => {
+					start = () => resolve(initialize());
+				});
+				start();
+			}
 			return initialization;
 		},
 	};
