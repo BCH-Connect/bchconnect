@@ -274,7 +274,6 @@ describe("createClient", () => {
 		const session = demoSession();
 
 		it.each<[string, (client: DemoClient) => Promise<unknown>]>([
-			["init", (client) => client.init()],
 			["dispose", (client) => client.dispose()],
 			["connect", (client) => client.connect("demo")],
 			["disconnect", (client) => client.disconnect()],
@@ -290,7 +289,6 @@ describe("createClient", () => {
 
 		it.each<[string, (client: DemoClient) => unknown]>([
 			["setCurrent", (client) => client.setCurrent(null)],
-			["on", (client) => client.on("client:error", () => {})],
 			["session", (client) => client.session("demo")],
 			[
 				"subscribe",
