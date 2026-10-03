@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AbortedError, TimeoutError } from "../../src/errors.js";
-import { combineSignals, withTimeout } from "../../src/internal/abort.js";
+import {
+	combineSignals,
+	isTimeoutMs,
+	withTimeout,
+} from "../../src/internal/abort.js";
 
 /** A promise that settles only through its returned handles. */
 function deferred<T>(): {
@@ -16,6 +20,24 @@ function deferred<T>(): {
 	});
 	return { promise, resolve, reject };
 }
+
+describe("isTimeoutMs", () => {
+	it.each([1, 30_000, 2 ** 31 - 1])("should accept %s", (value) => {
+		expect(isTimeoutMs(value)).toBe(true);
+	});
+
+	it.each([
+		0,
+		-1,
+		Number.NaN,
+		Number.POSITIVE_INFINITY,
+		2 ** 31,
+		"30000",
+		undefined,
+	])("should reject %s", (value) => {
+		expect(isTimeoutMs(value)).toBe(false);
+	});
+});
 
 describe("combineSignals", () => {
 	it("should not abort while no input aborts", () => {

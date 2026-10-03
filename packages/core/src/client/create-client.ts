@@ -1,4 +1,5 @@
 import { ConfigError } from "../errors.js";
+import { isTimeoutMs } from "../internal/abort.js";
 import { isNetwork } from "../snapshot.js";
 import type { CapabilityRegistry } from "../types/capabilities.js";
 import type {
@@ -55,6 +56,14 @@ function validate(config: ClientConfig<readonly Connector[]>): void {
 
 	if (config.initialState !== undefined && config.ssr !== true) {
 		throw new ConfigError("initialState requires ssr: true");
+	}
+
+	for (const [kind, timeoutMs] of Object.entries(
+		config.defaultTimeoutMs ?? {},
+	)) {
+		if (timeoutMs !== undefined && !isTimeoutMs(timeoutMs)) {
+			throw new ConfigError(`Invalid defaultTimeoutMs.${kind}: ${timeoutMs}`);
+		}
 	}
 }
 

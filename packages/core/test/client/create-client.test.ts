@@ -159,6 +159,47 @@ describe("createClient", () => {
 		).toThrow(configError("initialState requires ssr: true"));
 	});
 
+	it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 31])(
+		"should throw CONFIG for a default timeout of %s",
+		(timeoutMs) => {
+			for (const kind of ["read", "userInteraction", "connect"] as const) {
+				expect(() =>
+					createClient({
+						connectors: [],
+						network: "chipnet",
+						appMetadata,
+						defaultTimeoutMs: { [kind]: timeoutMs },
+					}),
+				).toThrow(
+					configError(`Invalid defaultTimeoutMs.${kind}: ${timeoutMs}`),
+				);
+			}
+		},
+	);
+
+	it("should accept default timeouts from 1 ms to the largest delay a timer honors", () => {
+		expect(() =>
+			createClient({
+				connectors: [],
+				network: "chipnet",
+				appMetadata,
+				defaultTimeoutMs: { read: 1, userInteraction: 2 ** 31 - 1 },
+			}),
+		).not.toThrow();
+	});
+
+	it("should skip a default timeout left undefined", () => {
+		expect(() =>
+			createClient({
+				connectors: [],
+				network: "chipnet",
+				appMetadata,
+				// @ts-expect-error - plain JavaScript can pass an explicit undefined.
+				defaultTimeoutMs: { read: undefined },
+			}),
+		).not.toThrow();
+	});
+
 	it("should not check the app metadata at runtime", () => {
 		expect(() =>
 			createClient({

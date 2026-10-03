@@ -1,5 +1,24 @@
 import { AbortedError, TimeoutError } from "../errors.js";
 
+// The largest delay `setTimeout` honors; above it, the timer fires at once.
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+
+/**
+ * Whether `value` is a usable timeout: a positive, finite number of
+ * milliseconds that `setTimeout` can wait for.
+ *
+ * @example
+ * ```ts
+ * isTimeoutMs(30_000); // true
+ * isTimeoutMs(Number.POSITIVE_INFINITY); // false
+ * ```
+ *
+ * @internal
+ */
+export function isTimeoutMs(value: unknown): value is number {
+	return typeof value === "number" && value > 0 && value <= MAX_TIMEOUT_MS;
+}
+
 /**
  * A signal that aborts when any of its inputs aborts.
  *
