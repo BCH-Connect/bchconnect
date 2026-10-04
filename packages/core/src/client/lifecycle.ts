@@ -10,7 +10,7 @@ import type {
 import type { ConnectorContext, Network, Session } from "../types/protocol.js";
 import { createPersistence } from "./persistence.js";
 import type { ClientRuntime } from "./runtime.js";
-import { mergeWalletIdentity } from "./sessions.js";
+import { keepWalletIdentity } from "./sessions.js";
 
 /**
  * Receives the session lifecycle events a connector emits through its
@@ -96,14 +96,7 @@ function withSavedIdentity(
 		return session;
 	}
 
-	const merged = mergeWalletIdentity(session, entry.wallet);
-	if (merged === session || session.wallet.name !== undefined) return merged;
-
-	// if the protocol hasn't provided the name, the saved entry defines the source
-	return {
-		...merged,
-		wallet: { ...merged.wallet, source: entry.wallet.source },
-	};
+	return keepWalletIdentity(session, entry.wallet);
 }
 
 /**

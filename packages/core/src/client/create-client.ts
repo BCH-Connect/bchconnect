@@ -11,6 +11,7 @@ import type {
 import type { Connector, RequestOptions, Session } from "../types/protocol.js";
 import { createLifecycle } from "./lifecycle.js";
 import { createClientRuntime } from "./runtime.js";
+import { createSessions } from "./sessions.js";
 
 // `Client` with every protocol-typed member loosened to `Session`.
 interface ClientImpl extends ClientLifecycle {
@@ -29,8 +30,6 @@ interface ClientImpl extends ClientLifecycle {
 	capability(session: Session, name: keyof CapabilityRegistry): unknown;
 	can(session: Session, name: string): boolean;
 }
-
-function ignoreConnectorEvent() {}
 
 function notImplemented(method: string): ConfigError {
 	return new ConfigError(`${method}() is not implemented yet`);
@@ -99,7 +98,8 @@ export function createClient<const Connectors extends readonly Connector[]>(
 	validate(config);
 
 	const runtime = createClientRuntime(config);
-	const lifecycle = createLifecycle(runtime, ignoreConnectorEvent);
+	const sessions = createSessions(runtime);
+	const lifecycle = createLifecycle(runtime, sessions.onConnectorEvent);
 	const { store } = runtime;
 
 	function disposedError(method: string) {
