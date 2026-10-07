@@ -1,3 +1,5 @@
+import type { Logger } from "./types/protocol.js";
+
 /**
  * External store. It's the single source of truth behind a client.
  *
@@ -22,12 +24,12 @@ export interface Store<T> {
  * Creates a {@link Store} holding `initial`.
  *
  * Listeners run synchronously, in subscription order, once per registration
- * and transition.
- * A listener that throws stops the notification.
+ * and transition. A listener that throws is reported to `logger.error` and
+ * the remaining listeners still run.
  *
  * @example
  * ```ts
- * const store = createStore({ count: 0 });
+ * const store = createStore({ count: 0 }, logger);
  * const unsubscribe = store.subscribe(() => console.log(store.getState()));
  *
  * store.setState((previous) => ({ count: previous.count + 1 }));
@@ -36,7 +38,7 @@ export interface Store<T> {
  *
  * @internal
  */
-export function createStore<T>(initial: T): Store<T> {
+export function createStore<T>(initial: T, logger: Logger): Store<T> {
 	let state = initial;
 	// One entry per `subscribe()` call, so unsubscribing removes only that
 	// call's registration even when the same function is subscribed more
@@ -55,7 +57,12 @@ export function createStore<T>(initial: T): Store<T> {
 			// A copy, so that subscribing during a notification never grows the
 			// loop; `has` skips listeners that unsubscribed inside it.
 			for (const entry of [...listeners]) {
-				if (listeners.has(entry)) entry.listener();
+				if (!listeners.has(entry)) continue;
+				try {
+					entry.listener();
+				} catch (error) {
+					logger.error("A store listener threw", error);
+				}
 			}
 		},
 		subscribe(listener) {

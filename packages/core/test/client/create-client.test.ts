@@ -200,6 +200,28 @@ describe("createClient", () => {
 		).not.toThrow();
 	});
 
+	it("should report a throwing store subscriber to the logger and keep going", async () => {
+		const logger = createLogger();
+		const failure = new Error("Subscriber failed");
+		const client = createClient({
+			connectors: [createFakeConnector<DemoProtocol>({ protocol: "demo" })],
+			network: "chipnet",
+			appMetadata,
+			logger,
+		});
+		client.store.subscribe(() => {
+			throw failure;
+		});
+
+		await expect(client.init()).resolves.toBeUndefined();
+
+		expect(client.status).toBe("ready");
+		expect(logger.error).toHaveBeenCalledWith(
+			"A store listener threw",
+			failure,
+		);
+	});
+
 	it("should not check the app metadata at runtime", () => {
 		expect(() =>
 			createClient({
