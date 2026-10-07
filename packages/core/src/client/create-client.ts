@@ -145,9 +145,9 @@ export function createClient<const Connectors extends readonly Connector[]>(
 			assertUsable("connect");
 			return sessions.connect(protocol, opts);
 		},
-		async disconnect() {
+		async disconnect(session) {
 			assertUsable("disconnect");
-			throw notImplemented("disconnect");
+			return sessions.disconnect(session);
 		},
 		setCurrent() {
 			assertUsable("setCurrent");

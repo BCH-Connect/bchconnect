@@ -14,6 +14,7 @@ import {
 	keepWalletIdentity,
 	mergeWalletIdentity,
 } from "../../src/client/sessions.js";
+import { TransportError } from "../../src/errors.js";
 import type {
 	Connector,
 	ConnectorContext,
@@ -1242,6 +1243,289 @@ describe("connect", () => {
 
 			await expect(client.connect("demo")).resolves.toBe(first);
 			expect(events).toEqual([]);
+		});
+	});
+});
+
+describe("disconnect", () => {
+	const appMetadata = { name: "Test", url: "https://example.com" };
+
+	function setup(connectors: readonly Connector[]) {
+		const client = createClient({
+			connectors,
+			network: "chipnet",
+			appMetadata,
+		});
+		const events: [string, unknown][] = [];
+		for (const event of ["session:disconnected", "client:error"] as const) {
+			client.on(event, (payload) => events.push([event, payload]));
+		}
+		return { client, events };
+	}
+
+	function demo(
+		script: Partial<
+			Parameters<typeof createFakeConnector<DemoProtocol>>[0]
+		> = {},
+	) {
+		return createFakeConnector<DemoProtocol>({
+			protocol: "demo",
+			restore: [demoSession({ id: "first" })],
+			session: demoSession({ id: "second" }),
+			...script,
+		});
+	}
+
+	it("should end the current session when none is given", async () => {
+		const connector = demo();
+		const { client, events } = setup([connector]);
+		await client.init();
+		await client.connect("demo", { mode: "add" });
+
+		await client.disconnect();
+
+		expect([...client.sessions.keys()]).toEqual(["first"]);
+		expect(client.current).toBeNull();
+		expect(events).toEqual([
+			["session:disconnected", { sessionId: "second", reason: "user" }],
+		]);
+		expect(connector.log).toContainEqual({
+			kind: "disconnect",
+			sessionId: "second",
+		});
+	});
+
+	it("should end the given session and keep the current one", async () => {
+		const connector = demo();
+		const { client } = setup([connector]);
+		await client.init();
+		await client.connect("demo", { mode: "add" });
+		const first = client.sessions.get("first");
+
+		await client.disconnect(first);
+
+		expect([...client.sessions.keys()]).toEqual(["second"]);
+		expect(client.current?.id).toBe("second");
+	});
+
+	it("should remove the session before the connector disconnects it", async () => {
+		const connector = demo();
+		const seen: string[][] = [];
+		const { client } = setup([
+			{
+				...connector,
+				disconnect(session: Session<DemoProtocol>) {
+					seen.push([...client.sessions.keys()]);
+					return connector.disconnect(session);
+				},
+			},
+		]);
+		await client.init();
+		await client.connect("demo", { mode: "add" });
+
+		await client.disconnect(client.sessions.get("first"));
+
+		expect(seen).toEqual([["second"]]);
+	});
+
+	it("should hand the connector the session in state", async () => {
+		const connector = demo();
+		const handed: Session[] = [];
+		const { client } = setup([
+			{
+				...connector,
+				disconnect(session: Session<DemoProtocol>) {
+					handed.push(session);
+					return connector.disconnect(session);
+				},
+			},
+		]);
+		await client.init();
+		const stored = client.sessions.get("first");
+
+		await client.disconnect(demoSession({ id: "first" }));
+
+		expect(handed).toHaveLength(1);
+		expect(handed[0]).toBe(stored);
+	});
+
+	it.each([
+		{ when: "there is no current session", script: { restore: [] } },
+		{
+			when: "the session is not in state",
+			target: demoSession({ id: "gone" }),
+		},
+	])("should be a quiet no-op when $when", async ({ script, target }) => {
+		const connector = demo(script);
+		const { client, events } = setup([connector]);
+		await client.init();
+		const state = client.store.getState();
+
+		await client.disconnect(target);
+
+		expect(client.store.getState()).toBe(state);
+		expect(events).toEqual([]);
+		expect(connector.log).not.toContainEqual(
+			expect.objectContaining({ kind: "disconnect" }),
+		);
+	});
+
+	it("should announce the session once when its connector reports it too", async () => {
+		const connector = demo();
+		let context: ConnectorContext | undefined;
+		const { client, events } = setup([
+			{
+				...connector,
+				setup(ctx: ConnectorContext) {
+					context = ctx;
+					return connector.setup?.(ctx);
+				},
+				async disconnect(session: Session<DemoProtocol>) {
+					context?.emit("session:disconnected", {
+						sessionId: session.id,
+						reason: "wallet",
+					});
+					await connector.disconnect(session);
+				},
+			},
+		]);
+		await client.init();
+
+		await client.disconnect();
+
+		expect(events).toEqual([
+			["session:disconnected", { sessionId: "first", reason: "user" }],
+		]);
+	});
+
+	it("should end a session once when called twice", async () => {
+		const connector = demo();
+		const { client, events } = setup([connector]);
+		await client.init();
+		const first = client.sessions.get("first");
+
+		await Promise.all([client.disconnect(first), client.disconnect(first)]);
+
+		expect(events).toHaveLength(1);
+		expect(
+			connector.log.filter((entry) => entry.kind === "disconnect"),
+		).toHaveLength(1);
+	});
+
+	it("should resolve and report a connector that fails", async () => {
+		const { client, events } = setup([demo({ disconnect: "throw" })]);
+		await client.init();
+
+		await expect(
+			client.disconnect(client.sessions.get("first")),
+		).resolves.toBeUndefined();
+
+		expect(client.sessions.has("first")).toBe(false);
+		expect(events).toEqual([
+			["session:disconnected", { sessionId: "first", reason: "user" }],
+			[
+				"client:error",
+				{
+					error: expect.objectContaining({
+						code: "TRANSPORT",
+						message: 'disconnect() failed for connector "demo"',
+					}),
+				},
+			],
+		]);
+	});
+
+	it("should report a connector that throws synchronously", async () => {
+		const failure = new Error("Not async");
+		const { client, events } = setup([
+			{
+				...demo(),
+				disconnect() {
+					throw failure;
+				},
+			},
+		]);
+		await client.init();
+
+		await expect(
+			client.disconnect(client.sessions.get("first")),
+		).resolves.toBeUndefined();
+
+		expect(events).toContainEqual([
+			"client:error",
+			{ error: expect.objectContaining({ code: "TRANSPORT", cause: failure }) },
+		]);
+	});
+
+	it("should pass a library error from the connector through unchanged", async () => {
+		const failure = new TransportError("Relay closed");
+		const { client, events } = setup([
+			{ ...demo(), disconnect: () => Promise.reject(failure) },
+		]);
+		await client.init();
+
+		await client.disconnect(client.sessions.get("first"));
+
+		expect(events).toContainEqual(["client:error", { error: failure }]);
+	});
+
+	describe("before init resolves", () => {
+		it("should reject CONFIG when init() was never called", async () => {
+			const { client } = setup([demo()]);
+
+			await expect(client.disconnect()).rejects.toThrow(
+				expect.objectContaining({
+					code: "CONFIG",
+					message: "disconnect() was called before init()",
+				}),
+			);
+		});
+
+		it("should wait for a started init() and then end the restored session", async () => {
+			const connector = demo({ restore: [demoSession({ id: "first" })] });
+			const { client } = setup([connector]);
+			void client.init();
+
+			await client.disconnect(demoSession({ id: "first" }));
+
+			expect(client.sessions.size).toBe(0);
+			expect(connector.log).toContainEqual({
+				kind: "disconnect",
+				sessionId: "first",
+			});
+		});
+
+		it("should reject ABORTED when the client is disposed during the wait", async () => {
+			const connector = demo();
+			const { client } = setup([
+				{ ...connector, setup: () => new Promise<void>(() => {}) },
+			]);
+			void client.init();
+			const disconnecting = client.disconnect();
+
+			await client.dispose();
+
+			await expect(disconnecting).rejects.toThrow(
+				expect.objectContaining({ code: "ABORTED" }),
+			);
+		});
+
+		it("should keep the session when the client is disposed as the wait ends", async () => {
+			const connector = demo();
+			const { client, events } = setup([connector]);
+			const initializing = client.init();
+			const disconnecting = client.disconnect();
+			// Runs right after init() resolves, before disconnect() resumes.
+			void initializing.then(() => client.dispose());
+
+			await expect(disconnecting).rejects.toThrow(
+				expect.objectContaining({ code: "ABORTED" }),
+			);
+			expect(client.sessions.has("first")).toBe(true);
+			expect(events).toEqual([]);
+			expect(connector.log).not.toContainEqual(
+				expect.objectContaining({ kind: "disconnect" }),
+			);
 		});
 	});
 });

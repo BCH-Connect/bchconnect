@@ -397,7 +397,6 @@ describe("createClient", () => {
 		const session = demoSession();
 
 		it.each<[string, (client: DemoClient) => Promise<unknown>]>([
-			["disconnect", (client) => client.disconnect()],
 			[
 				"request",
 				(client) => client.request(session, "get_addresses", undefined),
