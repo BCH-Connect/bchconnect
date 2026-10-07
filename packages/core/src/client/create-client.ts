@@ -10,6 +10,7 @@ import type {
 } from "../types/client.js";
 import type { Connector, RequestOptions, Session } from "../types/protocol.js";
 import { createLifecycle } from "./lifecycle.js";
+import { createLifetime } from "./lifetime.js";
 import { createClientRuntime } from "./runtime.js";
 import { createSessions } from "./sessions.js";
 
@@ -86,7 +87,7 @@ function validate(config: ClientConfig<readonly Connector[]>): void {
  *
  * await client.init();
  *
- * // The protocol the user picked, e.g. in the connect modal.
+ * // The protocol the user picked e.g. in the connect modal.
  * const session = await client.connect(protocol);
  * ```
  *
@@ -98,15 +99,19 @@ export function createClient<const Connectors extends readonly Connector[]>(
 	validate(config);
 
 	const runtime = createClientRuntime(config);
-	const sessions = createSessions(runtime);
-	const lifecycle = createLifecycle(runtime, sessions.onConnectorEvent);
+	const lifetime = createLifetime();
+	const sessions = createSessions(runtime, lifetime);
+	const lifecycle = createLifecycle(
+		runtime,
+		lifetime,
+		sessions.onConnectorEvent,
+	);
 	const { store } = runtime;
 
 	function disposedError(method: string) {
 		return new ConfigError(`${method}() cannot be called after dispose()`);
 	}
 
-	// Every member but dispose() and the derived getters stops working once the client is disposed.
 	function assertUsable(method: string) {
 		if (store.getState().status === "disposed") throw disposedError(method);
 	}
@@ -136,9 +141,9 @@ export function createClient<const Connectors extends readonly Connector[]>(
 		dispose() {
 			return lifecycle.dispose();
 		},
-		async connect() {
+		async connect(protocol, opts) {
 			assertUsable("connect");
-			throw notImplemented("connect");
+			return sessions.connect(protocol, opts);
 		},
 		async disconnect() {
 			assertUsable("disconnect");

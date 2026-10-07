@@ -375,7 +375,6 @@ describe("createClient", () => {
 		const session = demoSession();
 
 		it.each<[string, (client: DemoClient) => Promise<unknown>]>([
-			["connect", (client) => client.connect("demo")],
 			["disconnect", (client) => client.disconnect()],
 			[
 				"request",
