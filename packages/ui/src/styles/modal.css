@@ -44,6 +44,9 @@
 
 .card {
 	position: relative;
+	/* Local, not theme tokens: the code column and the "Get a wallet" height cap share them. */
+	--code-size: 368px;
+	--footer-size: 36px;
 	width: 760px;
 	max-width: 100%;
 	max-height: calc(100dvh - var(--bchc-space-8));
@@ -176,11 +179,15 @@
 	transition: transform var(--bchc-duration-fast) var(--bchc-ease-out);
 }
 
-/* Rows are outdented by one step (padded back) so their hover fill can extend past the text. */
+/* Rows are outdented by one step (padded back) so their hover fill can extend past the text.
+   A flex column, so `.split` gets a bounded height that `.wallets` can scroll within. */
 .body {
+	display: flex;
+	flex-direction: column;
 	min-height: 0;
-	margin: calc(var(--bchc-space-1) * -1) calc(var(--bchc-space-3) * -1);
-	padding: var(--bchc-space-1) var(--bchc-space-3);
+	/* One step wider than the rows' outdent, so a focused wallet row's ring isn't clipped. */
+	margin: calc(var(--bchc-space-1) * -1) calc(var(--bchc-space-4) * -1);
+	padding: var(--bchc-space-1) var(--bchc-space-4);
 	overflow-y: auto;
 	overscroll-behavior: contain;
 	scrollbar-width: thin;
@@ -200,9 +207,10 @@
 
 .split {
 	display: grid;
-	grid-template-columns: 1fr 368px;
+	grid-template-columns: 1fr var(--code-size);
 	gap: var(--bchc-space-10);
 	align-items: start;
+	min-height: 0;
 }
 
 .single {
@@ -210,6 +218,12 @@
 	flex-direction: column;
 	gap: var(--bchc-space-4);
 	min-width: 0;
+}
+
+/* On a wide viewport, "Get a wallet" never grows past Connect's height (built from the same QR
+   column tokens); past that, `.directory` below scrolls on its own instead. */
+.overlay:not(.is-sheet) .single {
+	max-height: calc(var(--code-size) + var(--bchc-space-4) + var(--footer-size));
 }
 
 .grabber {
@@ -223,6 +237,10 @@
 	flex-direction: column;
 	gap: var(--bchc-space-3);
 	min-width: 0;
+	min-height: 0;
+	/* The code column alone sets the row height; this column stretches to it and the list scrolls. */
+	contain: size;
+	align-self: stretch;
 }
 
 .field {
@@ -244,6 +262,8 @@
 	align-items: center;
 }
 
+/* The pill's look, shared by the dropdown trigger (a `button.select`, see below) and the
+   single-protocol static label (a plain `span.select`, with no hover/active state or chevron). */
 .select {
 	display: inline-flex;
 	align-items: center;
@@ -259,18 +279,21 @@
 	font-weight: var(--bchc-weight-semibold);
 	line-height: 1;
 	white-space: nowrap;
+}
+
+button.select {
 	cursor: pointer;
 	transition:
 		background var(--bchc-duration-fast) var(--bchc-ease-out),
 		transform var(--bchc-duration-fast) var(--bchc-ease-spring);
 }
 
-.select:hover,
-.select[aria-expanded="true"] {
+button.select:hover,
+button.select[aria-expanded="true"] {
 	background: var(--bchc-text-muted);
 }
 
-.select:active {
+button.select:active {
 	transform: scale(0.97);
 }
 
@@ -375,7 +398,15 @@
 	display: flex;
 	flex-direction: column;
 	gap: var(--bchc-space-1);
-	margin: 0 calc(var(--bchc-space-3) * -1);
+	/* The padding gives the rows' focus ring room inside the scroll clip; the margin cancels it. */
+	margin: calc(var(--bchc-space-1) * -1)
+		calc((var(--bchc-space-3) + var(--bchc-space-1)) * -1);
+	padding: var(--bchc-space-1);
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+	scrollbar-color: var(--bchc-border) transparent;
 }
 
 .wallet {
@@ -408,17 +439,36 @@
 	transition-duration: var(--bchc-duration-press);
 }
 
-.wallet img {
+.wallet img,
+.wallet .logo-fallback {
 	width: 32px;
 	height: 32px;
 	flex: none;
 	border-radius: var(--bchc-radius-media);
-	object-fit: cover;
 	transition: transform var(--bchc-duration-base) var(--bchc-ease-spring);
 }
 
-.wallet:hover img {
+.wallet img {
+	object-fit: cover;
+}
+
+.wallet:hover img,
+.wallet:hover .logo-fallback {
 	transform: scale(1.06) translateX(1px);
+}
+
+/* A missing or failed logo, in the same footprint as a real one. `:where()` keeps this below the sizing/hover rules' specificity regardless of source order. */
+:where(.logo-fallback) {
+	display: grid;
+	place-items: center;
+	background: var(--bchc-surface-sunken);
+	border: 1px solid var(--bchc-border-subtle);
+	color: var(--bchc-text-muted);
+}
+
+.logo-fallback svg {
+	width: 55%;
+	height: 55%;
 }
 
 .go {
@@ -448,7 +498,8 @@
 	background: transparent;
 }
 
-.wallet[aria-disabled="true"]:hover img {
+.wallet[aria-disabled="true"]:hover img,
+.wallet[aria-disabled="true"]:hover .logo-fallback {
 	transform: none;
 }
 
@@ -462,6 +513,11 @@
 .wallet-name {
 	min-width: 0;
 	line-height: var(--bchc-leading-snug);
+	/* A long name ellipsizes on one line instead of wrapping and growing the row. */
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .get-one {
@@ -932,7 +988,7 @@
 }
 
 .button.pill {
-	min-height: 36px;
+	min-height: var(--footer-size);
 	padding: 0 var(--bchc-space-4);
 	border-radius: var(--bchc-radius-pill);
 	background: var(--bchc-surface-raised);
@@ -1273,6 +1329,7 @@
 	transform: translateX(-1px);
 }
 
+/* No `button.` prefix needed: the static single-protocol span never has an svg child to match. */
 .select:hover svg {
 	transform: translateY(1px);
 }
@@ -1294,6 +1351,13 @@
 	flex-direction: column;
 	gap: var(--bchc-space-1);
 	margin: 0 calc(var(--bchc-space-3) * -1);
+	/* Absorbs the overflow once `.single`'s wide-viewport height cap kicks in; inert otherwise. */
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+	scrollbar-color: var(--bchc-border) transparent;
 }
 
 .directory-row {

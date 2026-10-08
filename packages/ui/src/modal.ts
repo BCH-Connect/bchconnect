@@ -61,6 +61,47 @@ function copyFace(copied: boolean): string {
 	return copied ? `${icon("check")}Link copied` : `${icon("link")}Copy link`;
 }
 
+// `null`, empty, or whitespace-only renders the generic wallet tile in place
+// of an `<img>`; a load failure swaps to the same tile via `wireLogoFallbacks`.
+function logoMarkup(
+	logo: string | null,
+	size: number,
+	extraClass: string,
+): string {
+	const trimmed = logo?.trim();
+	if (trimmed === undefined || trimmed === "") {
+		const className =
+			extraClass === "" ? "logo-fallback" : `logo-fallback ${extraClass}`;
+		return `<span class="${className}" aria-hidden="true">${icon("wallet")}</span>`;
+	}
+	const classAttr = extraClass === "" ? "" : ` class="${extraClass}"`;
+	return `<img${classAttr} src="${escapeHtml(trimmed)}" alt="" width="${size}" height="${size}" />`;
+}
+
+// Inline `onerror` is blocked by CSP, so a failed logo is caught here instead,
+// once per `<img>` the markup above just inserted.
+function wireLogoFallbacks(container: ParentNode): void {
+	for (const img of container.querySelectorAll(
+		"img.directory-logo, .wallet > img",
+	)) {
+		img.addEventListener(
+			"error",
+			() => {
+				const className =
+					img.className === ""
+						? "logo-fallback"
+						: `logo-fallback ${img.className}`;
+				const span = document.createElement("span");
+				span.className = className;
+				span.setAttribute("aria-hidden", "true");
+				span.innerHTML = icon("wallet");
+				img.replaceWith(span);
+			},
+			{ once: true },
+		);
+	}
+}
+
 function captionFor(view: ModalView, linkFailed: boolean): string {
 	switch (view.phase.kind) {
 		case "initiating":
@@ -442,7 +483,8 @@ export class BchcModal extends ElementBase {
 			return;
 		}
 
-		const key = `${view.screen}:${sheet}:${view.protocol}`;
+		const single = view.protocols.length === 1;
+		const key = `${view.screen}:${sheet}:${view.protocol}:${single}`;
 		if (key !== this.#bodyKey) {
 			this.#rebuild(card, body, view, sheet);
 			this.#bodyKey = key;
@@ -492,6 +534,7 @@ export class BchcModal extends ElementBase {
 
 		if (previous === null || this.#bodyKey === null) {
 			body.innerHTML = html;
+			wireLogoFallbacks(body);
 			return;
 		}
 
@@ -511,6 +554,7 @@ export class BchcModal extends ElementBase {
 					: new Map<string, RowSnapshot>();
 			resize(card, () => {
 				body.innerHTML = html;
+				wireLogoFallbacks(body);
 				const next = body.querySelector(".left");
 				if (next instanceof HTMLElement) flipRows(next, "[data-id]", rows);
 			});
@@ -523,6 +567,7 @@ export class BchcModal extends ElementBase {
 				body,
 				() => {
 					body.innerHTML = html;
+					wireLogoFallbacks(body);
 				},
 				0,
 			);
@@ -580,6 +625,15 @@ export class BchcModal extends ElementBase {
 	// A native <select> opens an unstyleable platform menu, so this pops a styled listbox.
 	#sessionType(view: ModalView): string {
 		const current = view.protocols.find((entry) => entry.id === view.protocol);
+		// A single session type has nothing to choose, so it shows as the same pill, without the chevron or any interactive state.
+		if (view.protocols.length === 1) {
+			return `
+				<div class="field">
+					<span class="label" id="session-type">Session type</span>
+					<span class="select" aria-labelledby="session-type">${escapeHtml(current?.name ?? "")}</span>
+				</div>
+			`;
+		}
 		return `
 			<div class="field">
 				<span class="label" id="session-type">Session type</span>
@@ -749,8 +803,8 @@ export class BchcModal extends ElementBase {
 							.map(
 								(wallet) => `
 							<a class="wallet" data-id="${escapeHtml(wallet.id)}"${wallet.href === null ? ' aria-disabled="true"' : ` href="${escapeHtml(wallet.href)}"`}>
-								<img src="${escapeHtml(wallet.logo)}" alt="" width="32" height="32" />
-								<span class="wallet-name">${escapeHtml(wallet.name)}</span>
+								${logoMarkup(wallet.logo, 32, "")}
+								<span class="wallet-name" title="${escapeHtml(wallet.name)}">${escapeHtml(wallet.name)}</span>
 								${wallet.href === null ? "" : `<span class="go">${icon("arrowUpRight", 14)}</span>`}
 							</a>`,
 							)
@@ -771,18 +825,23 @@ export class BchcModal extends ElementBase {
 				<p class="section-label">Bitcoin Cash wallets that work here</p>
 				<div class="directory">
 					${view.directory
-						.map((entry) => ({
-							...entry,
-							href: safeHref(entry.links[0]?.href ?? ""),
-						}))
+						.map((entry) => {
+							const href =
+								entry.link === null ? null : safeHref(entry.link.href);
+							return { ...entry, href: href === "" ? null : href };
+						})
 						.map(
 							(entry) => `
-						<a class="directory-row"${entry.href === null || entry.href === "" ? "" : ` href="${escapeHtml(entry.href)}"`} target="_blank" rel="noreferrer">
-							<img class="directory-logo" src="${escapeHtml(entry.logo)}" alt="" width="36" height="36" />
-							<span class="wallet-name">${escapeHtml(entry.name)}</span>
-							<span class="directory-links">
-								<span class="button pill">${escapeHtml(entry.links[0]?.label ?? "Get it")}${icon("arrowUpRight", 14)}</span>
-							</span>
+						<a class="directory-row"${entry.href === null ? "" : ` href="${escapeHtml(entry.href)}"`} target="_blank" rel="noreferrer">
+							${logoMarkup(entry.logo, 36, "directory-logo")}
+							<span class="wallet-name" title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</span>
+							${
+								entry.href === null
+									? ""
+									: `<span class="directory-links">
+								<span class="button pill">${escapeHtml(entry.link?.label ?? "Get it")}${icon("arrowUpRight", 14)}</span>
+							</span>`
+							}
 						</a>`,
 						)
 						.join("")}

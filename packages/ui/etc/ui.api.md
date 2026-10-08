@@ -164,11 +164,11 @@ export interface ToastView {
 // @beta
 export interface WalletDirectoryEntry {
     readonly id: string;
-    readonly links: readonly {
+    readonly link: {
         readonly label: string;
         readonly href: string;
-    }[];
-    readonly logo: string;
+    } | null;
+    readonly logo: string | null;
     readonly name: string;
 }
 
@@ -176,7 +176,7 @@ export interface WalletDirectoryEntry {
 export interface WalletOption {
     readonly href: string | null;
     readonly id: string;
-    readonly logo: string;
+    readonly logo: string | null;
     readonly name: string;
 }
 

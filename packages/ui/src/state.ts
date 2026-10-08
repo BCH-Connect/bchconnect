@@ -73,10 +73,10 @@ export interface WalletDirectoryEntry {
 	readonly id: string;
 	/** The wallet's display name. */
 	readonly name: string;
-	/** The wallet's logo, as a URL or data URI. */
-	readonly logo: string;
-	/** Where to get the wallet, one link per platform or store. */
-	readonly links: readonly { readonly label: string; readonly href: string }[];
+	/** The wallet's logo, as a URL or data URI, or `null` to show a generic wallet mark. */
+	readonly logo: string | null;
+	/** Where to get the wallet, or `null` when there is nowhere to send visitors yet. The row is then shown with no link. */
+	readonly link: { readonly label: string; readonly href: string } | null;
 }
 
 /**
@@ -89,8 +89,8 @@ export interface WalletOption {
 	readonly id: string;
 	/** The wallet's display name. */
 	readonly name: string;
-	/** The wallet's logo, as a URL or data URI. */
-	readonly logo: string;
+	/** The wallet's logo, as a URL or data URI, or `null` to show a generic wallet mark. */
+	readonly logo: string | null;
 	/** The wallet's link, or `null` when it has none on this platform. The row is then shown disabled. */
 	readonly href: string | null;
 }
@@ -160,7 +160,7 @@ export type ConnectPhase =
 export interface ModalView {
 	/** The screen to show. */
 	readonly screen: ModalScreen;
-	/** The session type currently selected. */
+	/** The session type currently selected. Must be one of `protocols[].id`. */
 	readonly protocol: ProtocolId;
 	/** Every session type the visitor may choose between. */
 	readonly protocols: readonly ProtocolOption[];
