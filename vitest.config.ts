@@ -64,10 +64,6 @@ export default defineConfig({
 					browser: {
 						enabled: true,
 						headless: true,
-						// Vitest's own default (414x896) sits astride the modal's
-						// 791px sheet/split breakpoint; pin a desktop size so every
-						// story renders the same layout in every engine and run.
-						viewport: { width: 1280, height: 800 },
 						provider: playwright(),
 						instances: [
 							{ browser: "chromium" },
@@ -98,7 +94,6 @@ export default defineConfig({
 					browser: {
 						enabled: true,
 						headless: true,
-						viewport: { width: 1280, height: 800 },
 						// Context-level emulation: the component reads `prefers-reduced-motion`
 						// through CSS custom properties, which a page-level `matchMedia` patch
 						// can't affect.

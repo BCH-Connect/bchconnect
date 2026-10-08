@@ -1,57 +1,21 @@
-import { html, nothing } from "lit";
-import { action } from "storybook/actions";
 import { waitForAnimations } from "storybook/preview-api";
-import { expect, fn, type Mock, userEvent, waitFor } from "storybook/test";
-import preview, { resolveMode } from "../.storybook/preview.ts";
-import type { ModalView } from "../src/state.ts";
+import { expect, fn, userEvent, waitFor } from "storybook/test";
+import preview from "../.storybook/preview.ts";
 import { CONNECTED_WALLET, viewFor } from "./fixtures.ts";
-import { THEME_ARG_TYPES, type ThemeArgs } from "./theme.ts";
-
-interface ModalStoryArgs extends ThemeArgs {
-	readonly view: ModalView;
-}
-
-type ModalElement = HTMLElement & { view: ModalView | null };
-
-function modalHost(canvasElement: HTMLElement): ModalElement {
-	const host = canvasElement.querySelector("bchc-modal");
-	if (!(host instanceof HTMLElement))
-		throw new Error("bchc-modal did not render");
-	return host as ModalElement;
-}
-
-function modalShadow(canvasElement: HTMLElement): ShadowRoot {
-	const shadow = modalHost(canvasElement).shadowRoot;
-	if (shadow === null) throw new Error("bchc-modal shadow root missing");
-	return shadow;
-}
-
-/** The detail of a spy's first observed call, once it has been seen. */
-function detailOf<T>(spy: Mock<(event: Event) => void>): T {
-	const call = spy.mock.calls[0];
-	if (call === undefined) throw new Error("event listener was not called");
-	return (call[0] as CustomEvent<T>).detail;
-}
+import {
+	detailOf,
+	type ModalStoryArgs,
+	modalHost,
+	modalRender,
+	modalShadow,
+} from "./modal.ts";
+import { THEME_ARG_TYPES } from "./theme.ts";
 
 const meta = preview.type<{ args: ModalStoryArgs }>().meta({
 	component: "bchc-modal",
 	argTypes: THEME_ARG_TYPES,
 	args: { view: viewFor() },
-	render: (args, context) => html`
-		<bchc-modal
-			data-bchc-accent=${args.accent ?? nothing}
-			data-bchc-neutral=${args.neutral ?? nothing}
-			data-bchc-radius=${args.radius ?? nothing}
-			data-bchc-font=${args.font ?? nothing}
-			data-bchc-blur=${args.backdropBlur ?? nothing}
-			data-bchc-mode=${resolveMode(context.globals)}
-			.view=${args.view}
-			@bchc-protocol=${action("bchc-protocol")}
-			@bchc-screen=${action("bchc-screen")}
-			@bchc-close=${action("bchc-close")}
-			@bchc-retry=${action("bchc-retry")}
-		></bchc-modal>
-	`,
+	render: modalRender,
 	// Fallback for stories with no play of their own: axe (which runs after
 	// play) must only see the settled entrance, never a mid-fade frame.
 	play: async () => {
@@ -97,7 +61,12 @@ export const Declined = meta.story({
 		const retry = shadow.querySelector<HTMLButtonElement>('[data-act="retry"]');
 		if (retry === null) throw new Error("retry button missing");
 		await userEvent.click(retry);
-		await waitFor(() => expect(onRetry).toHaveBeenCalledTimes(1));
+		// Remote WebKit (see vitest.config.ts) occasionally takes longer than
+		// the 1s default to dispatch the click under load, same as the other
+		// stories in this file that already pass `{ timeout: 5000 }`.
+		await waitFor(() => expect(onRetry).toHaveBeenCalledTimes(1), {
+			timeout: 5000,
+		});
 		await waitForAnimations();
 	},
 });

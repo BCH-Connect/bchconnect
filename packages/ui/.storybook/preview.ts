@@ -70,5 +70,35 @@ export default definePreview({
 		layout: "fullscreen",
 		// Any axe violation fails the story's test instead of just warning.
 		a11y: { test: "error" },
+		// Stories pick these with `globals.viewport`; addon-vitest sizes the test page from them too.
+		viewport: {
+			options: {
+				desktop: {
+					name: "Desktop",
+					styles: { width: "1200px", height: "900px" },
+					type: "desktop",
+				},
+				desktopShort: {
+					name: "Desktop (short)",
+					styles: { width: "1200px", height: "600px" },
+					type: "desktop",
+				},
+				phone: {
+					name: "Phone",
+					styles: { width: "390px", height: "844px" },
+					type: "mobile",
+				},
+				phoneSmall: {
+					name: "Phone (small)",
+					styles: { width: "375px", height: "667px" },
+					type: "mobile",
+				},
+				phoneSmallest: {
+					name: "Phone (smallest)",
+					styles: { width: "360px", height: "640px" },
+					type: "mobile",
+				},
+			},
+		},
 	},
 });

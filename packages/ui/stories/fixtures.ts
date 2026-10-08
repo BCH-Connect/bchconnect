@@ -9,6 +9,8 @@ import type {
 	ModalView,
 	Network,
 	ProtocolId,
+	ProtocolOption,
+	WalletDirectoryEntry,
 	WalletOption,
 	WalletSupport,
 } from "../src/state.ts";
@@ -56,6 +58,12 @@ export interface ViewOverrides {
 	readonly protocol?: ProtocolId;
 	readonly network?: Network;
 	readonly phase?: ConnectPhase;
+	/** Overrides the session types offered; defaults to every shipped protocol. */
+	readonly protocols?: readonly ProtocolOption[];
+	/** Overrides the connect screen's wallet list; defaults to `BCHC_WALLETS` filtered to `protocol`. */
+	readonly wallets?: readonly WalletOption[];
+	/** Overrides the "Get a wallet" directory; defaults to `BCHC_DIRECTORY`. */
+	readonly directory?: readonly WalletDirectoryEntry[];
 }
 
 /** Builds a full `ModalView` for a story, defaulting to the scan state on mainnet. */
@@ -64,9 +72,9 @@ export function viewFor(overrides: ViewOverrides = {}): ModalView {
 	return {
 		screen: overrides.screen ?? "connect",
 		protocol,
-		protocols: BCHC_PROTOCOLS,
-		wallets: walletsFor(protocol),
-		directory: BCHC_DIRECTORY,
+		protocols: overrides.protocols ?? BCHC_PROTOCOLS,
+		wallets: overrides.wallets ?? walletsFor(protocol),
+		directory: overrides.directory ?? BCHC_DIRECTORY,
 		network: overrides.network ?? "mainnet",
 		phase: overrides.phase ?? {
 			kind: "awaiting-approval",
