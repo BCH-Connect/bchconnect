@@ -11,7 +11,7 @@ import type { ConnectorContext, Network, Session } from "../types/protocol.js";
 import type { Lifetime } from "./lifetime.js";
 import { createPersistence } from "./persistence.js";
 import type { ClientRuntime } from "./runtime.js";
-import { keepWalletIdentity } from "./sessions.js";
+import { keepWalletIdentity } from "./wallet-identity.js";
 
 /**
  * Receives the session lifecycle events a connector emits through its
