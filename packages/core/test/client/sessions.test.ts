@@ -190,7 +190,8 @@ describe("connector events", () => {
 		it("should leave no session current when the current one goes", async () => {
 			const first = demoSession({ id: "first" });
 			const second = demoSession({ id: "second" });
-			const { client, connector } = await setup([first, second]);
+			// The newest restored session, "first", becomes current.
+			const { client, connector } = await setup([second, first]);
 
 			connector.emit("session:disconnected", {
 				sessionId: "first",
@@ -204,8 +205,8 @@ describe("connector events", () => {
 		it("should keep the current session when another one goes", async () => {
 			const first = demoSession({ id: "first" });
 			const { client, connector } = await setup([
-				first,
 				demoSession({ id: "second" }),
+				first,
 			]);
 
 			connector.emit("session:disconnected", {
@@ -1002,11 +1003,12 @@ describe("connect", () => {
 			const second = demoSession({ id: "second" });
 			const connector = createFakeConnector<DemoProtocol>({
 				protocol: "demo",
-				restore: [demoSession({ id: "first" }), second],
+				restore: [second, demoSession({ id: "first" })],
 				session: demoSession({ id: "second" }),
 			});
 			const { client, events } = setup([connector]);
 			await client.init();
+			expect(client.current?.id).toBe("first");
 
 			await expect(client.connect("demo")).resolves.toBe(second);
 			expect(client.current).toBe(second);
@@ -1321,9 +1323,10 @@ describe("setCurrent", () => {
 			connectors: [
 				createFakeConnector<DemoProtocol>({
 					protocol: "demo",
+					// The newest restored session, "first", becomes current.
 					restore: [
-						demoSession({ id: "first" }),
 						demoSession({ id: "second" }),
+						demoSession({ id: "first" }),
 					],
 				}),
 			],

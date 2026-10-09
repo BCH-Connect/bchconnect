@@ -62,16 +62,22 @@ function once(run: () => Promise<void>) {
 	};
 }
 
-// The session the snapshot marked current when it was restored, else the
-// first restored session.
+// With a snapshot, the session it marked current if that one came back:
+// nothing is promoted in its place. Without one, the last restored session.
 function selectCurrent(
 	sessions: ReadonlyMap<string, Session>,
 	reference: ClientSnapshot | undefined,
 ) {
-	const preferred = reference?.currentSessionId ?? null;
-	if (preferred !== null && sessions.has(preferred)) return preferred;
+	if (reference !== undefined) {
+		const { currentSessionId } = reference;
+		return currentSessionId !== null && sessions.has(currentSessionId)
+			? currentSessionId
+			: null;
+	}
 
-	return sessions.keys().next().value ?? null;
+	let newest: string | null = null;
+	for (const id of sessions.keys()) newest = id;
+	return newest;
 }
 
 /**
@@ -168,16 +174,29 @@ export function createLifecycle(
 		// Disposed while restoring: the results are discarded.
 		if (isDisposed()) return;
 		const saved = new Map(
-			reference?.sessions.map((entry) => [entry.id, entry] as const),
-		);
-		const sessions = new Map(
-			restored.map(
-				(session) =>
-					[
-						session.id,
-						withSavedIdentity(session, saved.get(session.id), runtime.network),
-					] as const,
+			reference?.sessions.map(
+				(entry, position) => [entry.id, { entry, position }] as const,
 			),
+		);
+		// The snapshot lists sessions in connection order. Sessions it doesn't
+		// list go last, in restore order (the sort is stable). Its length, not
+		// `saved.size`, since a snapshot may repeat an id.
+		const rank = (session: Session) =>
+			saved.get(session.id)?.position ?? reference?.sessions.length ?? 0;
+		const sessions = new Map(
+			restored
+				.sort((a, b) => rank(a) - rank(b))
+				.map(
+					(session) =>
+						[
+							session.id,
+							withSavedIdentity(
+								session,
+								saved.get(session.id)?.entry,
+								runtime.network,
+							),
+						] as const,
+				),
 		);
 		const { snapshot } = store.getState();
 
