@@ -168,6 +168,7 @@ export function flipRows(
 ): void {
 	if (before.size === 0) return;
 	const tempo = tempoOf(container);
+	const rtl = getComputedStyle(container).direction === "rtl";
 	const seen = new Set<string>();
 	let entering = 0;
 
@@ -218,7 +219,7 @@ export function flipRows(
 			.animate(
 				[
 					{ opacity: 1, transform: "none" },
-					{ opacity: 0, transform: "translateX(-8px)" },
+					{ opacity: 0, transform: `translateX(${rtl ? 8 : -8}px)` },
 				],
 				{ duration: tempo.fast, easing: tempo.out, fill: "forwards" },
 			)
@@ -247,10 +248,16 @@ export function crossfade(
 	mutate();
 
 	host.parentElement?.insertBefore(outgoing, host);
+	// Forward/back is relative to reading order, so it flips with direction.
+	const sign = getComputedStyle(host).direction === "rtl" ? -1 : 1;
 	const away =
-		direction === 0 ? "translateY(-6px)" : `translateX(${-14 * direction}px)`;
+		direction === 0
+			? "translateY(-6px)"
+			: `translateX(${-14 * direction * sign}px)`;
 	const from =
-		direction === 0 ? "translateY(8px)" : `translateX(${14 * direction}px)`;
+		direction === 0
+			? "translateY(8px)"
+			: `translateX(${14 * direction * sign}px)`;
 
 	outgoing
 		.animate(

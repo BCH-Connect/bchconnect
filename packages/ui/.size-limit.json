@@ -4,7 +4,7 @@
 		"path": "dist/index.js",
 		"import": "{ defineElements }",
 		"gzip": true,
-		"limit": "34 kB"
+		"limit": "35 kB"
 	},
 	{
 		"name": "Default data (protocols, wallets, directory)",

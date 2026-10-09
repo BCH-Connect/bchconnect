@@ -449,6 +449,12 @@ export class BchcModal extends ElementBase {
 		this.#overlay = overlay;
 		const sheet = this.#media.matches;
 		overlay.classList.toggle("is-sheet", sheet);
+		// `:dir()` doesn't reliably see directionality inherited from outside the
+		// shadow tree; the `direction` property itself does, so CSS reads it from here.
+		overlay.classList.toggle(
+			"is-rtl",
+			getComputedStyle(this).direction === "rtl",
+		);
 
 		const card = overlay.querySelector(".card");
 		const title = overlay.querySelector(".title");

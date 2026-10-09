@@ -76,6 +76,35 @@ export const Connected = meta.story({
 	},
 });
 
+// The avatar (DOM-first) and the title trail it in reading order; under
+// `direction: rtl` that places the avatar at the toast's right edge.
+export const ConnectedRtl = meta.story({
+	globals: { direction: "rtl" },
+	play: async ({ canvasElement }) => {
+		const shadow = toastShadow(canvasElement);
+		const mark = shadow.querySelector(".done-mark");
+		const title = shadow.querySelector(".done-title");
+		if (!(mark instanceof HTMLElement) || !(title instanceof HTMLElement))
+			throw new Error("done-mark or done-title missing");
+		expect(mark.getBoundingClientRect().left).toBeGreaterThan(
+			title.getBoundingClientRect().left,
+		);
+
+		const toast = toastHost(canvasElement);
+		const onDismiss = fn<(event: Event) => void>();
+		toast.addEventListener("bchc-dismiss", onDismiss);
+		const dismiss = shadow.querySelector<HTMLButtonElement>(
+			'[aria-label="Dismiss"]',
+		);
+		if (dismiss === null) throw new Error("dismiss button missing");
+		await userEvent.click(dismiss);
+		await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1), {
+			timeout: 5000,
+		});
+		await waitForAnimations();
+	},
+});
+
 export const NoLogo = meta.story({
 	args: { view: { walletName: CONNECTED_WALLET.name, walletLogo: null } },
 });

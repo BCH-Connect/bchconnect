@@ -25,15 +25,23 @@ export function resolveMode(globals: { readonly mode?: unknown }): BchcMode {
 		: "auto";
 }
 
+/** Narrows a story's `direction` global, defaulting to `ltr`. */
+export function resolveDirection(globals: {
+	readonly direction?: unknown;
+}): "ltr" | "rtl" {
+	return globals.direction === "rtl" ? "rtl" : "ltr";
+}
+
 const COLOR_SCHEME: Readonly<Record<BchcMode, string>> = {
 	auto: "light dark",
 	light: "light",
 	dark: "dark",
 };
 
-/** A page behind every story that follows the `mode` global and supplies the brand face. */
+/** A page behind every story that follows the `mode`/`direction` globals and supplies the brand face. */
 const withCanvas: Decorator = (story, context) => html`
 	<div
+		dir=${resolveDirection(context.globals)}
 		style=${styleMap({
 			minHeight: "100vh",
 			colorScheme: COLOR_SCHEME[resolveMode(context.globals)],
@@ -61,9 +69,22 @@ export default definePreview({
 				dynamicTitle: true,
 			},
 		},
+		direction: {
+			description: "Text direction BCH Connect elements render in",
+			toolbar: {
+				title: "Direction",
+				icon: "direction",
+				items: [
+					{ value: "ltr", title: "LTR" },
+					{ value: "rtl", title: "RTL" },
+				],
+				dynamicTitle: true,
+			},
+		},
 	},
 	initialGlobals: {
 		mode: "auto",
+		direction: "ltr",
 	},
 	parameters: {
 		// Both elements are viewport overlays, not inline content.

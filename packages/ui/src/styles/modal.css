@@ -131,7 +131,7 @@
 	align-items: center;
 	height: 26px;
 	padding: 0 var(--bchc-space-3);
-	margin-right: var(--bchc-space-1);
+	margin-inline-end: var(--bchc-space-1);
 	border-radius: var(--bchc-radius-pill);
 	background: var(--bchc-accent-subtle);
 	color: var(--bchc-accent-text);
@@ -269,7 +269,7 @@
 	align-items: center;
 	gap: var(--bchc-space-2);
 	height: 30px;
-	padding: 0 10px 0 var(--bchc-space-3);
+	padding-inline: var(--bchc-space-3) 10px;
 	border: 0;
 	border-radius: var(--bchc-radius-pill);
 	background: var(--bchc-text);
@@ -305,7 +305,7 @@ button.select:active {
 .menu {
 	position: absolute;
 	top: calc(100% + var(--bchc-space-1));
-	left: 0;
+	inset-inline-start: 0;
 	z-index: 2;
 	min-width: 208px;
 	margin: 0;
@@ -422,7 +422,7 @@ button.select:active {
 	font-family: inherit;
 	font-size: var(--bchc-text-md);
 	font-weight: var(--bchc-weight-semibold);
-	text-align: left;
+	text-align: start;
 	text-decoration: none;
 	cursor: pointer;
 	transition:
@@ -472,7 +472,7 @@ button.select:active {
 }
 
 .go {
-	margin-left: auto;
+	margin-inline-start: auto;
 	display: grid;
 	place-items: center;
 	color: var(--bchc-text-muted);
@@ -524,6 +524,9 @@ button.select:active {
 	margin: var(--bchc-space-2) 0 0;
 }
 
+/* English copy, always: isolated so its own trailing "?" doesn't reorder to
+   the front under an inherited RTL paragraph direction; the underline below
+   then always grows from its left, matching this text's own reading order. */
 .get-one button {
 	padding: 0;
 	border: 0;
@@ -534,6 +537,7 @@ button.select:active {
 	font-size: var(--bchc-text-md);
 	font-weight: var(--bchc-weight-bold);
 	text-decoration: none;
+	unicode-bidi: plaintext;
 	background-image: linear-gradient(currentColor, currentColor);
 	background-repeat: no-repeat;
 	background-size: 0% 1.5px;
@@ -681,6 +685,7 @@ button.select:active {
 	overflow: clip;
 }
 
+/* Sweeps the same physical way in RTL: it dresses the QR tile, which never mirrors. */
 .skeleton::after {
 	content: "";
 	position: absolute;
@@ -876,6 +881,8 @@ button.select:active {
 	text-wrap: balance;
 }
 
+/* English copy, always: isolated so its own trailing punctuation doesn't
+   reorder to the front under an inherited RTL paragraph direction. */
 .status-detail {
 	margin: 0;
 	max-width: 32ch;
@@ -883,12 +890,13 @@ button.select:active {
 	line-height: var(--bchc-leading-snug);
 	color: var(--bchc-text-muted);
 	text-wrap: pretty;
+	unicode-bidi: plaintext;
 }
 
 .status .retry {
 	margin-top: var(--bchc-space-4);
 	min-height: 44px;
-	padding: 0 var(--bchc-space-5) 0 var(--bchc-space-4);
+	padding-inline: var(--bchc-space-4) var(--bchc-space-5);
 	font-size: var(--bchc-text-md);
 	font-weight: var(--bchc-weight-bold);
 	letter-spacing: var(--bchc-tracking-snug);
@@ -948,8 +956,10 @@ button.select:active {
 	flex: none;
 }
 
+/* Each text takes its direction from its own content, so copy keeps its punctuation in place under any page direction. */
 .caption-text {
 	min-width: 0;
+	unicode-bidi: plaintext;
 }
 
 .button {
@@ -1395,7 +1405,7 @@ button.select:active {
 }
 
 .directory-links {
-	margin-left: auto;
+	margin-inline-start: auto;
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--bchc-space-2);
@@ -1416,8 +1426,40 @@ button.select:active {
 	background: var(--bchc-surface-hover);
 }
 
+/* Northeast nudge on the fixed external-link arrow; it never mirrors with direction. */
 .directory-row:hover .button svg {
 	transform: translate(1px, -1px);
+}
+
+/* Every `.is-rtl` rule lives here, in ascending specificity, so none of them
+   ever sits ahead of a lower-specificity rule above (noDescendingSpecificity).
+   `.is-rtl` is set from script: `:dir()` doesn't reliably see directionality
+   inherited from outside the shadow tree, but the `direction` property does
+   (see `modal.ts`). `transform-origin` has no logical form, so the menu's is
+   mirrored to its own inline-start corner. "Back" is relative to reading
+   order, so it mirrors; "go to wallet" (`.go`, an external-link arrow) and
+   the directory's own link icon do not: both keep their fixed northeast/exit
+   meaning, matching the convention every major platform uses for that glyph.
+   The icon on `.go` never mirrors; only the side it slides in from does. */
+.overlay.is-rtl .menu {
+	transform-origin: calc(100% - 12px) 0;
+}
+
+.overlay.is-rtl .go {
+	transform: translateX(6px);
+}
+
+.overlay.is-rtl .back svg {
+	transform: scaleX(-1);
+}
+
+.overlay.is-rtl .back:hover svg {
+	transform: scaleX(-1) translateX(-1px);
+}
+
+.overlay.is-rtl .wallet:hover img,
+.overlay.is-rtl .wallet:hover .logo-fallback {
+	transform: scale(1.06) translateX(-1px);
 }
 
 /* Must stay last: it beats `.badge` and `.back`'s `display` by source order, without `!important`. */
