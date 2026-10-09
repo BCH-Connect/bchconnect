@@ -69,7 +69,14 @@ jobs:
           done
 
   changeset:
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no-changeset')
+    # The release PR that changesets/action opens consumes the changesets, so
+    # it never carries one. Matching the bot author keeps the branch name alone
+    # from skipping the check.
+    if: >-
+      github.event_name == 'pull_request' &&
+      !(github.event.pull_request.user.login == 'github-actions[bot]' &&
+        startsWith(github.head_ref, 'changeset-release/')) &&
+      !contains(github.event.pull_request.labels.*.name, 'no-changeset')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

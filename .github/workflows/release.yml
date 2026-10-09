@@ -17,3 +17,6 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          commit-message: "chore(repo): version packages"
+          pr-title: "chore(repo): version packages"
