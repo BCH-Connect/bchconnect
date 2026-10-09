@@ -7,6 +7,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../src/client/create-client.js";
 import { createLifecycle } from "../../src/client/lifecycle.js";
+import { createLifetime } from "../../src/client/lifetime.js";
 import { createClientRuntime } from "../../src/client/runtime.js";
 import { TransportError } from "../../src/errors.js";
 import {
@@ -1343,7 +1344,7 @@ describe("dispose", () => {
 			]),
 		}));
 
-		await createLifecycle(runtime, () => {}).dispose();
+		await createLifecycle(runtime, createLifetime(), () => {}).dispose();
 
 		expect(runtime.store.getState().pendingRequests.size).toBe(0);
 	});
@@ -1357,7 +1358,7 @@ describe("dispose", () => {
 		const listener = vi.fn();
 		runtime.events.on("client:error", listener);
 
-		await createLifecycle(runtime, () => {}).dispose();
+		await createLifecycle(runtime, createLifetime(), () => {}).dispose();
 		runtime.events.emit("client:error", {
 			error: new TransportError("After dispose"),
 		});
@@ -1462,84 +1463,36 @@ describe("dispose", () => {
 	});
 });
 
-describe("whenReady", () => {
+describe("lifetime", () => {
 	function setup(connectors: readonly Connector[] = []) {
 		const runtime = createClientRuntime({
 			connectors,
 			network: "chipnet",
 			appMetadata,
 		});
-		return createLifecycle(runtime, () => {});
+		const lifetime = createLifetime();
+		return {
+			lifetime,
+			lifecycle: createLifecycle(runtime, lifetime, () => {}),
+		};
 	}
 
-	it("should reject CONFIG when init() was never called", async () => {
-		await expect(setup().whenReady("connect")).rejects.toThrow(
-			expect.objectContaining({
-				code: "CONFIG",
-				message: "connect() was called before init()",
-			}),
-		);
-	});
-
-	it("should wait for an init() that has started", async () => {
-		let finishSetup = () => {};
-		const setupDone = new Promise<void>((resolve) => {
-			finishSetup = resolve;
-		});
-		const lifecycle = setup([
-			{
-				...createFakeConnector<DemoProtocol>({ protocol: "demo" }),
-				setup: () => setupDone,
-			},
+	it("should start with init() and resolve whenReady() once init() has", async () => {
+		const { lifetime, lifecycle } = setup([
+			createFakeConnector<DemoProtocol>({ protocol: "demo" }),
 		]);
-		void lifecycle.init();
-		let ready = false;
 
-		const waiting = lifecycle.whenReady("connect").then(() => {
-			ready = true;
-		});
-		await settle();
-		expect(ready).toBe(false);
+		const initialized = lifecycle.init();
 
-		finishSetup();
-		await waiting;
-		expect(ready).toBe(true);
+		await expect(lifetime.whenReady("connect")).resolves.toBeUndefined();
+		await initialized;
 	});
 
-	it("should resolve once init() has finished", async () => {
-		const lifecycle = setup();
-		await lifecycle.init();
-
-		await expect(lifecycle.whenReady("connect")).resolves.toBeUndefined();
-	});
-
-	it("should reject ABORTED when the client is disposed while waiting", async () => {
-		const lifecycle = setup([
-			{
-				...createFakeConnector<DemoProtocol>({ protocol: "demo" }),
-				setup: () => new Promise<void>(() => {}),
-			},
-		]);
-		void lifecycle.init();
-		const waiting = lifecycle.whenReady("connect");
+	it("should end with dispose()", async () => {
+		const { lifetime, lifecycle } = setup();
 
 		await lifecycle.dispose();
 
-		await expect(waiting).rejects.toThrow(
-			expect.objectContaining({
-				code: "ABORTED",
-				message: "The client was disposed",
-			}),
-		);
-	});
-
-	it("should reject ABORTED once the client is disposed", async () => {
-		const lifecycle = setup();
-		await lifecycle.init();
-		await lifecycle.dispose();
-
-		await expect(lifecycle.whenReady("connect")).rejects.toThrow(
-			expect.objectContaining({ code: "ABORTED" }),
-		);
+		expect(lifetime.signal.aborted).toBe(true);
 	});
 });

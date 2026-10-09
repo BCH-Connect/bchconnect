@@ -1,4 +1,4 @@
-import { AbortedError, ConfigError, TransportError } from "../errors.js";
+import { ConfigError, TransportError } from "../errors.js";
 import { withTimeout } from "../internal/abort.js";
 import { parseSnapshot, SNAPSHOT_KEY } from "../snapshot.js";
 import { connectorPrefix, namespaced } from "../storage/namespace.js";
@@ -8,9 +8,10 @@ import type {
 	LifecycleEvents,
 } from "../types/client.js";
 import type { ConnectorContext, Network, Session } from "../types/protocol.js";
+import type { Lifetime } from "./lifetime.js";
 import { createPersistence } from "./persistence.js";
 import type { ClientRuntime } from "./runtime.js";
-import { mergeWalletIdentity } from "./sessions.js";
+import { keepWalletIdentity } from "./sessions.js";
 
 /**
  * Receives the session lifecycle events a connector emits through its
@@ -42,12 +43,6 @@ export interface Lifecycle {
 	 * landed. Every call returns the promise of the first.
 	 */
 	dispose(): Promise<void>;
-	/**
-	 * Resolves once an `init()` that has started resolves. Rejects `CONFIG`
-	 * when `init()` was never called, and `ABORTED` when the client is
-	 * disposed first.
-	 */
-	whenReady(method: string): Promise<void>;
 }
 
 // Runs `run` on the first call; every call gets its promise, including one
@@ -96,14 +91,7 @@ function withSavedIdentity(
 		return session;
 	}
 
-	const merged = mergeWalletIdentity(session, entry.wallet);
-	if (merged === session || session.wallet.name !== undefined) return merged;
-
-	// if the protocol hasn't provided the name, the saved entry defines the source
-	return {
-		...merged,
-		wallet: { ...merged.wallet, source: entry.wallet.source },
-	};
+	return keepWalletIdentity(session, entry.wallet);
 }
 
 /**
@@ -122,7 +110,7 @@ function withSavedIdentity(
  *
  * @example
  * ```ts
- * const lifecycle = createLifecycle(runtime, sessions.onConnectorEvent);
+ * const lifecycle = createLifecycle(runtime, lifetime, sessions.onConnectorEvent);
  * await lifecycle.init();
  * ```
  *
@@ -130,12 +118,11 @@ function withSavedIdentity(
  */
 export function createLifecycle(
 	runtime: ClientRuntime,
+	lifetime: Lifetime,
 	onConnectorEvent: ConnectorEventHandler,
 ): Lifecycle {
 	const { store } = runtime;
 	const persistence = createPersistence(runtime);
-	// Aborted by dispose()
-	const lifetime = new AbortController();
 
 	function isDisposed() {
 		return store.getState().status === "disposed";
@@ -272,7 +259,7 @@ export function createLifecycle(
 			status: "disposed",
 			pendingRequests: new Map(),
 		}));
-		lifetime.abort(new AbortedError("The client was disposed"));
+		lifetime.end();
 
 		for (const [protocol, connector] of runtime.connectors) {
 			try {
@@ -293,21 +280,14 @@ export function createLifecycle(
 	}
 
 	const init = once(initialize);
-	let started = false;
 
 	return {
 		init() {
-			started = true;
+			// Recorded first: init()'s first state change notifies subscribers
+			// synchronously, and one of them may already wait on the client.
+			lifetime.start(init);
 			return init();
 		},
 		dispose: once(teardown),
-		whenReady(method) {
-			if (!started) {
-				return Promise.reject(
-					new ConfigError(`${method}() was called before init()`),
-				);
-			}
-			return withTimeout(init, { signal: lifetime.signal });
-		},
 	};
 }
