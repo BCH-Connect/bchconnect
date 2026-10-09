@@ -145,20 +145,29 @@ export function createClient<const Connectors extends readonly Connector[]>(
 			assertUsable("connect");
 			return sessions.connect(protocol, opts);
 		},
-		async disconnect() {
+		async disconnect(session) {
 			assertUsable("disconnect");
-			throw notImplemented("disconnect");
+			return sessions.disconnect(session);
 		},
-		setCurrent() {
+		setCurrent(session) {
 			assertUsable("setCurrent");
-			throw notImplemented("setCurrent");
+			sessions.setCurrent(session);
 		},
 		on(event, listener) {
 			assertUsable("on");
 			return runtime.events.on(event, listener);
 		},
-		session() {
-			throw notImplemented("session");
+		// Keeps answering after dispose(), like the getters.
+		session(protocol) {
+			const { current } = client;
+			if (current?.protocol === protocol) return current;
+
+			// Insertion order is connection order, so the last match is the newest.
+			let newest: Session | null = null;
+			for (const session of store.getState().sessions.values()) {
+				if (session.protocol === protocol) newest = session;
+			}
+			return newest;
 		},
 		async request() {
 			assertUsable("request");

@@ -397,7 +397,6 @@ describe("createClient", () => {
 		const session = demoSession();
 
 		it.each<[string, (client: DemoClient) => Promise<unknown>]>([
-			["disconnect", (client) => client.disconnect()],
 			[
 				"request",
 				(client) => client.request(session, "get_addresses", undefined),
@@ -409,8 +408,6 @@ describe("createClient", () => {
 		});
 
 		it.each<[string, (client: DemoClient) => unknown]>([
-			["setCurrent", (client) => client.setCurrent(null)],
-			["session", (client) => client.session("demo")],
 			[
 				"subscribe",
 				(client) => client.subscribe(session, "wallet_ready", () => {}),
