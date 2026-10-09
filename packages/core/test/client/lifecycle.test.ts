@@ -526,27 +526,27 @@ describe("init", () => {
 
 		it("should keep the session the stored snapshot marked current", async () => {
 			const storage = await persistedStorage(
-				snapshotOf("second", ["first", "second"]),
+				snapshotOf("first", ["first", "second"]),
 			);
 			const { client } = setupClient([connector()], { storage });
 
 			await client.init();
 
-			expect(client.current?.id).toBe("second");
+			expect(client.current?.id).toBe("first");
 		});
 
 		it("should keep the session the ssr snapshot marked current", async () => {
 			const { client } = setupClient([connector()], {
 				ssr: true,
-				initialState: snapshotOf("second", ["first", "second"]),
+				initialState: snapshotOf("first", ["first", "second"]),
 			});
 
 			await client.init();
 
-			expect(client.current?.id).toBe("second");
+			expect(client.current?.id).toBe("first");
 		});
 
-		it("should fall back to the first restored session when the marked one is gone", async () => {
+		it("should promote no session when the marked one is gone", async () => {
 			const storage = await persistedStorage(
 				snapshotOf("gone", ["gone", "second"]),
 			);
@@ -554,18 +554,11 @@ describe("init", () => {
 
 			await client.init();
 
-			expect(client.current?.id).toBe("first");
+			expect(client.sessions.size).toBe(2);
+			expect(client.current).toBeNull();
 		});
 
-		it("should fall back to the first restored session without a snapshot", async () => {
-			const { client } = setupClient([connector()]);
-
-			await client.init();
-
-			expect(client.current?.id).toBe("first");
-		});
-
-		it("should fall back to the first restored session when the snapshot has no current", async () => {
+		it("should keep a snapshot with no current session that way", async () => {
 			const storage = await persistedStorage(
 				snapshotOf(null, ["first", "second"]),
 			);
@@ -573,7 +566,98 @@ describe("init", () => {
 
 			await client.init();
 
+			expect(client.current).toBeNull();
+		});
+
+		it("should fall back to the newest restored session without a snapshot", async () => {
+			const { client } = setupClient([connector()]);
+
+			await client.init();
+
+			expect(client.current?.id).toBe("second");
+		});
+
+		it("should keep the connection order the snapshot saved", async () => {
+			const storage = await persistedStorage(
+				snapshotOf(null, ["second", "first"]),
+			);
+			const { client } = setupClient([connector()], { storage });
+
+			await client.init();
+
+			expect([...client.sessions.keys()]).toEqual(["second", "first"]);
+		});
+
+		it("should put sessions the snapshot doesn't list last, in restore order", async () => {
+			const storage = await persistedStorage(snapshotOf(null, ["second"]));
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [
+							demoSession({ id: "first" }),
+							demoSession({ id: "second" }),
+							demoSession({ id: "third" }),
+						],
+					}),
+				],
+				{ storage },
+			);
+
+			await client.init();
+
+			expect([...client.sessions.keys()]).toEqual(["second", "first", "third"]);
+		});
+
+		it("should order by the snapshot and pick its current session by id", async () => {
+			const storage = await persistedStorage(
+				snapshotOf("first", ["gone", "second", "first"]),
+			);
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [
+							demoSession({ id: "first" }),
+							demoSession({ id: "third" }),
+							demoSession({ id: "second" }),
+						],
+					}),
+				],
+				{ storage },
+			);
+
+			await client.init();
+
+			expect([...client.sessions.keys()]).toEqual(["second", "first", "third"]);
 			expect(client.current?.id).toBe("first");
+		});
+
+		it("should order sessions across connectors by the snapshot", async () => {
+			const snapshot = snapshotOf(null, ["first", "alt"]);
+			const storage = await persistedStorage({
+				...snapshot,
+				sessions: snapshot.sessions.map((entry) =>
+					entry.id === "alt" ? { ...entry, protocol: "demo-alt" } : entry,
+				),
+			});
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoAltProtocol>({
+						protocol: "demo-alt",
+						restore: [demoAltSession({ id: "alt" })],
+					}),
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [demoSession({ id: "first" })],
+					}),
+				],
+				{ storage },
+			);
+
+			await client.init();
+
+			expect([...client.sessions.keys()]).toEqual(["first", "alt"]);
 		});
 
 		it("should have no current session when nothing was restored", async () => {
@@ -592,11 +676,11 @@ describe("init", () => {
 			await client.init();
 			const { sessions, currentSessionId } = client.store.getState();
 
-			expect(currentSessionId).toBe("first");
-			expect(client.current).toBe(sessions.get("first"));
+			expect(currentSessionId).toBe("second");
+			expect(client.current).toBe(sessions.get("second"));
 		});
 
-		it("should fall back to the first restored session when the stored snapshot is corrupt", async () => {
+		it("should fall back to the newest restored session when the stored snapshot is corrupt", async () => {
 			const storage = memory();
 			await storage.set(SNAPSHOT_KEY, "{not json");
 			const logger = createLogger();
@@ -607,7 +691,7 @@ describe("init", () => {
 
 			await client.init();
 
-			expect(client.current?.id).toBe("first");
+			expect(client.current?.id).toBe("second");
 			expect(errors).toEqual([]);
 			expect(logger.debug).toHaveBeenCalledWith(
 				"Discarding unparsable client snapshot",
@@ -634,7 +718,7 @@ describe("init", () => {
 					}),
 				},
 			]);
-			expect(client.current?.id).toBe("first");
+			expect(client.current?.id).toBe("second");
 		});
 	});
 
