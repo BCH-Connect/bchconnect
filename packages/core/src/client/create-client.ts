@@ -1,4 +1,5 @@
 import { ConfigError } from "../errors.js";
+import { isTimeoutMs } from "../internal/abort.js";
 import { isNetwork } from "../snapshot.js";
 import type { CapabilityRegistry } from "../types/capabilities.js";
 import type {
@@ -56,6 +57,14 @@ function validate(config: ClientConfig<readonly Connector[]>): void {
 	if (config.initialState !== undefined && config.ssr !== true) {
 		throw new ConfigError("initialState requires ssr: true");
 	}
+
+	for (const [kind, timeoutMs] of Object.entries(
+		config.defaultTimeoutMs ?? {},
+	)) {
+		if (timeoutMs !== undefined && !isTimeoutMs(timeoutMs)) {
+			throw new ConfigError(`Invalid defaultTimeoutMs.${kind}: ${timeoutMs}`);
+		}
+	}
 }
 
 /**
@@ -92,6 +101,16 @@ export function createClient<const Connectors extends readonly Connector[]>(
 	const runtime = createClientRuntime(config);
 	const lifecycle = createLifecycle(runtime, ignoreConnectorEvent);
 	const { store } = runtime;
+
+	function disposedError(method: string) {
+		return new ConfigError(`${method}() cannot be called after dispose()`);
+	}
+
+	// Every member but dispose() and the derived getters stops working once the client is disposed.
+	function assertUsable(method: string) {
+		if (store.getState().status === "disposed") throw disposedError(method);
+	}
+
 	const client: ClientImpl = {
 		protocols: runtime.protocols,
 		get status() {
@@ -109,36 +128,47 @@ export function createClient<const Connectors extends readonly Connector[]>(
 		},
 		store: runtime.publicStore,
 		init() {
-			return lifecycle.init();
+			// Not async: every call must return the same promise.
+			return store.getState().status === "disposed"
+				? Promise.reject(disposedError("init"))
+				: lifecycle.init();
 		},
-		async dispose() {
-			throw notImplemented("dispose");
+		dispose() {
+			return lifecycle.dispose();
 		},
 		async connect() {
+			assertUsable("connect");
 			throw notImplemented("connect");
 		},
 		async disconnect() {
+			assertUsable("disconnect");
 			throw notImplemented("disconnect");
 		},
 		setCurrent() {
+			assertUsable("setCurrent");
 			throw notImplemented("setCurrent");
 		},
 		on(event, listener) {
+			assertUsable("on");
 			return runtime.events.on(event, listener);
 		},
 		session() {
 			throw notImplemented("session");
 		},
 		async request() {
+			assertUsable("request");
 			throw notImplemented("request");
 		},
 		subscribe() {
+			assertUsable("subscribe");
 			throw notImplemented("subscribe");
 		},
 		capability() {
+			assertUsable("capability");
 			throw notImplemented("capability");
 		},
 		can() {
+			assertUsable("can");
 			throw notImplemented("can");
 		},
 	};

@@ -159,6 +159,47 @@ describe("createClient", () => {
 		).toThrow(configError("initialState requires ssr: true"));
 	});
 
+	it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 31])(
+		"should throw CONFIG for a default timeout of %s",
+		(timeoutMs) => {
+			for (const kind of ["read", "userInteraction", "connect"] as const) {
+				expect(() =>
+					createClient({
+						connectors: [],
+						network: "chipnet",
+						appMetadata,
+						defaultTimeoutMs: { [kind]: timeoutMs },
+					}),
+				).toThrow(
+					configError(`Invalid defaultTimeoutMs.${kind}: ${timeoutMs}`),
+				);
+			}
+		},
+	);
+
+	it("should accept default timeouts from 1 ms to the largest delay a timer honors", () => {
+		expect(() =>
+			createClient({
+				connectors: [],
+				network: "chipnet",
+				appMetadata,
+				defaultTimeoutMs: { read: 1, userInteraction: 2 ** 31 - 1 },
+			}),
+		).not.toThrow();
+	});
+
+	it("should skip a default timeout left undefined", () => {
+		expect(() =>
+			createClient({
+				connectors: [],
+				network: "chipnet",
+				appMetadata,
+				// @ts-expect-error - plain JavaScript can pass an explicit undefined.
+				defaultTimeoutMs: { read: undefined },
+			}),
+		).not.toThrow();
+	});
+
 	it("should not check the app metadata at runtime", () => {
 		expect(() =>
 			createClient({
@@ -270,11 +311,70 @@ describe("createClient", () => {
 		expect(client.store.getState().snapshot).toBeNull();
 	});
 
+	describe("after dispose", () => {
+		const session = demoSession();
+
+		async function disposedClient() {
+			const client = createDemoClient();
+			await client.dispose();
+			return client;
+		}
+
+		it.each<[string, (client: DemoClient) => Promise<unknown>]>([
+			["init", (client) => client.init()],
+			["connect", (client) => client.connect("demo")],
+			["disconnect", (client) => client.disconnect()],
+			[
+				"request",
+				(client) => client.request(session, "get_addresses", undefined),
+			],
+		])("should reject %s() with CONFIG", async (method, call) => {
+			await expect(call(await disposedClient())).rejects.toThrow(
+				configError(`${method}() cannot be called after dispose()`),
+			);
+		});
+
+		it.each<[string, (client: DemoClient) => unknown]>([
+			["setCurrent", (client) => client.setCurrent(null)],
+			["on", (client) => client.on("client:error", () => {})],
+			[
+				"subscribe",
+				(client) => client.subscribe(session, "wallet_ready", () => {}),
+			],
+			["capability", (client) => client.capability(session, "message-signing")],
+			["can", (client) => client.can(session, "message-signing")],
+		])("should throw CONFIG from %s()", async (method, call) => {
+			const client = await disposedClient();
+
+			expect(() => call(client)).toThrow(
+				configError(`${method}() cannot be called after dispose()`),
+			);
+		});
+
+		it("should reject init() even when it ran before dispose()", async () => {
+			const client = createDemoClient();
+			await client.init();
+			await client.dispose();
+
+			await expect(client.init()).rejects.toThrow(
+				configError("init() cannot be called after dispose()"),
+			);
+		});
+
+		it("should keep answering through the derived getters", async () => {
+			const client = await disposedClient();
+
+			expect(client.status).toBe("disposed");
+			expect(client.sessions.size).toBe(0);
+			expect(client.current).toBeNull();
+			expect(client.protocols).toEqual(["demo"]);
+		});
+	});
+
 	describe("members that are not implemented yet", () => {
 		const session = demoSession();
 
 		it.each<[string, (client: DemoClient) => Promise<unknown>]>([
-			["dispose", (client) => client.dispose()],
 			["connect", (client) => client.connect("demo")],
 			["disconnect", (client) => client.disconnect()],
 			[

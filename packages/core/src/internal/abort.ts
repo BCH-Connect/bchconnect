@@ -1,5 +1,24 @@
 import { AbortedError, TimeoutError } from "../errors.js";
 
+// The largest delay `setTimeout` honors; above it, the timer fires at once.
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+
+/**
+ * Whether `value` is a usable timeout: a positive, finite number of
+ * milliseconds that `setTimeout` can wait for.
+ *
+ * @example
+ * ```ts
+ * isTimeoutMs(30_000); // true
+ * isTimeoutMs(Number.POSITIVE_INFINITY); // false
+ * ```
+ *
+ * @internal
+ */
+export function isTimeoutMs(value: unknown): value is number {
+	return typeof value === "number" && value > 0 && value <= MAX_TIMEOUT_MS;
+}
+
 /**
  * A signal that aborts when any of its inputs aborts.
  *
@@ -66,8 +85,9 @@ export function combineSignals(
  * `run` to settle. No `timeoutMs` means no deadline.
  *
  * Rejects with `TimeoutError(timeoutMessage)` on the deadline and with
- * `AbortedError` (the caller's reason as `cause`) on the caller's signal.
- * `run` is not called when the caller's signal is already aborted.
+ * `AbortedError` on the caller's signal: its reason when that is already an
+ * `AbortedError`, else one carrying the reason as `cause`. `run` is not
+ * called when the caller's signal is already aborted.
  *
  * @example
  * ```ts
@@ -81,34 +101,34 @@ export function combineSignals(
  */
 export async function withTimeout<T>(
 	run: (signal: AbortSignal) => Promise<T>,
-	{
-		signal,
-		timeoutMs,
-		timeoutMessage,
-	}: { signal?: AbortSignal; timeoutMs?: number; timeoutMessage: string },
+	options: { signal?: AbortSignal } & (
+		| { timeoutMs: number | undefined; timeoutMessage: string }
+		| { timeoutMs?: undefined; timeoutMessage?: undefined }
+	),
 ): Promise<T> {
 	const deadline = new AbortController();
-	const combined = combineSignals([signal, deadline.signal]);
+	const combined = combineSignals([options.signal, deadline.signal]);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 
 	return new Promise<T>((resolve, reject) => {
 		function onAbort() {
+			const { reason } = combined.signal;
+			if (deadline.signal.aborted) return reject(deadline.signal.reason);
 			reject(
-				deadline.signal.aborted
-					? deadline.signal.reason
-					: new AbortedError("Aborted by caller", {
-							cause: combined.signal.reason,
-						}),
+				reason instanceof AbortedError
+					? reason
+					: new AbortedError("Aborted by caller", { cause: reason }),
 			);
 		}
 
 		if (combined.signal.aborted) return onAbort();
 		combined.signal.addEventListener("abort", onAbort);
 
-		if (timeoutMs !== undefined) {
+		if (options.timeoutMs !== undefined) {
+			const { timeoutMessage } = options;
 			timer = setTimeout(
 				() => deadline.abort(new TimeoutError(timeoutMessage)),
-				timeoutMs,
+				options.timeoutMs,
 			);
 		}
 

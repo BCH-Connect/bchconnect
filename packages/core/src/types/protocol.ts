@@ -311,6 +311,10 @@ export interface Connector<P extends ProtocolDefinition = ProtocolDefinition> {
 	/** The capabilities this session actually has. */
 	capabilitiesOf(session: Session<P>): ReadonlySet<P["capability"]>;
 
-	/** Releases resources held by this connector without disconnecting sessions. */
+	/**
+	 * Releases resources held by this connector without disconnecting
+	 * sessions. May be called while `setup()` or `restore()` is still pending;
+	 * whatever they open after that must be released too.
+	 */
 	dispose?(): Promise<void>;
 }
