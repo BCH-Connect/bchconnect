@@ -1,4 +1,9 @@
-import { ConfigError, isBchConnectError, TransportError } from "../errors.js";
+import {
+	ConfigError,
+	isBchConnectError,
+	SessionMissingError,
+	TransportError,
+} from "../errors.js";
 import { combineSignals, isTimeoutMs, withTimeout } from "../internal/abort.js";
 import type {
 	ConnectOptions,
@@ -90,6 +95,8 @@ export interface Sessions {
 	connect(protocol: string, options?: ConnectOptions): Promise<Session>;
 	/** Ends `session`, or the current one, as `ClientLifecycle.disconnect`. */
 	disconnect(session?: Session): Promise<void>;
+	/** Makes `session` current, or clears it, as `ClientLifecycle.setCurrent`. */
+	setCurrent(session: Session | null): void;
 }
 
 interface PendingConnect {
@@ -369,6 +376,22 @@ export function createSessions(
 
 			remove(session.id, "user");
 			await disconnectOnConnector(session);
+		},
+		setCurrent(session) {
+			// By id: the caller may hold a stale copy of the session.
+			const id = session?.id ?? null;
+			if (id !== null && !store.getState().sessions.has(id)) {
+				throw new SessionMissingError(
+					"setCurrent() was given a session that is not connected",
+					{ sessionId: id },
+				);
+			}
+
+			store.setState((state) =>
+				state.currentSessionId === id
+					? state
+					: { ...state, currentSessionId: id },
+			);
 		},
 	};
 }

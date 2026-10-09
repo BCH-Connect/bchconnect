@@ -15,6 +15,8 @@ import {
 	mergeWalletIdentity,
 } from "../../src/client/sessions.js";
 import { TransportError } from "../../src/errors.js";
+import { parseSnapshot, SNAPSHOT_KEY } from "../../src/snapshot.js";
+import { memory } from "../../src/storage/memory.js";
 import type {
 	Connector,
 	ConnectorContext,
@@ -1527,5 +1529,227 @@ describe("disconnect", () => {
 				expect.objectContaining({ kind: "disconnect" }),
 			);
 		});
+	});
+});
+
+describe("setCurrent", () => {
+	const appMetadata = { name: "Test", url: "https://example.com" };
+
+	async function setup(storage = memory()) {
+		const client = createClient({
+			connectors: [
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: [
+						demoSession({ id: "first" }),
+						demoSession({ id: "second" }),
+					],
+				}),
+			],
+			network: "chipnet",
+			appMetadata,
+			storage,
+		});
+		await client.init();
+		const events: unknown[] = [];
+		for (const event of [
+			"session:connected",
+			"session:changed",
+			"session:disconnected",
+		] as const) {
+			client.on(event, (payload) => events.push(payload));
+		}
+		return { client, events };
+	}
+
+	it("should make the given session current, with no event", async () => {
+		const { client, events } = await setup();
+		const sessions = client.sessions;
+		expect(client.current?.id).toBe("first");
+
+		client.setCurrent(client.sessions.get("second") ?? null);
+
+		expect(client.current?.id).toBe("second");
+		expect(client.sessions).toBe(sessions);
+		expect(events).toEqual([]);
+	});
+
+	it("should resolve the session by id, not by reference", async () => {
+		const { client } = await setup();
+		const stored = client.sessions.get("second");
+
+		client.setCurrent(demoSession({ id: "second" }));
+
+		expect(client.current).toBe(stored);
+	});
+
+	it("should clear the current session when given null", async () => {
+		const { client } = await setup();
+
+		client.setCurrent(null);
+
+		expect(client.current).toBeNull();
+		expect(client.sessions.size).toBe(2);
+	});
+
+	it("should throw SESSION_MISSING for a session that is not in state", async () => {
+		const { client } = await setup();
+		const state = client.store.getState();
+
+		expect(() => client.setCurrent(demoSession({ id: "gone" }))).toThrow(
+			expect.objectContaining({ code: "SESSION_MISSING", sessionId: "gone" }),
+		);
+		expect(client.store.getState()).toBe(state);
+	});
+
+	it("should not notify the store when the session is already current", async () => {
+		const { client } = await setup();
+		expect(client.current?.id).toBe("first");
+		const listener = vi.fn();
+		client.store.subscribe(listener);
+
+		client.setCurrent(client.current);
+
+		expect(listener).not.toHaveBeenCalled();
+	});
+
+	it("should not notify the store when clearing with nothing current", async () => {
+		const { client } = await setup();
+		client.setCurrent(null);
+		const listener = vi.fn();
+		client.store.subscribe(listener);
+
+		client.setCurrent(null);
+
+		expect(listener).not.toHaveBeenCalled();
+	});
+
+	it("should persist the new current session", async () => {
+		const storage = memory();
+		const { client } = await setup(storage);
+
+		client.setCurrent(client.sessions.get("second") ?? null);
+		// dispose() waits for queued snapshot writes.
+		await client.dispose();
+
+		const saved = parseSnapshot(await storage.get(SNAPSHOT_KEY), console);
+		expect(saved?.currentSessionId).toBe("second");
+	});
+
+	it("should answer synchronously before init(), against an empty state", () => {
+		const client = createClient({
+			connectors: [
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: [demoSession({ id: "first" })],
+				}),
+			],
+			network: "chipnet",
+			appMetadata,
+		});
+
+		expect(() => client.setCurrent(null)).not.toThrow();
+		expect(() => client.setCurrent(demoSession({ id: "first" }))).toThrow(
+			expect.objectContaining({ code: "SESSION_MISSING" }),
+		);
+	});
+});
+
+describe("session", () => {
+	const appMetadata = { name: "Test", url: "https://example.com" };
+
+	// Restores "first" and "second" over demo, then connects "alt" over
+	// demo-alt in add mode, so "alt" is current.
+	async function setup() {
+		const demo = createFakeConnector<DemoProtocol>({
+			protocol: "demo",
+			restore: [demoSession({ id: "first" }), demoSession({ id: "second" })],
+		});
+		const alt = createFakeConnector<DemoAltProtocol>({
+			protocol: "demo-alt",
+			session: demoAltSession({ id: "alt" }),
+		});
+		const client = createClient({
+			connectors: [demo, alt],
+			network: "chipnet",
+			appMetadata,
+		});
+		await client.init();
+		await client.connect("demo-alt", { mode: "add" });
+		return { client, demo };
+	}
+
+	it("should return the current session when it belongs to the protocol", async () => {
+		const { client } = await setup();
+
+		expect(client.session("demo-alt")).toBe(client.current);
+	});
+
+	it("should return the current session over a newer one of the same protocol", async () => {
+		const { client } = await setup();
+		client.setCurrent(client.sessions.get("first") ?? null);
+
+		expect(client.session("demo")?.id).toBe("first");
+	});
+
+	it("should fall back to the most recently connected session of the protocol", async () => {
+		const { client } = await setup();
+
+		expect(client.session("demo")?.id).toBe("second");
+	});
+
+	it("should keep connection order when an older session changes", async () => {
+		const { client, demo } = await setup();
+		const first = client.sessions.get("first");
+		if (first === undefined) throw new Error("first was not restored");
+
+		demo.emit("session:changed", {
+			session: demoSession({
+				id: "first",
+				status: { transport: "reconnecting", peer: "unknown" },
+			}),
+			previous: first,
+		});
+
+		expect(client.session("demo")?.id).toBe("second");
+	});
+
+	it("should return null when the protocol has no session", async () => {
+		const { client } = await setup();
+		await client.disconnect(client.sessions.get("alt"));
+
+		expect(client.session("demo-alt")).toBeNull();
+	});
+
+	it("should return null for an unregistered protocol", async () => {
+		const { client } = await setup();
+
+		// @ts-expect-error - "nope" is not a registered protocol.
+		expect(client.session("nope")).toBeNull();
+	});
+
+	it("should return null for a connector whose setup failed", async () => {
+		const client = createClient({
+			connectors: [
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					setup: "throw",
+					restore: [demoSession({ id: "first" })],
+				}),
+			],
+			network: "chipnet",
+			appMetadata,
+		});
+		await client.init();
+
+		expect(client.session("demo")).toBeNull();
+	});
+
+	it("should keep answering after dispose()", async () => {
+		const { client } = await setup();
+		await client.dispose();
+
+		expect(client.session("demo-alt")?.id).toBe("alt");
+		expect(client.session("demo")?.id).toBe("second");
 	});
 });
