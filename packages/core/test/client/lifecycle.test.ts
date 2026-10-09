@@ -633,6 +633,29 @@ describe("init", () => {
 			expect(client.current?.id).toBe("first");
 		});
 
+		it("should put unlisted sessions last when the snapshot repeats an id", async () => {
+			const storage = await persistedStorage(
+				snapshotOf(null, ["first", "second", "first"]),
+			);
+			const { client } = setupClient(
+				[
+					createFakeConnector<DemoProtocol>({
+						protocol: "demo",
+						restore: [
+							demoSession({ id: "third" }),
+							demoSession({ id: "first" }),
+							demoSession({ id: "second" }),
+						],
+					}),
+				],
+				{ storage },
+			);
+
+			await client.init();
+
+			expect([...client.sessions.keys()].at(-1)).toBe("third");
+		});
+
 		it("should order sessions across connectors by the snapshot", async () => {
 			const snapshot = snapshotOf(null, ["first", "alt"]);
 			const storage = await persistedStorage({

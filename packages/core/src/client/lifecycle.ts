@@ -179,9 +179,10 @@ export function createLifecycle(
 			),
 		);
 		// The snapshot lists sessions in connection order. Sessions it doesn't
-		// list go last, in restore order (the sort is stable).
+		// list go last, in restore order (the sort is stable). Its length, not
+		// `saved.size`, since a snapshot may repeat an id.
 		const rank = (session: Session) =>
-			saved.get(session.id)?.position ?? saved.size;
+			saved.get(session.id)?.position ?? reference?.sessions.length ?? 0;
 		const sessions = new Map(
 			restored
 				.sort((a, b) => rank(a) - rank(b))
