@@ -99,13 +99,16 @@ export function createClientRuntime(
 ): ClientRuntime {
 	const logger = config.logger ?? silentLogger;
 	const ssr = config.ssr === true;
-	const store = createStore<ClientState>({
-		status: ssr ? "restoring" : "idle",
-		sessions: new Map(),
-		currentSessionId: null,
-		pendingRequests: new Map(),
-		snapshot: ssr ? seedSnapshot(config.initialState, logger) : null,
-	});
+	const store = createStore<ClientState>(
+		{
+			status: ssr ? "restoring" : "idle",
+			sessions: new Map(),
+			currentSessionId: null,
+			pendingRequests: new Map(),
+			snapshot: ssr ? seedSnapshot(config.initialState, logger) : null,
+		},
+		logger,
+	);
 	const events = createEmitter(logger);
 
 	// The store's methods are closures, so they work detached from it.

@@ -1,15 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
 import { createStore } from "../src/store.js";
+import type { Logger } from "../src/types/protocol.js";
+
+function createLogger(): Logger {
+	return {
+		debug: vi.fn(),
+		info: vi.fn(),
+		warn: vi.fn(),
+		error: vi.fn(),
+	};
+}
 
 describe("createStore", () => {
 	it("should hold the initial state", () => {
 		const initial = { count: 0 };
 
-		expect(createStore(initial).getState()).toBe(initial);
+		expect(createStore(initial, createLogger()).getState()).toBe(initial);
 	});
 
 	it("should replace the state with the updater's result", () => {
-		const store = createStore({ count: 0 });
+		const store = createStore({ count: 0 }, createLogger());
 		const next = { count: 1 };
 
 		store.setState(() => next);
@@ -18,7 +28,7 @@ describe("createStore", () => {
 	});
 
 	it("should pass the current state to the updater", () => {
-		const store = createStore({ count: 1 });
+		const store = createStore({ count: 1 }, createLogger());
 
 		store.setState((previous) => ({ count: previous.count + 1 }));
 
@@ -26,7 +36,7 @@ describe("createStore", () => {
 	});
 
 	it("should notify a subscriber once per transition", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const listener = vi.fn();
 
 		store.subscribe(listener);
@@ -37,7 +47,7 @@ describe("createStore", () => {
 	});
 
 	it("should expose the new state to the listener", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const seen: number[] = [];
 
 		store.subscribe(() => seen.push(store.getState()));
@@ -48,7 +58,7 @@ describe("createStore", () => {
 
 	it("should not notify when the state is unchanged", () => {
 		const state = { count: 0 };
-		const store = createStore(state);
+		const store = createStore(state, createLogger());
 		const listener = vi.fn();
 
 		store.subscribe(listener);
@@ -60,7 +70,7 @@ describe("createStore", () => {
 	});
 
 	it("should notify for an equal but distinct state", () => {
-		const store = createStore({ count: 0 });
+		const store = createStore({ count: 0 }, createLogger());
 		const listener = vi.fn();
 
 		store.subscribe(listener);
@@ -70,7 +80,7 @@ describe("createStore", () => {
 	});
 
 	it("should notify subscribers in subscription order", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const order: string[] = [];
 
 		store.subscribe(() => order.push("first"));
@@ -81,7 +91,7 @@ describe("createStore", () => {
 	});
 
 	it("should call a listener once per registration", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const listener = vi.fn();
 
 		store.subscribe(listener);
@@ -92,7 +102,7 @@ describe("createStore", () => {
 	});
 
 	it("should remove only its own registration of a shared listener", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const listener = vi.fn();
 		const unsubscribeFirst = store.subscribe(listener);
 		store.subscribe(listener);
@@ -104,7 +114,7 @@ describe("createStore", () => {
 	});
 
 	it("should keep a new registration when a stale unsubscribe runs", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const listener = vi.fn();
 		const staleUnsubscribe = store.subscribe(listener);
 		staleUnsubscribe();
@@ -117,7 +127,7 @@ describe("createStore", () => {
 	});
 
 	it("should stop notifying after unsubscribe", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const listener = vi.fn();
 
 		const unsubscribe = store.subscribe(listener);
@@ -128,7 +138,7 @@ describe("createStore", () => {
 	});
 
 	it("should ignore a repeated unsubscribe", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const listener = vi.fn();
 		const unsubscribe = store.subscribe(listener);
 		const other = store.subscribe(listener);
@@ -142,7 +152,7 @@ describe("createStore", () => {
 	});
 
 	it("should skip a listener unsubscribed during a notification", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const second = vi.fn();
 
 		store.subscribe(() => unsubscribeSecond());
@@ -153,7 +163,7 @@ describe("createStore", () => {
 	});
 
 	it("should skip only the registration of a shared listener unsubscribed during a notification", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const shared = vi.fn();
 
 		store.subscribe(() => unsubscribeSecond());
@@ -165,7 +175,7 @@ describe("createStore", () => {
 	});
 
 	it("should skip a listener subscribed during a notification", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const late = vi.fn();
 
 		store.subscribe(() => store.subscribe(late));
@@ -179,7 +189,7 @@ describe("createStore", () => {
 	});
 
 	it("should apply a nested transition synchronously", () => {
-		const store = createStore(0);
+		const store = createStore(0, createLogger());
 		const seen: number[] = [];
 
 		store.subscribe(() => {
@@ -192,17 +202,23 @@ describe("createStore", () => {
 		expect(store.getState()).toBe(2);
 	});
 
-	it("should propagate an error thrown by a listener", () => {
-		const store = createStore(0);
+	it("should report a throwing listener and keep notifying the rest", () => {
+		const logger = createLogger();
+		const store = createStore(0, logger);
+		const failure = new Error("listener failed");
 		const later = vi.fn();
 
 		store.subscribe(() => {
-			throw new Error("listener failed");
+			throw failure;
 		});
 		store.subscribe(later);
 
-		expect(() => store.setState(() => 1)).toThrow("listener failed");
+		expect(() => store.setState(() => 1)).not.toThrow();
 		expect(store.getState()).toBe(1);
-		expect(later).not.toHaveBeenCalled();
+		expect(later).toHaveBeenCalledOnce();
+		expect(logger.error).toHaveBeenCalledWith(
+			"A store listener threw",
+			failure,
+		);
 	});
 });
