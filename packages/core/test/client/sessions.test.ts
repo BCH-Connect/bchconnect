@@ -1254,6 +1254,111 @@ describe("disconnect", () => {
 		expect(events).toContainEqual(["client:error", { error: failure }]);
 	});
 
+	describe("a connector that never finishes", () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		function hanging() {
+			return { ...demo(), disconnect: () => new Promise<void>(() => {}) };
+		}
+
+		it("should resolve and report TIMEOUT after the read timeout", async () => {
+			const { client, events } = setup([hanging()]);
+			await client.init();
+			let resolved = false;
+
+			const disconnecting = client.disconnect().then(() => {
+				resolved = true;
+			});
+			await vi.advanceTimersByTimeAsync(29_999);
+			expect(resolved).toBe(false);
+			await vi.advanceTimersByTimeAsync(1);
+			await disconnecting;
+
+			expect(client.sessions.has("first")).toBe(false);
+			expect(events).toEqual([
+				["session:disconnected", { sessionId: "first", reason: "user" }],
+				[
+					"client:error",
+					{
+						error: expect.objectContaining({
+							code: "TIMEOUT",
+							message: 'disconnect() timed out for connector "demo"',
+						}),
+					},
+				],
+			]);
+		});
+
+		it("should use the configured read timeout", async () => {
+			const client = createClient({
+				connectors: [hanging()],
+				network: "chipnet",
+				appMetadata,
+				defaultTimeoutMs: { read: 5_000 },
+			});
+			const errors: unknown[] = [];
+			client.on("client:error", ({ error }) => errors.push(error));
+			await client.init();
+			let resolved = false;
+
+			const disconnecting = client.disconnect().then(() => {
+				resolved = true;
+			});
+			await vi.advanceTimersByTimeAsync(4_999);
+			expect(resolved).toBe(false);
+			await vi.advanceTimersByTimeAsync(1);
+			await disconnecting;
+
+			expect(resolved).toBe(true);
+			expect(errors).toEqual([expect.objectContaining({ code: "TIMEOUT" })]);
+		});
+
+		it("should report nothing later when the connector finishes in time", async () => {
+			const { client, events } = setup([demo()]);
+			await client.init();
+
+			await client.disconnect();
+			await vi.advanceTimersByTimeAsync(30_000);
+
+			expect(events).toEqual([
+				["session:disconnected", { sessionId: "first", reason: "user" }],
+			]);
+		});
+
+		it("should report only the timeout when the connector fails after it", async () => {
+			let fail: (error: unknown) => void = () => {};
+			const { client, events } = setup([
+				{
+					...demo(),
+					disconnect: () =>
+						new Promise<void>((_, reject) => {
+							fail = reject;
+						}),
+				},
+			]);
+			await client.init();
+
+			const disconnecting = client.disconnect();
+			await vi.advanceTimersByTimeAsync(30_000);
+			await disconnecting;
+			fail(new Error("Relay closed"));
+			await vi.advanceTimersByTimeAsync(0);
+
+			expect(events.filter(([event]) => event === "client:error")).toEqual([
+				[
+					"client:error",
+					{ error: expect.objectContaining({ code: "TIMEOUT" }) },
+				],
+			]);
+		});
+	});
+
 	describe("before init resolves", () => {
 		it("should reject CONFIG when init() was never called", async () => {
 			const { client } = setup([demo()]);
