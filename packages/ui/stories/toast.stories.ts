@@ -58,7 +58,9 @@ const meta = preview.type<{ args: ToastStoryArgs }>().meta({
 	},
 });
 
-export const Connected = meta.story({
+export const Connected = meta.story({});
+
+export const Dismiss = meta.story({
 	play: async ({ canvasElement }) => {
 		await waitForAnimations();
 		const toast = toastHost(canvasElement);
@@ -91,18 +93,6 @@ export const ConnectedRtl = meta.story({
 		expect(mark.getBoundingClientRect().left).toBeGreaterThan(
 			title.getBoundingClientRect().left,
 		);
-
-		const toast = toastHost(canvasElement);
-		const onDismiss = fn<(event: Event) => void>();
-		toast.addEventListener("bchc-dismiss", onDismiss);
-		const dismiss = shadow.querySelector<HTMLButtonElement>(
-			'[aria-label="Dismiss"]',
-		);
-		if (dismiss === null) throw new Error("dismiss button missing");
-		await userEvent.click(dismiss);
-		await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1), {
-			timeout: 5000,
-		});
 		await waitForAnimations();
 	},
 });
