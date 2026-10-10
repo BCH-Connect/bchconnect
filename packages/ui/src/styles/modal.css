@@ -1381,13 +1381,17 @@ button.select:active {
 	color: var(--bchc-text);
 	font-weight: var(--bchc-weight-semibold);
 	text-decoration: none;
-	cursor: pointer;
 	transition:
 		background var(--bchc-duration-fast) var(--bchc-ease-out),
 		transform var(--bchc-duration-fast) var(--bchc-ease-out);
 }
 
-.directory-row:active {
+/* Only a row with a link is interactive; one without is a plain listing. */
+.directory-row:where(a) {
+	cursor: pointer;
+}
+
+.directory-row:where(a):active {
 	transform: scale(0.985);
 	transition-duration: var(--bchc-duration-press);
 }
@@ -1400,7 +1404,7 @@ button.select:active {
 	object-fit: cover;
 }
 
-.directory-row:hover {
+.directory-row:where(a):hover {
 	background: var(--bchc-surface-raised);
 }
 
@@ -1422,12 +1426,12 @@ button.select:active {
 	transition: transform var(--bchc-duration-fast) var(--bchc-ease-out);
 }
 
-.directory-row:hover .button.pill {
+.directory-row:where(a):hover .button.pill {
 	background: var(--bchc-surface-hover);
 }
 
 /* Northeast nudge on the fixed external-link arrow; it never mirrors with direction. */
-.directory-row:hover .button svg {
+.directory-row:where(a):hover .button svg {
 	transform: translate(1px, -1px);
 }
 

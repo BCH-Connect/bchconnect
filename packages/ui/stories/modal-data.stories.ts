@@ -303,7 +303,8 @@ export const NoLinkDirectoryEntry = meta.story({
 		const row = shadow.querySelector(".directory-row");
 		if (row === null) throw new Error("directory row missing");
 		expect(row.querySelector(".directory-links")).toBeNull();
-		expect(row.hasAttribute("href")).toBe(false);
+		expect(row.tagName).toBe("DIV");
+		expect(getComputedStyle(row).cursor).not.toBe("pointer");
 		await waitForAnimations();
 	},
 });
@@ -518,9 +519,9 @@ export const HrefEmptyDirectoryEntry = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		const shadow = modalShadow(canvasElement);
-		const row = shadow.querySelector<HTMLAnchorElement>(".directory-row");
+		const row = shadow.querySelector<HTMLElement>(".directory-row");
 		if (row === null) throw new Error("directory row missing");
-		expect(row.hasAttribute("href")).toBe(false);
+		expect(row.tagName).toBe("DIV");
 		expect(row.querySelector(".directory-links")).toBeNull();
 		await waitForAnimations();
 	},

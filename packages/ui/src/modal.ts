@@ -838,7 +838,7 @@ export class BchcModal extends ElementBase {
 						})
 						.map(
 							(entry) => `
-						<a class="directory-row"${entry.href === null ? "" : ` href="${escapeHtml(entry.href)}"`} target="_blank" rel="noreferrer">
+						${entry.href === null ? '<div class="directory-row">' : `<a class="directory-row" href="${escapeHtml(entry.href)}" target="_blank" rel="noreferrer">`}
 							${logoMarkup(entry.logo, 36, "directory-logo")}
 							<span class="wallet-name" title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</span>
 							${
@@ -848,7 +848,7 @@ export class BchcModal extends ElementBase {
 								<span class="button pill">${escapeHtml(entry.link?.label ?? "Get it")}${icon("arrowUpRight", 14)}</span>
 							</span>`
 							}
-						</a>`,
+						${entry.href === null ? "</div>" : "</a>"}`,
 						)
 						.join("")}
 				</div>
