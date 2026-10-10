@@ -32,4 +32,15 @@ describe("safeHref", () => {
 	])("should refuse %j", (url) => {
 		expect(safeHref(url)).toBeNull();
 	});
+
+	it.each(["", "   ", "\t\n"])(
+		"should treat the blank link %j as absent",
+		(url) => {
+			expect(safeHref(url)).toBeNull();
+		},
+	);
+
+	it("should drop surrounding whitespace", () => {
+		expect(safeHref("  https://cashonize.com  ")).toBe("https://cashonize.com");
+	});
 });

@@ -831,11 +831,10 @@ export class BchcModal extends ElementBase {
 				<p class="section-label">Bitcoin Cash wallets that work here</p>
 				<div class="directory">
 					${view.directory
-						.map((entry) => {
-							const href =
-								entry.link === null ? null : safeHref(entry.link.href);
-							return { ...entry, href: href === "" ? null : href };
-						})
+						.map((entry) => ({
+							...entry,
+							href: entry.link === null ? null : safeHref(entry.link.href),
+						}))
 						.map(
 							(entry) => `
 						${entry.href === null ? '<div class="directory-row">' : `<a class="directory-row" href="${escapeHtml(entry.href)}" target="_blank" rel="noreferrer">`}
