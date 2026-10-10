@@ -87,6 +87,8 @@ export class BchcToast extends ElementBase {
     // @internal
     disconnectedCallback(): void;
     dismiss(): Promise<void>;
+    get duration(): number;
+    set duration(next: number);
     get view(): ToastView | null;
     set view(next: ToastView | null);
 }
@@ -104,7 +106,7 @@ export type ConnectPhase = {
     readonly link: string;
 } | {
     readonly kind: "connected";
-    readonly walletName: string;
+    readonly walletName: string | null;
     readonly walletLogo: string | null;
 } | {
     readonly kind: "failed";
@@ -156,17 +158,17 @@ export interface ProtocolOption {
 // @beta
 export interface ToastView {
     readonly walletLogo: string | null;
-    readonly walletName: string;
+    readonly walletName: string | null;
 }
 
 // @beta
 export interface WalletDirectoryEntry {
     readonly id: string;
-    readonly links: readonly {
+    readonly link: {
         readonly label: string;
         readonly href: string;
-    }[];
-    readonly logo: string;
+    } | null;
+    readonly logo: string | null;
     readonly name: string;
 }
 
@@ -174,7 +176,7 @@ export interface WalletDirectoryEntry {
 export interface WalletOption {
     readonly href: string | null;
     readonly id: string;
-    readonly logo: string;
+    readonly logo: string | null;
     readonly name: string;
 }
 

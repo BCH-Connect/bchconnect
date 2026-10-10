@@ -17,8 +17,10 @@
 		"./package.json": "./package.json"
 	},
 	"types": "./dist/index.d.ts",
+	"customElements": "custom-elements.json",
 	"files": [
-		"dist"
+		"dist",
+		"custom-elements.json"
 	],
 	"engines": {
 		"node": ">=22"
@@ -28,13 +30,25 @@
 		"provenance": true
 	},
 	"scripts": {
-		"build": "tsdown",
-		"api": "api-extractor run --local --verbose"
+		"build": "pnpm cem && tsdown",
+		"cem": "cem analyze --config custom-elements-manifest.config.mjs",
+		"api": "api-extractor run --local --verbose",
+		"storybook": "pnpm cem && storybook dev -p 6006",
+		"build-storybook": "pnpm cem && storybook build"
 	},
 	"dependencies": {
 		"qr-code-styling": "1.9.2"
 	},
 	"devDependencies": {
-		"lightningcss": "1.33.0"
+		"@custom-elements-manifest/analyzer": "0.11.0",
+		"@fontsource-variable/plus-jakarta-sans": "5.3.0",
+		"@storybook/addon-a11y": "10.6.1",
+		"@storybook/addon-docs": "10.6.1",
+		"@storybook/web-components": "10.6.1",
+		"@storybook/web-components-vite": "10.6.1",
+		"lightningcss": "1.33.0",
+		"lit": "3.3.3",
+		"storybook": "10.6.1",
+		"vite": "8.3.1"
 	}
 }
