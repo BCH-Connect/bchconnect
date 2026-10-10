@@ -194,6 +194,8 @@ export class BchcToast extends ElementBase {
 		if (view === null) {
 			if (this.#timer !== null) clearTimeout(this.#timer);
 			this.#timer = null;
+			// The removed element never reports its pointer or focus leaving.
+			this.#pauseCount = 0;
 			this.#root.replaceChildren();
 			return;
 		}
