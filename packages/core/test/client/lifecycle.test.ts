@@ -569,6 +569,17 @@ describe("init", () => {
 			expect(client.current).toBeNull();
 		});
 
+		it("should treat an ssr snapshot with no sessions as no snapshot", async () => {
+			const { client } = setupClient([connector()], {
+				ssr: true,
+				initialState: snapshotOf(null, []),
+			});
+
+			await client.init();
+
+			expect(client.current?.id).toBe("second");
+		});
+
 		it("should fall back to the newest restored session without a snapshot", async () => {
 			const { client } = setupClient([connector()]);
 
