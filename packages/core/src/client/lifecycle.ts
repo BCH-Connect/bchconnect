@@ -64,11 +64,13 @@ function once(run: () => Promise<void>) {
 
 // With a snapshot, the session it marked current if that one came back:
 // nothing is promoted in its place. Without one, the last restored session.
+// A snapshot that lists no sessions carries nothing to keep, so it counts as
+// none.
 function selectCurrent(
 	sessions: ReadonlyMap<string, Session>,
 	reference: ClientSnapshot | undefined,
 ) {
-	if (reference !== undefined) {
+	if (reference !== undefined && reference.sessions.length > 0) {
 		const { currentSessionId } = reference;
 		return currentSessionId !== null && sessions.has(currentSessionId)
 			? currentSessionId
