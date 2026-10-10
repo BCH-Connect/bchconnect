@@ -40,6 +40,7 @@ export const Scan = meta.story({
 export const GettingLink = meta.story({
 	args: { view: viewFor({ phase: { kind: "initiating" } }) },
 	play: async ({ canvasElement }) => {
+		await waitForAnimations();
 		const modal = modalHost(canvasElement);
 		const onClose = fn<(event: Event) => void>();
 		modal.addEventListener("bchc-close", onClose);
@@ -54,6 +55,7 @@ export const GettingLink = meta.story({
 export const Declined = meta.story({
 	args: { view: viewFor({ phase: { kind: "failed", reason: "rejected" } }) },
 	play: async ({ canvasElement }) => {
+		await waitForAnimations();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const onRetry = fn<(event: Event) => void>();
@@ -61,12 +63,7 @@ export const Declined = meta.story({
 		const retry = shadow.querySelector<HTMLButtonElement>('[data-act="retry"]');
 		if (retry === null) throw new Error("retry button missing");
 		await userEvent.click(retry);
-		// Remote WebKit (see vitest.config.ts) occasionally takes longer than
-		// the 1s default to dispatch the click under load, same as the other
-		// stories in this file that already pass `{ timeout: 5000 }`.
-		await waitFor(() => expect(onRetry).toHaveBeenCalledTimes(1), {
-			timeout: 5000,
-		});
+		expect(onRetry).toHaveBeenCalledTimes(1);
 		await waitForAnimations();
 	},
 });
@@ -96,6 +93,7 @@ export const Unsupported = meta.story({
 export const Wallets = meta.story({
 	args: { view: viewFor({ screen: "wallets" }) },
 	play: async ({ canvasElement }) => {
+		await waitForAnimations();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const onScreen = fn<(event: Event) => void>();
@@ -114,6 +112,7 @@ export const Wallets = meta.story({
 export const WalletConnect = meta.story({
 	args: { view: viewFor({ protocol: "walletconnect" }) },
 	play: async ({ canvasElement }) => {
+		await waitForAnimations();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const onProtocol = fn<(event: Event) => void>();
@@ -146,6 +145,7 @@ export const CashConnect = meta.story({
 export const Chipnet = meta.story({
 	args: { view: viewFor({ network: "chipnet" }) },
 	play: async ({ canvasElement }) => {
+		await waitForAnimations();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const onScreen = fn<(event: Event) => void>();
@@ -167,6 +167,7 @@ export const Chipnet = meta.story({
 export const Regtest = meta.story({
 	args: { view: viewFor({ network: "regtest" }) },
 	play: async ({ canvasElement }) => {
+		await waitForAnimations();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const onClose = fn<(event: Event) => void>();
@@ -209,6 +210,7 @@ export const ClosesOnConnect = meta.story({
 export const ReducedMotion = meta.story({
 	tags: ["motion-reduced"],
 	play: async ({ canvasElement }) => {
+		await waitForAnimations();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		await waitFor(() =>
