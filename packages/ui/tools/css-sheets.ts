@@ -3,7 +3,7 @@
 // CSSStyleSheet from inlined, minified text. Default export is `null` on a server.
 
 import { readFile } from "node:fs/promises";
-import { resolve, sep } from "node:path";
+import { resolve } from "node:path";
 import { type Targets, transform } from "lightningcss";
 import type { TsdownPlugin } from "tsdown";
 
@@ -30,7 +30,12 @@ const CSS_TARGETS: Targets = {
 const SUFFIX = ".sheet.js";
 
 // Only the package's own imports: Storybook's preview also imports ordinary CSS.
-const SOURCE_DIR = resolve(import.meta.dirname, "..", "src") + sep;
+const SOURCE_DIR = `${toSlashes(resolve(import.meta.dirname, "..", "src"))}/`;
+
+// Bundlers hand plugins forward-slash ids even on Windows, so compare in that form.
+function toSlashes(path: string): string {
+	return path.replaceAll("\\", "/");
+}
 
 /** The module that stands in for a stylesheet import: the same CSSStyleSheet, built from inlined, minified text. */
 export async function sheetModule(
@@ -65,7 +70,10 @@ export function cssSheets(): TsdownPlugin {
 		resolveId: {
 			filter: { id: /\.css$/ },
 			handler(source, importer) {
-				if (importer === undefined || !importer.startsWith(SOURCE_DIR)) {
+				if (
+					importer === undefined ||
+					!toSlashes(importer).startsWith(SOURCE_DIR)
+				) {
 					return null;
 				}
 				return resolve(importer, "..", source) + SUFFIX;
