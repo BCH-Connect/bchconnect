@@ -72,21 +72,29 @@ export function createSessions(
 	const { store, logger } = runtime;
 	const pending = new Map<string, PendingConnect>();
 
-	// Never rejects: a failure goes to client:error.
-	async function disconnectOnConnector(session: Session) {
-		// Through a promise, so a synchronous throw is reported too.
-		return Promise.resolve()
-			.then(() => runtime.connectors.get(session.protocol)?.disconnect(session))
-			.catch((error: unknown) =>
-				runtime.reportError(
-					error,
-					(cause) =>
-						new TransportError(
-							`disconnect() failed for connector "${session.protocol}"`,
-							{ cause },
-						),
-				),
+	// Never rejects: a failure, or outlasting `timeoutMs`, goes to client:error.
+	// `disconnect()` takes no signal, so a late connector call is not cancelled.
+	async function disconnectOnConnector(session: Session, timeoutMs?: number) {
+		const { protocol } = session;
+		try {
+			// Async, so a synchronous throw is reported too.
+			await withTimeout(
+				async () => runtime.connectors.get(protocol)?.disconnect(session),
+				{
+					timeoutMs,
+					timeoutMessage: `disconnect() timed out for connector "${protocol}"`,
+				},
 			);
+		} catch (error) {
+			runtime.reportError(
+				error,
+				(cause) =>
+					new TransportError(
+						`disconnect() failed for connector "${protocol}"`,
+						{ cause },
+					),
+			);
+		}
 	}
 
 	// A session id already in state is made current and returned as is, with
@@ -314,7 +322,7 @@ export function createSessions(
 			if (session === undefined) return;
 
 			remove(session.id, "user");
-			await disconnectOnConnector(session);
+			await disconnectOnConnector(session, runtime.readTimeoutMs);
 		},
 		setCurrent(session) {
 			// By id: the caller may hold a stale copy of the session.
