@@ -60,6 +60,7 @@ const meta = preview.type<{ args: ToastStoryArgs }>().meta({
 
 export const Connected = meta.story({
 	play: async ({ canvasElement }) => {
+		await waitForAnimations();
 		const toast = toastHost(canvasElement);
 		const shadow = toastShadow(canvasElement);
 		const onDismiss = fn<(event: Event) => void>();
@@ -81,6 +82,7 @@ export const Connected = meta.story({
 export const ConnectedRtl = meta.story({
 	globals: { direction: "rtl" },
 	play: async ({ canvasElement }) => {
+		await waitForAnimations();
 		const shadow = toastShadow(canvasElement);
 		const mark = shadow.querySelector(".done-mark");
 		const title = shadow.querySelector(".done-title");
@@ -123,5 +125,30 @@ export const AutoDismiss = meta.story({
 			timeout: 6000,
 		});
 		await waitForAnimations();
+	},
+});
+
+/** Frameworks often attach the element before assigning `view`; the countdown must still run. */
+export const ViewAfterAttach = meta.story({
+	render: () => html`<div></div>`,
+	play: async ({ canvasElement }) => {
+		const toast = document.createElement("bchc-toast");
+		toast.duration = 300;
+		const onDismiss = fn<(event: Event) => void>();
+		toast.addEventListener("bchc-dismiss", onDismiss);
+		canvasElement.append(toast);
+		// The view arrives after a full duration has passed with nothing to show.
+		await new Promise((resolve) => setTimeout(resolve, 400));
+		toast.view = {
+			walletName: CONNECTED_WALLET.name,
+			walletLogo: CONNECTED_WALLET.logo,
+		};
+		try {
+			await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1), {
+				timeout: 3000,
+			});
+		} finally {
+			toast.remove();
+		}
 	},
 });

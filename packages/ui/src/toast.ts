@@ -116,7 +116,7 @@ export class BchcToast extends ElementBase {
 
 	set duration(next: number) {
 		this.#duration = next;
-		if (!this.isConnected || this.#exiting) return;
+		if (!this.#shown() || this.#exiting) return;
 		if (this.#timer !== null) clearTimeout(this.#timer);
 		this.#timer = null;
 		this.#remainingMs = next;
@@ -126,8 +126,7 @@ export class BchcToast extends ElementBase {
 	/** Called by the browser when the element is attached. @internal */
 	connectedCallback(): void {
 		this.#render();
-		this.#remainingMs = this.#duration;
-		this.#startTimer(this.#duration);
+		this.#arm();
 	}
 
 	/** Called by the browser when the element is detached. @internal */
@@ -152,6 +151,19 @@ export class BchcToast extends ElementBase {
 		this.dispatchEvent(
 			new CustomEvent("bchc-dismiss", { bubbles: true, composed: true }),
 		);
+	}
+
+	// The toast is on screen: built and attached.
+	#shown(): boolean {
+		return this.isConnected && this.#root.querySelector(".toast") !== null;
+	}
+
+	// Starts the countdown once per appearance, whichever of attaching or setting `view` comes last.
+	#arm(): void {
+		if (!this.#shown() || this.#timer !== null || this.#exiting) return;
+		if (this.#pauseCount > 0) return;
+		this.#remainingMs = this.#duration;
+		this.#startTimer(this.#duration);
 	}
 
 	#startTimer(duration: number): void {
@@ -180,6 +192,8 @@ export class BchcToast extends ElementBase {
 	#render(): void {
 		const view = this.#view;
 		if (view === null) {
+			if (this.#timer !== null) clearTimeout(this.#timer);
+			this.#timer = null;
 			this.#root.replaceChildren();
 			return;
 		}
@@ -210,6 +224,7 @@ export class BchcToast extends ElementBase {
 		element.addEventListener("focusin", this.#onPauseStart);
 		element.addEventListener("focusout", this.#onPauseEnd);
 		this.#root.replaceChildren(element);
+		this.#arm();
 	}
 
 	/** Updates an already-built toast's name and logo without replaying its entrance. */
