@@ -320,6 +320,9 @@ importers:
 
   packages/ui:
     dependencies:
+      lit:
+        specifier: ^3.3.3
+        version: 3.3.3
       qr-code-styling:
         specifier: 1.9.2
         version: 1.9.2
@@ -345,9 +348,6 @@ importers:
       lightningcss:
         specifier: 1.33.0
         version: 1.33.0
-      lit:
-        specifier: 3.3.3
-        version: 3.3.3
       storybook:
         specifier: 10.6.1
         version: 10.6.1(@types/react@19.3.0)(prettier@3.9.8)(react@19.3.0)
