@@ -10,6 +10,7 @@ export type {
 	FakeConnectorHandle,
 	FakeConnectorScript,
 	FakeLogEntry,
+	FakeMethodMetadata,
 	FakeMethodScript,
 	FakeMethodScripts,
 	FakePendingRequest,
@@ -22,6 +23,6 @@ export type {
 	DemoProtocol,
 	DemoSessionData,
 } from "./protocols.js";
-export { demoAltSession, demoSession } from "./protocols.js";
+export { demoAltSession, demoMetadata, demoSession } from "./protocols.js";
 export type { FakeSessionInit } from "./session.js";
 export { fakeSession } from "./session.js";

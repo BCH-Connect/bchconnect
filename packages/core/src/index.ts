@@ -53,6 +53,7 @@ export type {
 	KeyValueStore,
 	Logger,
 	MethodDefinition,
+	MethodMetadata,
 	MethodName,
 	MethodParams,
 	MethodResult,

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	createFakeConnector,
 	type DemoProtocol,
+	demoMetadata,
 	demoSession,
 } from "../src/index.js";
 import { fakeContext } from "./fixtures/context.js";
@@ -14,6 +15,23 @@ describe("createFakeConnector", () => {
 		const connector = createFakeConnector<DemoProtocol>({ protocol: "demo" });
 
 		expect(connector.protocol).toBe("demo");
+	});
+
+	describe("methods", () => {
+		it("should report the scripted metadata", () => {
+			const connector = createFakeConnector<DemoProtocol>({
+				protocol: "demo",
+				metadata: demoMetadata,
+			});
+
+			expect(connector.methods).toBe(demoMetadata);
+		});
+
+		it("should report nothing when no metadata is scripted", () => {
+			const connector = createFakeConnector<DemoProtocol>({ protocol: "demo" });
+
+			expect(Object.hasOwn(connector, "methods")).toBe(false);
+		});
 	});
 
 	describe("setup", () => {
