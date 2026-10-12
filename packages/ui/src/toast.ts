@@ -68,13 +68,13 @@ const DEFAULT_DURATION = 3600;
  * @beta
  */
 export class BchcToast extends LitElement {
-	/** @internal */
+	/** Lit's reactive property declarations. @internal */
 	static override properties: PropertyDeclarations = {
 		view: { attribute: false },
 		_appearance: { state: true },
 	};
 
-	/** @internal */
+	/** Lit's adopted style sheets. @internal */
 	static override styles: CSSResultGroup = [theme, tokens, toast];
 
 	/**
@@ -151,7 +151,7 @@ export class BchcToast extends LitElement {
 		);
 	}
 
-	/** @internal */
+	/** Lit hook producing the template. @internal */
 	protected override render(): unknown {
 		const view = this.view;
 		if (view === null) return nothing;
@@ -183,7 +183,7 @@ export class BchcToast extends LitElement {
 		);
 	}
 
-	/** @internal */
+	/** Lit hook run after each render. @internal */
 	protected override updated(changed: PropertyValues<this>): void {
 		if (this.view === null) {
 			if (!changed.has("view")) return;

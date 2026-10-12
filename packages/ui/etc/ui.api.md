@@ -52,15 +52,24 @@ export type BchcBlur = "none" | "small" | "large";
 export type BchcFont = "brand" | "system" | "mono";
 
 // @beta
-export class BchcModal extends ElementBase {
+export class BchcModal extends LitElement {
     constructor();
     close(): Promise<void>;
     // @internal
-    connectedCallback(): void;
+    override connectedCallback(): void;
     // @internal
-    disconnectedCallback(): void;
-    get view(): ModalView | null;
-    set view(next: ModalView | null);
+    override disconnectedCallback(): void;
+    // @internal
+    static override properties: PropertyDeclarations;
+    // @internal
+    protected override render(): unknown;
+    // @internal
+    static override styles: CSSResultGroup;
+    // @internal
+    protected override updated(): void;
+    view: ModalView | null;
+    // @internal
+    protected override willUpdate(): void;
 }
 
 // @beta
@@ -92,13 +101,13 @@ export class BchcToast extends LitElement {
     dismiss(): Promise<void>;
     get duration(): number;
     set duration(next: number);
-    // @internal (undocumented)
+    // @internal
     static override properties: PropertyDeclarations;
-    // @internal (undocumented)
+    // @internal
     protected override render(): unknown;
-    // @internal (undocumented)
+    // @internal
     static override styles: CSSResultGroup;
-    // @internal (undocumented)
+    // @internal
     protected override updated(changed: PropertyValues<this>): void;
     view: ToastView | null;
 }

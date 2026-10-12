@@ -1,8 +1,16 @@
 // Renders a ModalView and emits intents; holds no connection logic.
 // Close is requested here but performed by the caller on `bchc-close`.
 
+import {
+	type CSSResultGroup,
+	html,
+	LitElement,
+	nothing,
+	type PropertyDeclarations,
+} from "lit";
+import { keyed } from "lit/directives/keyed.js";
+import { createRef, ref } from "lit/directives/ref.js";
 import { type CodeRenderer, renderCode } from "./code.ts";
-import { ElementBase } from "./element.ts";
 import { escapeHtml, safeHref } from "./html.ts";
 import { icon } from "./icons.ts";
 import {
@@ -179,9 +187,18 @@ export function useCodeRenderer(renderer: CodeRenderer): void {
  *
  * @beta
  */
-export class BchcModal extends ElementBase {
-	readonly #root: ShadowRoot;
-	#view: ModalView | null = null;
+export class BchcModal extends LitElement {
+	/** Lit's reactive property declarations. @internal */
+	static override properties: PropertyDeclarations = {
+		view: { attribute: false },
+	};
+
+	/** Lit's adopted style sheets. @internal */
+	static override styles: CSSResultGroup = [theme, tokens, modal];
+
+	/** The state to render. Setting it re-renders the modal. */
+	declare view: ModalView | null;
+
 	#shown: ModalView | null = null;
 	#copyResetTimer: ReturnType<typeof setTimeout> | null = null;
 	#deepLinkTimer: ReturnType<typeof setTimeout> | null = null;
@@ -189,7 +206,14 @@ export class BchcModal extends ElementBase {
 	#linkFailed = false;
 	#closing = false;
 	#entered = false;
-	#overlay: HTMLDivElement | null = null;
+	// One per shown shell: a new key makes Lit build a fresh shell, which enters again.
+	#appearance: number | null = null;
+	#appearances = 0;
+	readonly #overlay = createRef<HTMLDivElement>();
+	readonly #card = createRef<HTMLDivElement>();
+	readonly #scrim = createRef<HTMLDivElement>();
+	// Filled by the string builder, not by Lit; Lit only places it in the card.
+	#body: HTMLDivElement | null = null;
 	#drag: DraggableSheet | null = null;
 	// Re-templating moves the code element between parents; skipped unless the body shape changed.
 	#bodyKey: string | null = null;
@@ -199,47 +223,32 @@ export class BchcModal extends ElementBase {
 
 	constructor() {
 		super();
-		this.#root = this.attachShadow({ mode: "open" });
-		this.#root.adoptedStyleSheets = [theme, tokens, modal];
+		// Assigned here, not as a class field, which would shadow the reactive accessor.
+		this.view = null;
 		this.#codeHost.className = "code";
 		this.#codeHost.type = "button";
 		this.#codeHost.setAttribute("data-act", "copy");
 		this.#codeHost.setAttribute("aria-label", "Copy connection link");
 	}
 
-	/** The state to render. Setting it re-renders the modal. */
-	get view(): ModalView | null {
-		return this.#view;
-	}
-
-	set view(next: ModalView | null) {
-		this.#view = next;
-		this.#render();
-	}
-
-	/** Called by the browser when the element is attached.
-	 *
-	 * @internal
-	 */
-	connectedCallback(): void {
+	/** Called by the browser when the element is attached. @internal */
+	override connectedCallback(): void {
+		super.connectedCallback();
 		this.#media.addEventListener("change", this.#onMediaChange);
 		document.addEventListener("visibilitychange", this.#onLeft);
 		document.addEventListener("keydown", this.#onKey);
 		addEventListener("blur", this.#onLeft);
-		this.#render();
+		// Lit updates by itself only on the first attach; a re-attached modal must render again.
+		this.requestUpdate();
 	}
 
-	/** Called by the browser when the element is detached.
-	 *
-	 * @internal
-	 */
-	disconnectedCallback(): void {
+	/** Called by the browser when the element is detached. @internal */
+	override disconnectedCallback(): void {
+		super.disconnectedCallback();
 		this.#media.removeEventListener("change", this.#onMediaChange);
 		document.removeEventListener("visibilitychange", this.#onLeft);
 		document.removeEventListener("keydown", this.#onKey);
 		removeEventListener("blur", this.#onLeft);
-		this.#drag?.release();
-		this.#drag = null;
 		if (this.#copyResetTimer !== null) {
 			clearTimeout(this.#copyResetTimer);
 			this.#copyResetTimer = null;
@@ -250,12 +259,10 @@ export class BchcModal extends ElementBase {
 		}
 		this.#copied = false;
 		// A re-attached modal is a new appearance: it enters again.
-		this.#root.replaceChildren();
-		this.#overlay = null;
-		this.#bodyKey = null;
-		this.#shown = null;
+		this.#hide();
 		this.#closing = false;
 		this.#entered = false;
+		this.requestUpdate();
 	}
 
 	/**
@@ -263,14 +270,16 @@ export class BchcModal extends ElementBase {
 	 * is still playing does nothing.
 	 */
 	async close(): Promise<void> {
+		// A close right after setting `view` must still find the shell.
+		if (this.isConnected) await this.updateComplete;
 		await this.#close(false);
 	}
 
 	// `dragged`: the sheet already left under its own release animation
 	// (`settled` resolves once it ends); no CSS exit animation runs for it.
 	async #close(dragged: boolean, settled?: Promise<void>): Promise<void> {
-		const overlay = this.#overlay;
-		if (overlay === null || this.#closing) return;
+		const overlay = this.#overlay.value;
+		if (overlay === undefined || this.#closing) return;
 		this.#closing = true;
 		// A programmatic close can land mid-drag or mid-settle: freeze it
 		// inline first, so the CSS exit starts from exactly where it is.
@@ -289,7 +298,7 @@ export class BchcModal extends ElementBase {
 	// A sheet/split switch changes markup, not just layout, so it must re-render.
 	readonly #onMediaChange = (): void => {
 		this.#bodyKey = null;
-		this.#render();
+		this.requestUpdate();
 	};
 
 	readonly #onKey = (event: KeyboardEvent): void => {
@@ -319,134 +328,162 @@ export class BchcModal extends ElementBase {
 		);
 	}
 
-	// Built once; everything inside `.body` is replaced per render.
-	#buildShell(): HTMLDivElement {
-		const overlay = document.createElement("div");
-		overlay.className = "overlay";
-		overlay.innerHTML = `
-			<div class="scrim" aria-hidden="true"></div>
-			<div class="card" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
-				<div class="grabber" aria-hidden="true"></div>
-				<div class="head">
-					<button class="back" type="button" data-act="back" aria-label="Back" hidden>${icon("chevronLeft")}</button>
-					<h2 class="title" id="modal-title">Connect a wallet</h2>
-					<span class="badge" hidden></span>
-					<button class="close" type="button" aria-label="Close">${icon("x")}</button>
-				</div>
-				<div class="body"></div>
-			</div>
-		`;
+	#onOverlayClick(event: MouseEvent): void {
+		const target = event.target;
+		if (target === event.currentTarget) {
+			void this.close();
+			return;
+		}
+		if (!(target instanceof Element)) return;
+		if (target.closest(".close") !== null) {
+			void this.close();
+			return;
+		}
+		const option = target.closest(".option");
+		if (option !== null) {
+			this.#choose(option);
+			return;
+		}
+		const actionTarget = target.closest("[data-act]");
+		const action = actionTarget?.getAttribute("data-act");
+		if (action === "menu") {
+			if (this.#menuOpen()) this.#closeMenu();
+			else this.#openMenu();
+			return;
+		}
+		if (this.#menuOpen()) {
+			this.#closeMenu(false);
+			return;
+		}
+		if (action === "retry") this.#emit("bchc-retry");
+		if (action === "copy") void this.#copyLink();
+		if (action === "back") this.#emit("bchc-screen", { screen: "connect" });
+		if (action === "wallets") this.#emit("bchc-screen", { screen: "wallets" });
+		if (
+			action === "open" &&
+			this.view?.phase.kind === "awaiting-approval" &&
+			actionTarget instanceof HTMLAnchorElement &&
+			actionTarget.hasAttribute("href")
+		) {
+			this.#armDeepLinkHint();
+		}
+	}
 
-		overlay.addEventListener("click", (event) => {
+	// Escape closes the menu here; the modal's own listener handles the rest.
+	#onOverlayKeydown(event: KeyboardEvent): void {
+		if (!this.#menuOpen()) {
 			const target = event.target;
-			if (target === overlay) {
-				void this.close();
-				return;
-			}
-			if (!(target instanceof Element)) return;
-			if (target.closest(".close") !== null) {
-				void this.close();
-				return;
-			}
-			const option = target.closest(".option");
-			if (option !== null) {
-				this.#choose(option);
-				return;
-			}
-			const actionTarget = target.closest("[data-act]");
-			const action = actionTarget?.getAttribute("data-act");
-			if (action === "menu") {
-				if (this.#menuOpen()) this.#closeMenu();
-				else this.#openMenu();
-				return;
-			}
-			if (this.#menuOpen()) {
-				this.#closeMenu(false);
-				return;
-			}
-			if (action === "retry") this.#emit("bchc-retry");
-			if (action === "copy") void this.#copyLink();
-			if (action === "back") this.#emit("bchc-screen", { screen: "connect" });
-			if (action === "wallets")
-				this.#emit("bchc-screen", { screen: "wallets" });
 			if (
-				action === "open" &&
-				this.#view?.phase.kind === "awaiting-approval" &&
-				actionTarget instanceof HTMLAnchorElement &&
-				actionTarget.hasAttribute("href")
+				(event.key === "ArrowDown" || event.key === "ArrowUp") &&
+				target instanceof Element &&
+				target.closest(".select") !== null
 			) {
-				this.#armDeepLinkHint();
-			}
-		});
-
-		// Escape closes the menu here; the modal's own listener handles the rest.
-		overlay.addEventListener("keydown", (event) => {
-			if (!this.#menuOpen()) {
-				const target = event.target;
-				if (
-					(event.key === "ArrowDown" || event.key === "ArrowUp") &&
-					target instanceof Element &&
-					target.closest(".select") !== null
-				) {
-					event.preventDefault();
-					this.#openMenu();
-				}
-				return;
-			}
-			if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 				event.preventDefault();
-				this.#stepMenu(event.key === "ArrowDown" ? 1 : -1);
-			} else if (event.key === "Home" || event.key === "End") {
-				event.preventDefault();
-				this.#focusMenuEdge(event.key === "Home" ? "first" : "last");
-			} else if (event.key === "Enter" || event.key === " ") {
-				const target = event.target;
-				if (target instanceof Element && target.closest(".option") !== null) {
-					event.preventDefault();
-					this.#choose(target.closest(".option") as Element);
-				}
-			} else if (event.key === "Tab") {
-				this.#closeMenu(false);
+				this.#openMenu();
 			}
-		});
+			return;
+		}
+		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+			event.preventDefault();
+			this.#stepMenu(event.key === "ArrowDown" ? 1 : -1);
+		} else if (event.key === "Home" || event.key === "End") {
+			event.preventDefault();
+			this.#focusMenuEdge(event.key === "Home" ? "first" : "last");
+		} else if (event.key === "Enter" || event.key === " ") {
+			const target = event.target;
+			if (target instanceof Element && target.closest(".option") !== null) {
+				event.preventDefault();
+				this.#choose(target.closest(".option") as Element);
+			}
+		} else if (event.key === "Tab") {
+			this.#closeMenu(false);
+		}
+	}
 
-		const card = overlay.querySelector(".card");
-		const scrim = overlay.querySelector(".scrim");
-		if (card instanceof HTMLElement && scrim instanceof HTMLElement) {
+	// Drops the shell; the next update removes it from the shadow root.
+	#hide(): void {
+		this.#drag?.release();
+		this.#drag = null;
+		this.#appearance = null;
+		this.#body = null;
+		this.#bodyKey = null;
+		this.#shown = null;
+	}
+
+	/** Lit hook run before each render. @internal */
+	protected override willUpdate(): void {
+		const view = this.view;
+		if (view === null) {
+			this.#hide();
+			return;
+		}
+		// A shadow tree built while detached answers computed styles with the page's defaults in WebKit, even right after attaching. Attaching renders again instead.
+		if (this.#appearance !== null || !this.isConnected) return;
+		// First paint already connected: no shell, `updated` closes directly.
+		if (view.phase.kind === "connected") return;
+		this.#appearances += 1;
+		this.#appearance = this.#appearances;
+		const body = document.createElement("div");
+		body.className = "body";
+		this.#body = body;
+	}
+
+	/** Lit hook producing the template. @internal */
+	protected override render(): unknown {
+		if (this.#appearance === null) return nothing;
+		return keyed(
+			this.#appearance,
+			html`<div
+				class="overlay"
+				${ref(this.#overlay)}
+				@click=${this.#onOverlayClick}
+				@keydown=${this.#onOverlayKeydown}
+			>
+				<div class="scrim" aria-hidden="true" ${ref(this.#scrim)}></div>
+				<div class="card" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1" ${ref(this.#card)}>
+					<div class="grabber" aria-hidden="true"></div>
+					<div class="head">
+						<button class="back" type="button" data-act="back" aria-label="Back" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+						<h2 class="title" id="modal-title">Connect a wallet</h2>
+						<span class="badge" hidden></span>
+						<button class="close" type="button" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+					</div>
+					${this.#body}
+				</div>
+			</div>`,
+		);
+	}
+
+	// Classes, header text and the body are written here, never bound: the template keeps them static so Lit never overwrites them.
+	/** Lit hook run after each render. @internal */
+	protected override updated(): void {
+		const view = this.view;
+		if (view === null || !this.isConnected) return;
+		const overlay = this.#overlay.value;
+		const card = this.#card.value;
+		const scrim = this.#scrim.value;
+		const body = this.#body;
+		if (
+			overlay === undefined ||
+			card === undefined ||
+			scrim === undefined ||
+			body === null
+		) {
+			// No shell means the first paint was already connected (distinct
+			// from the success-closes-modal case handled further down).
+			if (view.phase.kind === "connected") this.#emit("bchc-close");
+			return;
+		}
+
+		// The drag is created with each shell, so its absence marks the shell's first paint.
+		const firstPaint = this.#drag === null;
+		if (firstPaint) {
 			this.#drag = draggableSheet(card, scrim, {
 				isActive: () => this.#media.matches,
 				onDismiss: (settled) => void this.#close(true, settled),
 			});
 		}
 
-		this.#root.replaceChildren(overlay);
-		return overlay;
-	}
-
-	#render(): void {
-		const view = this.#view;
-		if (view === null) {
-			this.#root.replaceChildren();
-			this.#overlay = null;
-			this.#bodyKey = null;
-			this.#shown = null;
-			return;
-		}
-
-		// A shadow tree built while detached answers computed styles with the page's defaults in WebKit, even right after attaching. connectedCallback renders instead.
-		if (!this.isConnected) return;
-
-		const firstPaint = this.#overlay === null;
-
-		// First paint already connected: nothing to animate, so close directly
-		// (distinct from the success-closes-modal case handled further down).
-		if (firstPaint && view.phase.kind === "connected") {
-			this.#emit("bchc-close");
-			return;
-		}
-
-		const overlay = this.#overlay ?? this.#buildShell();
-		this.#overlay = overlay;
 		const sheet = this.#media.matches;
 		overlay.classList.toggle("is-sheet", sheet);
 		// `:dir()` doesn't reliably see directionality inherited from outside the
@@ -456,16 +493,8 @@ export class BchcModal extends ElementBase {
 			getComputedStyle(this).direction === "rtl",
 		);
 
-		const card = overlay.querySelector(".card");
 		const title = overlay.querySelector(".title");
-		const body = overlay.querySelector(".body");
-		if (
-			!(card instanceof HTMLElement) ||
-			!(title instanceof HTMLElement) ||
-			!(body instanceof HTMLElement)
-		) {
-			return;
-		}
+		if (!(title instanceof HTMLElement)) return;
 
 		const titleText =
 			view.screen === "wallets" ? "Get a wallet" : "Connect a wallet";
@@ -485,7 +514,7 @@ export class BchcModal extends ElementBase {
 		// Success isn't a screen: the modal exits and the caller takes over
 		// (first-paint case handled above, before a shell exists).
 		if (view.phase.kind === "connected") {
-			void this.close();
+			void this.#close(false);
 			return;
 		}
 
@@ -502,8 +531,7 @@ export class BchcModal extends ElementBase {
 		if (sheet && view.screen === "connect") this.#measureSheetRest(card, body);
 		this.#shown = view;
 
-		// Nothing to animate if not yet connected.
-		if (!this.#entered && this.isConnected) {
+		if (!this.#entered) {
 			this.#entered = true;
 			card.focus({ preventScroll: true });
 			// The drawer's contents ride with the sheet instead of staggering in.
@@ -666,7 +694,7 @@ export class BchcModal extends ElementBase {
 	}
 
 	#menu(): HTMLElement | null {
-		const menu = this.#overlay?.querySelector(".menu");
+		const menu = this.#overlay.value?.querySelector(".menu");
 		return menu instanceof HTMLElement ? menu : null;
 	}
 
@@ -677,7 +705,7 @@ export class BchcModal extends ElementBase {
 
 	#openMenu(): void {
 		const menu = this.#menu();
-		const trigger = this.#overlay?.querySelector(".select");
+		const trigger = this.#overlay.value?.querySelector(".select");
 		if (menu === null || !(trigger instanceof HTMLElement) || !menu.hidden)
 			return;
 		menu.hidden = false;
@@ -696,7 +724,7 @@ export class BchcModal extends ElementBase {
 
 	#closeMenu(refocus = true): void {
 		const menu = this.#menu();
-		const trigger = this.#overlay?.querySelector(".select");
+		const trigger = this.#overlay.value?.querySelector(".select");
 		if (menu === null || menu.hidden) return;
 		if (trigger instanceof HTMLElement) {
 			trigger.setAttribute("aria-expanded", "false");
@@ -724,7 +752,7 @@ export class BchcModal extends ElementBase {
 		if (menu === null) return;
 		const options = [...menu.querySelectorAll<HTMLElement>(".option")];
 		if (options.length === 0) return;
-		const active = this.#root.activeElement;
+		const active = this.shadowRoot?.activeElement;
 		const at = active instanceof HTMLElement ? options.indexOf(active) : -1;
 		const next =
 			at === -1
@@ -746,7 +774,7 @@ export class BchcModal extends ElementBase {
 	#choose(option: Element): void {
 		const protocol = option.getAttribute("data-protocol");
 		this.#closeMenu();
-		if (protocol === null || protocol === this.#view?.protocol) return;
+		if (protocol === null || protocol === this.view?.protocol) return;
 		this.#emit("bchc-protocol", { protocol: protocol as ProtocolId });
 	}
 
@@ -857,7 +885,7 @@ export class BchcModal extends ElementBase {
 
 	// The code and the button share this handler via data-act="copy".
 	async #copyLink(): Promise<void> {
-		const view = this.#view;
+		const view = this.view;
 		if (view === null || view.phase.kind !== "awaiting-approval") return;
 		try {
 			await navigator.clipboard.writeText(view.phase.link);
@@ -872,7 +900,9 @@ export class BchcModal extends ElementBase {
 
 	#setCopied(copied: boolean): void {
 		this.#copied = copied;
-		const button = this.#overlay?.querySelector('.button[data-act="copy"]');
+		const button = this.#overlay.value?.querySelector(
+			'.button[data-act="copy"]',
+		);
 		if (!(button instanceof HTMLElement)) return;
 		button.classList.toggle("is-copied", copied);
 		button.innerHTML = copyFace(copied);
@@ -886,8 +916,8 @@ export class BchcModal extends ElementBase {
 			this.#deepLinkTimer = null;
 			if (document.visibilityState !== "visible") return;
 			this.#linkFailed = true;
-			const caption = this.#overlay?.querySelector(".caption");
-			const view = this.#view;
+			const caption = this.#overlay.value?.querySelector(".caption");
+			const view = this.view;
 			if (caption instanceof HTMLElement && view !== null)
 				retext(caption, captionFor(view, true));
 		}, DEEP_LINK_GRACE);
