@@ -4,6 +4,11 @@
 
 ```ts
 
+import { CSSResultGroup } from 'lit';
+import { LitElement } from 'lit';
+import { PropertyDeclarations } from 'lit';
+import { PropertyValues } from 'lit';
+
 // @beta
 export const BCHC_ACCENT_DEFAULT_NEUTRAL: Readonly<Record<BchcAccent, BchcNeutral>>;
 
@@ -80,17 +85,22 @@ export type BchcNeutral = "sage" | "slate" | "sand" | "pure";
 export type BchcRadius = "none" | "small" | "medium" | "large" | "full";
 
 // @beta
-export class BchcToast extends ElementBase {
+export class BchcToast extends LitElement {
     constructor();
     // @internal
-    connectedCallback(): void;
-    // @internal
-    disconnectedCallback(): void;
+    override disconnectedCallback(): void;
     dismiss(): Promise<void>;
     get duration(): number;
     set duration(next: number);
-    get view(): ToastView | null;
-    set view(next: ToastView | null);
+    // @internal (undocumented)
+    static override properties: PropertyDeclarations;
+    // @internal (undocumented)
+    protected override render(): unknown;
+    // @internal (undocumented)
+    static override styles: CSSResultGroup;
+    // @internal (undocumented)
+    protected override updated(changed: PropertyValues<this>): void;
+    view: ToastView | null;
 }
 
 // @beta
