@@ -11,6 +11,7 @@ import type {
 import type { Connector, RequestOptions, Session } from "../types/protocol.js";
 import { createLifecycle } from "./lifecycle.js";
 import { createLifetime } from "./lifetime.js";
+import { createRequests } from "./requests.js";
 import { createClientRuntime } from "./runtime.js";
 import { createSessions } from "./sessions.js";
 
@@ -101,6 +102,7 @@ export function createClient<const Connectors extends readonly Connector[]>(
 	const runtime = createClientRuntime(config);
 	const lifetime = createLifetime();
 	const sessions = createSessions(runtime, lifetime);
+	const requests = createRequests(runtime, lifetime);
 	const lifecycle = createLifecycle(
 		runtime,
 		lifetime,
@@ -169,9 +171,9 @@ export function createClient<const Connectors extends readonly Connector[]>(
 			}
 			return newest;
 		},
-		async request() {
+		async request(session, method, params, opts) {
 			assertUsable("request");
-			throw notImplemented("request");
+			return requests.request(session, method, params, opts);
 		},
 		subscribe() {
 			assertUsable("subscribe");
