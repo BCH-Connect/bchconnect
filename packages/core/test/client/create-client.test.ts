@@ -396,17 +396,6 @@ describe("createClient", () => {
 	describe("members that are not implemented yet", () => {
 		const session = demoSession();
 
-		it.each<[string, (client: DemoClient) => Promise<unknown>]>([
-			[
-				"request",
-				(client) => client.request(session, "get_addresses", undefined),
-			],
-		])("should reject %s() with CONFIG", async (method, call) => {
-			await expect(call(createDemoClient())).rejects.toThrow(
-				configError(`${method}() is not implemented yet`),
-			);
-		});
-
 		it.each<[string, (client: DemoClient) => unknown]>([
 			[
 				"subscribe",

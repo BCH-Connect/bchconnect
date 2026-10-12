@@ -120,6 +120,13 @@ export interface LifecycleEvents<
 }
 
 /**
+ * How a request settled, as `request:settled` reports it.
+ *
+ * @internal
+ */
+export type RequestOutcome = LifecycleEvents["request:settled"]["outcome"];
+
+/**
  * The lifecycle events a connector may emit through its context.
  *
  * @public
