@@ -7,6 +7,7 @@ import {
 	type PropertyValues,
 } from "lit";
 import { keyed } from "lit/directives/keyed.js";
+import { icon } from "./icons.ts";
 import { animationsFinished } from "./motion.ts";
 import theme from "./styles/theme.generated.css" with { type: "css" };
 import toast from "./styles/toast.css" with { type: "css" };
@@ -170,7 +171,7 @@ export class BchcToast extends LitElement {
 				<span class="toast-live" role="status">
 					<span class=${logo === null ? "done-mark is-bare" : "done-mark"}>
 						${logo === null ? nothing : html`<img src=${logo} alt="" width="44" height="44" />`}
-						<span class="check"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+						<span class="check">${icon("check")}</span>
 					</span>
 					<span class="done-title">${
 						view.walletName === null

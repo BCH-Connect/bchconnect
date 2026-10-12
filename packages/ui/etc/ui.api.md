@@ -66,6 +66,8 @@ export class BchcModal extends LitElement {
     // @internal
     static override styles: CSSResultGroup;
     // @internal
+    protected override update(changed: PropertyValues<this>): void;
+    // @internal
     protected override updated(): void;
     view: ModalView | null;
     // @internal
