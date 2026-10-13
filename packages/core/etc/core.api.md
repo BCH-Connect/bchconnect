@@ -174,6 +174,7 @@ export interface Connector<P extends ProtocolDefinition = ProtocolDefinition> {
     }): Promise<Session<P>>;
     disconnect(session: Session<P>): Promise<void>;
     dispose?(): Promise<void>;
+    readonly methods?: Readonly<Partial<Record<MethodName<P>, MethodMetadata>>>;
     readonly protocol: P["id"];
     request<M extends MethodName<P>>(session: Session<P>, method: M, params: MethodParams<P, M>, opts?: RequestOptions): Promise<MethodResult<P, M>>;
     restore(): Promise<Session<P>[]>;
@@ -295,6 +296,9 @@ export interface MethodDefinition {
     timeoutMs?: number;
     userInteraction?: boolean;
 }
+
+// @public
+export type MethodMetadata = Pick<MethodDefinition, "timeoutMs" | "userInteraction">;
 
 // @public
 export type MethodName<P extends ProtocolDefinition> = keyof P["methods"] & string;

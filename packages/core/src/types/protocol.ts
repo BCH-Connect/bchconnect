@@ -17,6 +17,17 @@ export interface MethodDefinition {
 }
 
 /**
+ * The runtime part of a {@link MethodDefinition}: what the client needs to
+ * resolve a request's deadline and label it for the UI.
+ *
+ * @public
+ */
+export type MethodMetadata = Pick<
+	MethodDefinition,
+	"timeoutMs" | "userInteraction"
+>;
+
+/**
  * The type-level description of one protocol. Each protocol package exports one.
  *
  * @public
@@ -273,6 +284,13 @@ export interface ConnectorContext {
 export interface Connector<P extends ProtocolDefinition = ProtocolDefinition> {
 	/** Id of the protocol this connector implements. */
 	readonly protocol: P["id"];
+
+	/**
+	 * Deadline and user-interaction metadata, by method name. A method missing
+	 * from the map, or a connector with no map, is treated as a read: no user
+	 * interaction, with the client's read deadline.
+	 */
+	readonly methods?: Readonly<Partial<Record<MethodName<P>, MethodMetadata>>>;
 
 	/** One-time initialization. Opens no sockets and writes no storage. */
 	setup?(ctx: ConnectorContext): Promise<void> | void;

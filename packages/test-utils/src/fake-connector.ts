@@ -52,6 +52,16 @@ export type FakeMethodScripts<P extends ProtocolDefinition> = {
 };
 
 /**
+ * Deadline and user-interaction metadata the connector reports, by method
+ * name. Mirrors what a real connector would carry for its protocol.
+ *
+ * @beta
+ */
+export type FakeMethodMetadata<P extends ProtocolDefinition> = NonNullable<
+	Connector<P>["methods"]
+>;
+
+/**
  * What a {@link createFakeConnector} connector does, from `setup()` to
  * `dispose()`.
  *
@@ -90,6 +100,8 @@ export interface FakeConnectorScript<P extends ProtocolDefinition> {
 	readonly dispose?: "throw";
 	/** Scripted methods. */
 	readonly methods?: FakeMethodScripts<P>;
+	/** Metadata the connector reports for its methods. Defaults to none. */
+	readonly metadata?: FakeMethodMetadata<P>;
 	/** Capabilities of every session, or of one session. Defaults to none. */
 	readonly capabilities?:
 		| readonly P["capability"][]
@@ -299,6 +311,8 @@ export function createFakeConnector<P extends ProtocolDefinition>(
 
 	const connector: FakeConnector<P> = {
 		protocol: script.protocol,
+		// Spread, not assigned: `methods: undefined` is not an absent map.
+		...(script.metadata === undefined ? {} : { methods: script.metadata }),
 		calls,
 		log,
 		pending,
