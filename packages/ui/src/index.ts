@@ -6,6 +6,9 @@
  * attributes on the element itself: `data-bchc-accent`, `data-bchc-neutral`,
  * `data-bchc-radius`, `data-bchc-font`, `data-bchc-blur` and
  * `data-bchc-mode`, each taking the values of the exported `Bchc*` types.
+ * The elements render with Lit: a page that enforces Trusted Types
+ * (`require-trusted-types-for 'script'`) must allow the `lit-html` policy in
+ * its `trusted-types` directive.
  */
 
 import type { BchcModal, BchcModalEvents } from "./modal.ts";

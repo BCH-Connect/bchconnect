@@ -1,6 +1,7 @@
 // qr-code-styling is a UMD build; its constructor is injected by register.ts.
-// update() can't cross-fade, so a redraw keeps the outgoing drawing in place
-// while the new one writes over it (keepOutgoing/playWriteIn).
+// Every draw is a fresh instance: update() clears through `innerHTML`, which
+// Trusted Types blocks. A redraw keeps the outgoing drawing in place while the
+// new one writes over it (keepOutgoing/playWriteIn).
 
 import type { ProtocolMark } from "./state.ts";
 
@@ -11,7 +12,6 @@ export interface CodeRenderer {
 
 interface CodeInstance {
 	append(container: HTMLElement): void;
-	update(options: Partial<CodeOptions>): void;
 }
 
 interface CodeOptions {
@@ -60,12 +60,8 @@ const PLATE_OPACITY = 0.1;
 /** Gap between the mark and the nearest module, in pixels of the drawn code. */
 const MARK_MARGIN = 12;
 
-interface RenderedCode {
-	readonly instance: CodeInstance;
-	readonly key: string;
-}
-
-const rendered = new WeakMap<HTMLElement, RenderedCode>();
+/** The request each container last drew. */
+const rendered = new WeakMap<HTMLElement, string>();
 /** The latest request per container, so a slow fetch cannot overwrite a newer draw. */
 const latestKey = new WeakMap<HTMLElement, string>();
 const dataUris = new Map<string, Promise<string>>();
@@ -120,8 +116,8 @@ function currentDrawing(container: HTMLElement): SVGElement | null {
 	return current instanceof SVGElement ? current : null;
 }
 
-// Appended after update() empties the container; a static clone the
-// stylesheet dissolves, removing itself once that finishes.
+// Appended after the new drawing replaces the container's children; a static
+// clone the stylesheet dissolves, removing itself once that finishes.
 function keepOutgoing(container: HTMLElement, previous: SVGElement): void {
 	for (const stale of container.querySelectorAll(".code-outgoing"))
 		stale.remove();
@@ -160,7 +156,7 @@ export async function renderCode(
 	const { foreground, background, accent, mark } = request;
 	const placeholder = request.placeholder === true;
 	const key = `${request.link}|${mark?.src ?? ""}|${mark?.shape ?? ""}|${foreground}|${background}|${accent}|${placeholder}`;
-	if (rendered.get(container)?.key === key) return;
+	if (rendered.get(container) === key) return;
 	// Same request already in flight for this container: let it finish.
 	if (latestKey.get(container) === key) return;
 	latestKey.set(container, key);
@@ -193,19 +189,13 @@ export async function renderCode(
 		backgroundOptions: { color: background },
 	};
 
-	const existing = rendered.get(container);
-	if (existing !== undefined) {
-		const previous = currentDrawing(container)?.cloneNode(true);
-		existing.instance.update(options);
-		playWriteIn(container, placeholder);
-		if (previous instanceof SVGElement) keepOutgoing(container, previous);
-		rendered.set(container, { instance: existing.instance, key });
-		return;
-	}
-
+	const previous = rendered.has(container)
+		? currentDrawing(container)?.cloneNode(true)
+		: undefined;
 	const instance = new Renderer(options);
 	container.replaceChildren();
 	instance.append(container);
 	playWriteIn(container, placeholder);
-	rendered.set(container, { instance, key });
+	if (previous instanceof SVGElement) keepOutgoing(container, previous);
+	rendered.set(container, key);
 }

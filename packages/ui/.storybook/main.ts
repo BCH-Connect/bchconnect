@@ -2,7 +2,12 @@ import { defineMain } from "@storybook/web-components-vite/node";
 import { cssSheets } from "../tools/css-sheets.ts";
 
 export default defineMain({
-	stories: ["../stories/**/*.stories.ts"],
+	// A static build can't serve the source modules the Trusted Types stories
+	// import, so they're built only for the dev server and the Vitest runs.
+	stories: (_entries, options) =>
+		options.configType === "PRODUCTION"
+			? ["../stories/**/!(trusted-types).stories.ts"]
+			: ["../stories/**/*.stories.ts"],
 	addons: [
 		"@storybook/addon-a11y",
 		"@storybook/addon-docs",

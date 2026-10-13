@@ -284,13 +284,21 @@ export function crossfade(
 	);
 }
 
-// Tracked separately: a browser re-serialises `innerHTML`, so it never reads back equal to what was set.
+// Keyed by element: the same key while a swap is under way, or after it, is not swapped again.
 const lastRetext = new WeakMap<Element, string>();
 
-/** Swap an element's text with a short fade, so a label never just flips. */
-export function retext(element: HTMLElement, html: string): void {
-	if (lastRetext.get(element) === html) return;
-	lastRetext.set(element, html);
+/**
+ * Fade an element's content out, let `swap` replace it, then fade it back in,
+ * so a label never just flips. `key` names the new content; `swap` may return
+ * a promise that settles once the new content is in place.
+ */
+export function retext(
+	element: HTMLElement,
+	key: string,
+	swap: () => unknown,
+): void {
+	if (lastRetext.get(element) === key) return;
+	lastRetext.set(element, key);
 	const tempo = tempoOf(element);
 	const fade = element.animate([{ opacity: 1 }, { opacity: 0 }], {
 		duration: tempo.fast / 2,
@@ -299,8 +307,8 @@ export function retext(element: HTMLElement, html: string): void {
 	});
 	fade.finished
 		.catch(() => undefined)
+		.then(swap)
 		.finally(() => {
-			element.innerHTML = html;
 			fade.cancel();
 			element.animate(
 				[
