@@ -23,6 +23,17 @@ export interface Requests {
 		params: unknown,
 		opts?: RequestOptions,
 	): Promise<unknown>;
+	/** Resolves once every request in flight has settled. */
+	settled(): Promise<void>;
+}
+
+interface RequestHandle {
+	readonly sessionId: string;
+	/** Aborts the request from the client's side, with the error to reject. */
+	readonly end: AbortController;
+	/** Set when the session ended first; the caller gets it instead of ABORTED. */
+	ended: SessionMissingError | undefined;
+	readonly settled: Promise<void>;
 }
 
 /**
@@ -41,6 +52,19 @@ export function createRequests(
 	lifetime: Lifetime,
 ): Requests {
 	const { store } = runtime;
+	const handles = new Map<string, RequestHandle>();
+
+	// A request cannot outlive its session, whichever way the session ends.
+	runtime.events.on("session:disconnected", ({ sessionId, reason }) => {
+		for (const handle of handles.values()) {
+			if (handle.sessionId !== sessionId) continue;
+			handle.ended = new SessionMissingError(
+				`Session "${sessionId}" disconnected`,
+				{ sessionId, cause: reason },
+			);
+			handle.end.abort(handle.ended);
+		}
+	});
 
 	async function request(
 		passedSession: Session,
@@ -81,6 +105,22 @@ export function createRequests(
 			throw new ConfigError(`Invalid timeoutMs: ${timeoutMs}`);
 		}
 
+		let done = () => {};
+		const handle: RequestHandle = {
+			sessionId,
+			end: new AbortController(),
+			ended: undefined,
+			settled: new Promise<void>((resolve) => {
+				done = resolve;
+			}),
+		};
+		// Before anything is tracked: a caller's signal that is not one throws here.
+		const combined = combineSignals([
+			opts.signal,
+			lifetime.signal,
+			handle.end.signal,
+		]);
+
 		store.setState((state) => ({
 			...state,
 			pendingRequests: new Map(state.pendingRequests).set(id, {
@@ -90,7 +130,6 @@ export function createRequests(
 				startedAt: Date.now(),
 			}),
 		}));
-
 		runtime.events.emit("request:pending", {
 			id,
 			sessionId,
@@ -98,8 +137,8 @@ export function createRequests(
 			userInteraction,
 		});
 
-		const combined = combineSignals([opts.signal, lifetime.signal]);
 		let outcome: RequestOutcome = "resolved";
+		handles.set(id, handle);
 		try {
 			return await withTimeout(
 				(signal) =>
@@ -116,12 +155,17 @@ export function createRequests(
 				},
 			);
 		} catch (error) {
-			const failure = isBchConnectError(error)
-				? error
-				: new TransportError(`Request "${method}" failed`, {
-						cause: error,
-						sessionId,
-					});
+			// The session's end is the caller's error only when it is what aborted
+			// the call; an earlier abort, deadline or failure keeps its own.
+			const failure =
+				handle.ended !== undefined && combined.signal.reason === handle.ended
+					? handle.ended
+					: isBchConnectError(error)
+						? error
+						: new TransportError(`Request "${method}" failed`, {
+								cause: error,
+								sessionId,
+							});
 			switch (failure.code) {
 				case "TIMEOUT":
 					outcome = "timeout";
@@ -135,6 +179,8 @@ export function createRequests(
 			throw failure;
 		} finally {
 			combined.release();
+			handles.delete(id);
+			done();
 			store.setState((state) => {
 				if (!state.pendingRequests.has(id)) return state;
 				const pendingRequests = new Map(state.pendingRequests);
@@ -145,5 +191,10 @@ export function createRequests(
 		}
 	}
 
-	return { request };
+	return {
+		request,
+		async settled() {
+			await Promise.all([...handles.values()].map((handle) => handle.settled));
+		},
+	};
 }

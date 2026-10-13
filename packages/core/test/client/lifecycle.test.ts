@@ -1462,7 +1462,12 @@ describe("dispose", () => {
 			]),
 		}));
 
-		await createLifecycle(runtime, createLifetime(), () => {}).dispose();
+		await createLifecycle(
+			runtime,
+			createLifetime(),
+			() => {},
+			async () => {},
+		).dispose();
 
 		expect(runtime.store.getState().pendingRequests.size).toBe(0);
 	});
@@ -1476,7 +1481,12 @@ describe("dispose", () => {
 		const listener = vi.fn();
 		runtime.events.on("client:error", listener);
 
-		await createLifecycle(runtime, createLifetime(), () => {}).dispose();
+		await createLifecycle(
+			runtime,
+			createLifetime(),
+			() => {},
+			async () => {},
+		).dispose();
 		runtime.events.emit("client:error", {
 			error: new TransportError("After dispose"),
 		});
@@ -1591,7 +1601,12 @@ describe("lifetime", () => {
 		const lifetime = createLifetime();
 		return {
 			lifetime,
-			lifecycle: createLifecycle(runtime, lifetime, () => {}),
+			lifecycle: createLifecycle(
+				runtime,
+				lifetime,
+				() => {},
+				async () => {},
+			),
 		};
 	}
 
