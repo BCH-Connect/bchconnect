@@ -285,6 +285,9 @@ export interface Logger {
 }
 
 // @public
+export function memory(): KeyValueStore;
+
+// @public
 export interface MessageSigning {
     signMessage(req: SignMessageRequest): Promise<SignMessageResponse>;
 }
