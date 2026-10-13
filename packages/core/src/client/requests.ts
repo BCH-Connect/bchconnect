@@ -25,6 +25,15 @@ export interface Requests {
 	): Promise<unknown>;
 	/** Resolves once every request in flight has settled. */
 	settled(): Promise<void>;
+	/**
+	 * Listens to a protocol event on `session`, as `ClientLifecycle.subscribe`.
+	 * The subscription ends with the session, or when the client is disposed.
+	 */
+	subscribe(
+		session: Session,
+		event: string,
+		listener: (payload: unknown) => void,
+	): () => void;
 }
 
 interface RequestHandle {
@@ -53,8 +62,15 @@ export function createRequests(
 ): Requests {
 	const { store } = runtime;
 	const handles = new Map<string, RequestHandle>();
+	const subscriptions = new Map<string, Set<() => void>>();
 
-	// A request cannot outlive its session, whichever way the session ends.
+	function unsubscribeAll(sessionId: string) {
+		const unsubscribes = subscriptions.get(sessionId);
+		if (unsubscribes === undefined) return;
+		subscriptions.delete(sessionId);
+		for (const unsubscribe of unsubscribes) unsubscribe();
+	}
+
 	runtime.events.on("session:disconnected", ({ sessionId, reason }) => {
 		for (const handle of handles.values()) {
 			if (handle.sessionId !== sessionId) continue;
@@ -64,7 +80,45 @@ export function createRequests(
 			);
 			handle.end.abort(handle.ended);
 		}
+		unsubscribeAll(sessionId);
 	});
+	lifetime.signal.addEventListener("abort", () => {
+		for (const sessionId of [...subscriptions.keys()])
+			unsubscribeAll(sessionId);
+	});
+
+	function subscribe(
+		passedSession: Session,
+		event: string,
+		listener: (payload: unknown) => void,
+	): () => void {
+		const sessionId = passedSession.id;
+		const session = store.getState().sessions.get(sessionId);
+		const connector = session
+			? runtime.connectors.get(session.protocol)
+			: undefined;
+		if (session === undefined || connector === undefined) {
+			throw new SessionMissingError(
+				`Session "${sessionId}" is not currently connected`,
+				{ sessionId },
+			);
+		}
+
+		const unsubscribeFromConnector = connector.subscribe(
+			session,
+			event,
+			listener,
+		);
+		const unsubscribes = subscriptions.get(sessionId) ?? new Set();
+		subscriptions.set(sessionId, unsubscribes);
+		const unsubscribe = () => {
+			if (!unsubscribes.delete(unsubscribe)) return;
+			if (unsubscribes.size === 0) subscriptions.delete(sessionId);
+			unsubscribeFromConnector();
+		};
+		unsubscribes.add(unsubscribe);
+		return unsubscribe;
+	}
 
 	async function request(
 		passedSession: Session,
@@ -193,6 +247,7 @@ export function createRequests(
 
 	return {
 		request,
+		subscribe,
 		async settled() {
 			await Promise.all([...handles.values()].map((handle) => handle.settled));
 		},

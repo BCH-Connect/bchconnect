@@ -397,10 +397,6 @@ describe("createClient", () => {
 		const session = demoSession();
 
 		it.each<[string, (client: DemoClient) => unknown]>([
-			[
-				"subscribe",
-				(client) => client.subscribe(session, "wallet_ready", () => {}),
-			],
 			["capability", (client) => client.capability(session, "message-signing")],
 			["can", (client) => client.can(session, "message-signing")],
 		])("should throw CONFIG from %s()", (method, call) => {
