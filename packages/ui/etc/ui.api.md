@@ -4,6 +4,11 @@
 
 ```ts
 
+import { CSSResultGroup } from 'lit';
+import { LitElement } from 'lit';
+import { PropertyDeclarations } from 'lit';
+import { PropertyValues } from 'lit';
+
 // @beta
 export const BCHC_ACCENT_DEFAULT_NEUTRAL: Readonly<Record<BchcAccent, BchcNeutral>>;
 
@@ -47,15 +52,26 @@ export type BchcBlur = "none" | "small" | "large";
 export type BchcFont = "brand" | "system" | "mono";
 
 // @beta
-export class BchcModal extends ElementBase {
+export class BchcModal extends LitElement {
     constructor();
     close(): Promise<void>;
     // @internal
-    connectedCallback(): void;
+    override connectedCallback(): void;
     // @internal
-    disconnectedCallback(): void;
-    get view(): ModalView | null;
-    set view(next: ModalView | null);
+    override disconnectedCallback(): void;
+    // @internal
+    static override properties: PropertyDeclarations;
+    // @internal
+    protected override render(): unknown;
+    // @internal
+    static override styles: CSSResultGroup;
+    // @internal
+    protected override update(changed: PropertyValues<this>): void;
+    // @internal
+    protected override updated(): void;
+    view: ModalView | null;
+    // @internal
+    protected override willUpdate(): void;
 }
 
 // @beta
@@ -80,17 +96,22 @@ export type BchcNeutral = "sage" | "slate" | "sand" | "pure";
 export type BchcRadius = "none" | "small" | "medium" | "large" | "full";
 
 // @beta
-export class BchcToast extends ElementBase {
+export class BchcToast extends LitElement {
     constructor();
     // @internal
-    connectedCallback(): void;
-    // @internal
-    disconnectedCallback(): void;
+    override disconnectedCallback(): void;
     dismiss(): Promise<void>;
     get duration(): number;
     set duration(next: number);
-    get view(): ToastView | null;
-    set view(next: ToastView | null);
+    // @internal
+    static override properties: PropertyDeclarations;
+    // @internal
+    protected override render(): unknown;
+    // @internal
+    static override styles: CSSResultGroup;
+    // @internal
+    protected override updated(changed: PropertyValues<this>): void;
+    view: ToastView | null;
 }
 
 // @beta

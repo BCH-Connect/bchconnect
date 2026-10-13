@@ -5,8 +5,8 @@ import type { CodeRenderer } from "./code.ts";
 import { register } from "./register.ts";
 
 /**
- * Registers `<bchc-modal>` and `<bchc-toast>`. Idempotent and a no-op on a
- * server, so it's safe to call from shared code.
+ * Registers `<bchc-modal>` and `<bchc-toast>`. Idempotent; on a server it
+ * registers them in Lit's server registry, so it's safe to call from shared code.
  *
  * @example
  * ```ts
