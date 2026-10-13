@@ -25,7 +25,7 @@ function cleanManifest() {
 				// `this.x = …` is a real field; the analyzer also (mis)reads a
 				// deeper receiver, e.g. `this.#root.adoptedStyleSheets = …`, as a
 				// field of this class, naming it after the rightmost property.
-				if (expression.left.expression.kind === ts.SyntaxKind.ThisExpression)
+				if (expression.left.expression.kind === ts.SyntaxKind.ThisKeyword)
 					continue;
 				let names = nestedAssignments.get(className);
 				if (names === undefined) {
