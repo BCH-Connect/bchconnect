@@ -4,7 +4,7 @@ import {
 	SessionMissingError,
 	TransportError,
 } from "../errors.js";
-import { combineSignals, withTimeout } from "../internal/abort.js";
+import { combineSignals, isTimeoutMs, withTimeout } from "../internal/abort.js";
 import type { RequestOutcome } from "../types/client.js";
 import type { RequestOptions, Session } from "../types/protocol.js";
 import type { Lifetime } from "./lifetime.js";
@@ -69,11 +69,18 @@ export function createRequests(
 		if (pendingRequests.has(id)) {
 			throw new ConfigError(`Request "${id}" is already pending`);
 		}
+		if (opts.timeoutMs !== undefined && !isTimeoutMs(opts.timeoutMs)) {
+			throw new ConfigError(`Invalid timeoutMs: ${opts.timeoutMs}`);
+		}
 
-		const methods = connector.methods;
-		const userInteraction = methods
-			? methods[method]?.userInteraction === true
-			: false;
+		const metadata = connector.methods?.[method];
+		const userInteraction = metadata?.userInteraction === true;
+		const timeoutMs =
+			opts.timeoutMs ??
+			metadata?.timeoutMs ??
+			(userInteraction
+				? runtime.userInteractionTimeoutMs
+				: runtime.readTimeoutMs);
 
 		store.setState((state) => ({
 			...state,
@@ -96,8 +103,18 @@ export function createRequests(
 		let outcome: RequestOutcome = "resolved";
 		try {
 			return await withTimeout(
-				(signal) => connector.request(session, method, params, { signal, id }),
-				{ signal: combined.signal },
+				(signal) =>
+					connector.request(session, method, params, {
+						signal,
+						id,
+						// Omitted when there is no deadline; connectors read its absence as none.
+						...(timeoutMs === undefined ? {} : { timeoutMs }),
+					}),
+				{
+					signal: combined.signal,
+					timeoutMs,
+					timeoutMessage: `Request "${method}" timed out`,
+				},
 			);
 		} catch (error) {
 			const failure = isBchConnectError(error)

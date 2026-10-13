@@ -10,7 +10,11 @@ export interface MethodDefinition {
 	params: unknown;
 	/** Result the wallet returns, after validation. */
 	result: unknown;
-	/** Default timeout for this method in milliseconds. */
+	/**
+	 * Default timeout for this method in milliseconds: a positive, finite
+	 * number of at most 2^31 - 1. Omit it for a plain read or a request that
+	 * waits on the user; the client's defaults apply then.
+	 */
 	timeoutMs?: number;
 	/** True when the method waits on human approval in the wallet. */
 	userInteraction?: boolean;
