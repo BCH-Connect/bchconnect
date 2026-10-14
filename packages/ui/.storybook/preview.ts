@@ -13,6 +13,8 @@ import customElementsManifest from "../custom-elements.json" with {
 	type: "json",
 };
 import { defineElements } from "../src/index.ts";
+import { BCHC_MESSAGES_ES } from "../src/locales/es.ts";
+import type { BchcMessages } from "../src/messages.ts";
 import type { BchcMode } from "../src/theme.generated.ts";
 
 defineElements();
@@ -30,6 +32,13 @@ export function resolveDirection(globals: {
 	readonly direction?: unknown;
 }): "ltr" | "rtl" {
 	return globals.direction === "rtl" ? "rtl" : "ltr";
+}
+
+/** The built-in catalogue for a story's `locale` global; `null` keeps English. */
+export function resolveMessages(globals: {
+	readonly locale?: unknown;
+}): BchcMessages | null {
+	return globals.locale === "es" ? BCHC_MESSAGES_ES : null;
 }
 
 const COLOR_SCHEME: Readonly<Record<BchcMode, string>> = {
@@ -81,10 +90,23 @@ export default definePreview({
 				dynamicTitle: true,
 			},
 		},
+		locale: {
+			description: "Built-in locale BCH Connect elements render in",
+			toolbar: {
+				title: "Locale",
+				icon: "globe",
+				items: [
+					{ value: "en", title: "English" },
+					{ value: "es", title: "Español" },
+				],
+				dynamicTitle: true,
+			},
+		},
 	},
 	initialGlobals: {
 		mode: "auto",
 		direction: "ltr",
+		locale: "en",
 	},
 	parameters: {
 		// Both elements are viewport overlays, not inline content.

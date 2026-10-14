@@ -4,7 +4,7 @@
 import { html, nothing } from "lit";
 import { action } from "storybook/actions";
 import type { Mock } from "storybook/test";
-import { resolveMode } from "../.storybook/preview.ts";
+import { resolveMessages, resolveMode } from "../.storybook/preview.ts";
 import type { BchcMessages } from "../src/messages.ts";
 import type { ModalView } from "../src/state.ts";
 import type { ThemeArgs } from "./theme.ts";
@@ -44,7 +44,7 @@ export function detailOf<T>(spy: Mock<(event: Event) => void>): T {
 /** Wires theme args and a view onto `<bchc-modal>`; every modal story shares this. */
 export const modalRender = (
 	args: ModalStoryArgs,
-	context: { globals: { readonly mode?: unknown } },
+	context: { globals: { readonly mode?: unknown; readonly locale?: unknown } },
 ) => html`
 	<bchc-modal
 		data-bchc-accent=${args.accent ?? nothing}
@@ -54,7 +54,7 @@ export const modalRender = (
 		data-bchc-blur=${args.backdropBlur ?? nothing}
 		data-bchc-mode=${resolveMode(context.globals)}
 		.view=${args.view}
-		.messages=${args.messages ?? null}
+		.messages=${args.messages ?? resolveMessages(context.globals)}
 		@bchc-protocol=${action("bchc-protocol")}
 		@bchc-screen=${action("bchc-screen")}
 		@bchc-close=${action("bchc-close")}

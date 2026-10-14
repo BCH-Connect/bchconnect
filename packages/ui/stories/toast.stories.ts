@@ -2,7 +2,10 @@ import { html, nothing } from "lit";
 import { action } from "storybook/actions";
 import { waitForAnimations } from "storybook/preview-api";
 import { expect, fn, userEvent, waitFor } from "storybook/test";
-import preview, { resolveMode } from "../.storybook/preview.ts";
+import preview, {
+	resolveMessages,
+	resolveMode,
+} from "../.storybook/preview.ts";
 import type { BchcMessages } from "../src/messages.ts";
 import type { ToastView } from "../src/toast.ts";
 import { CONNECTED_WALLET } from "./fixtures.ts";
@@ -50,7 +53,7 @@ const meta = preview.type<{ args: ToastStoryArgs }>().meta({
 			data-bchc-mode=${resolveMode(context.globals)}
 			.view=${args.view}
 			.duration=${args.duration}
-			.messages=${args.messages ?? null}
+			.messages=${args.messages ?? resolveMessages(context.globals)}
 			@bchc-dismiss=${action("bchc-dismiss")}
 		></bchc-toast>
 	`,
