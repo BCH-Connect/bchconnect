@@ -862,3 +862,144 @@ describe("request", () => {
 		});
 	});
 });
+
+describe("subscribe", () => {
+	it("should deliver the connector's events to the listener", async () => {
+		const { client, connector, session } = await setup();
+		const seen: unknown[] = [];
+
+		client.subscribe(session, "wallet_ready", (payload) => seen.push(payload));
+		connector.emitProtocolEvent(session, "wallet_ready", { walletName: "W" });
+
+		expect(seen).toEqual([{ walletName: "W" }]);
+		expect(connector.log).toContainEqual({
+			kind: "subscribe",
+			sessionId: "s1",
+			event: "wallet_ready",
+		});
+	});
+
+	it("should throw SESSION_MISSING for a session that is not connected", async () => {
+		const { client, connector } = await setup({}, { restore: [] });
+		const stranger = demoSession({ id: "stranger" });
+
+		expect(() => client.subscribe(stranger, "wallet_ready", () => {})).toThrow(
+			SessionMissingError,
+		);
+		expect(connector.log.some((entry) => entry.kind === "subscribe")).toBe(
+			false,
+		);
+	});
+
+	it("should subscribe on the session in state when the caller holds an older snapshot", async () => {
+		const { client, connector, session } = await setup();
+		const changed = demoSession({
+			id: "s1",
+			status: { transport: "reconnecting", peer: "unknown" },
+		});
+		connector.emit("session:changed", { session: changed, previous: session });
+		const delegate = vi.spyOn(connector, "subscribe");
+
+		client.subscribe(session, "wallet_ready", () => {});
+
+		expect(delegate.mock.calls[0]?.[0]).toBe(changed);
+	});
+
+	it("should unsubscribe on the connector once, however many times it is called", async () => {
+		const { client, connector, session } = await setup();
+		const off = vi.fn();
+		vi.spyOn(connector, "subscribe").mockReturnValue(off);
+		const unsubscribe = client.subscribe(session, "wallet_ready", () => {});
+
+		unsubscribe();
+		unsubscribe();
+
+		expect(off).toHaveBeenCalledTimes(1);
+	});
+
+	it("should end the subscription when the dapp disconnects the session", async () => {
+		const { client, connector, session } = await setup();
+		const off = vi.fn();
+		vi.spyOn(connector, "subscribe").mockReturnValue(off);
+		const unsubscribe = client.subscribe(session, "wallet_ready", () => {});
+
+		await client.disconnect(session);
+		unsubscribe();
+
+		expect(off).toHaveBeenCalledTimes(1);
+	});
+
+	it("should not unsubscribe again at session end after the dapp did", async () => {
+		const { client, connector, session } = await setup();
+		const off = vi.fn();
+		vi.spyOn(connector, "subscribe").mockReturnValue(off);
+		const unsubscribe = client.subscribe(session, "wallet_ready", () => {});
+
+		unsubscribe();
+		await client.disconnect(session);
+
+		expect(off).toHaveBeenCalledTimes(1);
+	});
+
+	it("should end every subscription when the wallet ends the session", async () => {
+		const { client, connector, session } = await setup();
+		client.subscribe(session, "wallet_ready", () => {});
+		client.subscribe(session, "wallet_ready", () => {});
+		client.subscribe(session, "addresses_changed", () => {});
+
+		connector.emit("session:disconnected", {
+			sessionId: "s1",
+			reason: "wallet",
+		});
+
+		expect(
+			connector.log.filter((entry) => entry.kind === "unsubscribe"),
+		).toHaveLength(3);
+	});
+
+	it("should end the subscription when the wallet ends the session while subscribing", async () => {
+		const { client, connector, session } = await setup();
+		const off = vi.fn();
+		vi.spyOn(connector, "subscribe").mockImplementation(() => {
+			connector.emit("session:disconnected", {
+				sessionId: "s1",
+				reason: "wallet",
+			});
+			return off;
+		});
+
+		const unsubscribe = client.subscribe(session, "wallet_ready", () => {});
+		expect(off).toHaveBeenCalledTimes(1);
+
+		unsubscribe();
+		expect(off).toHaveBeenCalledTimes(1);
+	});
+
+	it("should leave the subscriptions of other sessions alone", async () => {
+		const first = demoSession({ id: "s1" });
+		const other = demoSession({ id: "s2" });
+		const { client, connector } = await setup({}, { restore: [first, other] });
+		const seen: unknown[] = [];
+		client.subscribe(other, "wallet_ready", (payload) => seen.push(payload));
+
+		await client.disconnect(first);
+		connector.emitProtocolEvent(other, "wallet_ready", { walletName: "W" });
+
+		expect(seen).toEqual([{ walletName: "W" }]);
+	});
+
+	it("should end every subscription when the client is disposed", async () => {
+		const first = demoSession({ id: "s1" });
+		const other = demoSession({ id: "s2" });
+		const { client, connector } = await setup({}, { restore: [first, other] });
+		const off = vi.fn();
+		vi.spyOn(connector, "subscribe").mockReturnValue(off);
+		const unsubscribe = client.subscribe(first, "wallet_ready", () => {});
+		client.subscribe(other, "wallet_ready", () => {});
+
+		await client.dispose();
+		unsubscribe();
+
+		expect(off).toHaveBeenCalledTimes(2);
+	});
+});

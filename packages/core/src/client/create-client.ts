@@ -176,9 +176,9 @@ export function createClient<const Connectors extends readonly Connector[]>(
 			assertUsable("request");
 			return requests.request(session, method, params, opts);
 		},
-		subscribe() {
+		subscribe(session, event, listener) {
 			assertUsable("subscribe");
-			throw notImplemented("subscribe");
+			return requests.subscribe(session, event, listener);
 		},
 		capability() {
 			assertUsable("capability");
