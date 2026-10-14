@@ -31,6 +31,9 @@ export const BCHC_DIRECTORY: readonly WalletDirectoryEntry[];
 export const BCHC_FONTS: readonly ["brand", "system", "mono"];
 
 // @beta
+export const BCHC_MESSAGES_EN: BchcMessages;
+
+// @beta
 export const BCHC_NEUTRALS: readonly ["sage", "slate", "sand", "pure"];
 
 // @beta
@@ -52,6 +55,43 @@ export type BchcBlur = "none" | "small" | "large";
 export type BchcFont = "brand" | "system" | "mono";
 
 // @beta
+export interface BchcMessages {
+    readonly abortedDetail: string;
+    readonly abortedTitle: string;
+    readonly back: string;
+    readonly close: string;
+    readonly connectedTo: (wallet: string) => string;
+    readonly connectTitle: string;
+    readonly copyLink: string;
+    readonly copyLinkLabel: string;
+    readonly directoryHeading: string;
+    readonly dismiss: string;
+    readonly getWallet: (name: string) => string;
+    readonly getWalletTitle: string;
+    readonly initiating: string;
+    readonly lang: string;
+    readonly linkCopied: string;
+    readonly linkFailed: string;
+    readonly networkMismatchDetail: string;
+    readonly networkMismatchTitle: string;
+    readonly noWallet: string;
+    readonly openInWallet: string;
+    readonly rejectedDetail: string;
+    readonly rejectedTitle: string;
+    readonly scan: string;
+    readonly sessionType: string;
+    readonly timeoutDetail: string;
+    readonly timeoutTitle: string;
+    readonly transportDetail: string;
+    readonly transportTitle: string;
+    readonly tryAgain: string;
+    readonly unsupportedDetail: string;
+    readonly unsupportedTitle: string;
+    readonly walletConnected: string;
+    readonly walletsHeading: string;
+}
+
+// @beta
 export class BchcModal extends LitElement {
     constructor();
     close(): Promise<void>;
@@ -59,6 +99,7 @@ export class BchcModal extends LitElement {
     override connectedCallback(): void;
     // @internal
     override disconnectedCallback(): void;
+    messages: Partial<BchcMessages> | null;
     // @internal
     static override properties: PropertyDeclarations;
     // @internal
@@ -71,7 +112,7 @@ export class BchcModal extends LitElement {
     protected override updated(): void;
     view: ModalView | null;
     // @internal
-    protected override willUpdate(): void;
+    protected override willUpdate(changed: PropertyValues<this>): void;
 }
 
 // @beta
@@ -103,6 +144,7 @@ export class BchcToast extends LitElement {
     dismiss(): Promise<void>;
     get duration(): number;
     set duration(next: number);
+    messages: Partial<BchcMessages> | null;
     // @internal
     static override properties: PropertyDeclarations;
     // @internal
@@ -186,7 +228,7 @@ export interface ToastView {
 export interface WalletDirectoryEntry {
     readonly id: string;
     readonly link: {
-        readonly label: string;
+        readonly label?: string;
         readonly href: string;
     } | null;
     readonly logo: string | null;
