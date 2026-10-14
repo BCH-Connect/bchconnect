@@ -6,6 +6,7 @@ import preview, {
 	resolveMessages,
 	resolveMode,
 } from "../.storybook/preview.ts";
+import { BCHC_MESSAGES_ES } from "../src/locales/es.ts";
 import type { BchcMessages } from "../src/messages.ts";
 import type { ToastView } from "../src/toast.ts";
 import { CONNECTED_WALLET } from "./fixtures.ts";
@@ -131,6 +132,22 @@ export const MessagesOverride = meta.story({
 		const dismiss = shadow.querySelector(".toast-dismiss");
 		expect(dismiss?.getAttribute("aria-label")).toBe("Fixture dismiss");
 		expect(shadow.querySelector(".toast")?.getAttribute("lang")).toBe("qaa");
+	},
+});
+
+// The built-in Spanish catalogue: heading, dismiss's accessible name and `lang`.
+export const ConnectedEs = meta.story({
+	args: { messages: BCHC_MESSAGES_ES },
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const shadow = toastShadow(canvasElement);
+		const heading = shadow.querySelector(".done-title");
+		expect(heading?.textContent).toBe(
+			BCHC_MESSAGES_ES.connectedTo(CONNECTED_WALLET.name),
+		);
+		const dismiss = shadow.querySelector(".toast-dismiss");
+		expect(dismiss?.getAttribute("aria-label")).toBe(BCHC_MESSAGES_ES.dismiss);
+		expect(shadow.querySelector(".toast")?.getAttribute("lang")).toBe("es");
 	},
 });
 

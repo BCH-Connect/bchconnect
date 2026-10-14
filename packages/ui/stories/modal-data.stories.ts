@@ -7,6 +7,7 @@ import { waitForAnimations } from "storybook/preview-api";
 import { expect, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { BCHC_PROTOCOLS } from "../src/defaults.ts";
+import { BCHC_MESSAGES_EN } from "../src/messages.ts";
 import {
 	BROKEN_LOGO_WALLET,
 	CJK_NAME,
@@ -16,12 +17,14 @@ import {
 	HTML_LIKE_DIRECTORY_ENTRY,
 	HTML_LIKE_NAME,
 	HTML_LIKE_WALLET,
+	LABELED_DIRECTORY_ENTRY,
 	LONG_LINK_LABEL_DIRECTORY_ENTRY,
 	LONG_NAME,
 	LONG_NAME_DIRECTORY_ENTRY,
 	LONG_NAME_WALLET,
 	manyDirectory,
 	manyWallets,
+	NO_LABEL_DIRECTORY_ENTRY,
 	NO_LINK_DIRECTORY_ENTRY,
 	NULL_LOGO_DIRECTORY_ENTRY,
 	NULL_LOGO_WALLET,
@@ -286,6 +289,30 @@ export const LongDirectoryLinkLabel = meta.story({
 		expect(button.textContent).toContain(
 			LONG_LINK_LABEL_DIRECTORY_ENTRY.link?.label,
 		);
+		await waitForAnimations();
+	},
+});
+
+// A directory entry with no `label` falls back to `getWallet(name)`; one
+// carrying its own `label` shows that instead.
+export const DirectoryLinkFallback = meta.story({
+	args: {
+		view: viewFor({
+			screen: "wallets",
+			directory: [NO_LABEL_DIRECTORY_ENTRY, LABELED_DIRECTORY_ENTRY],
+		}),
+	},
+	play: async ({ canvasElement }) => {
+		const shadow = modalShadow(canvasElement);
+		const rows = shadow.querySelectorAll<HTMLElement>(".directory-row");
+		const fallback = rows[0]?.querySelector(".directory-links .button");
+		const labeled = rows[1]?.querySelector(".directory-links .button");
+		if (fallback === null || fallback === undefined || labeled == null)
+			throw new Error("directory link button missing");
+		expect(fallback.textContent).toContain(
+			BCHC_MESSAGES_EN.getWallet(NO_LABEL_DIRECTORY_ENTRY.name),
+		);
+		expect(labeled.textContent).toContain(LABELED_DIRECTORY_ENTRY.link?.label);
 		await waitForAnimations();
 	},
 });
