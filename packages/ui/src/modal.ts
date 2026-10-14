@@ -214,6 +214,7 @@ export class BchcModal extends LitElement {
 	/** Lit's reactive property declarations. @internal */
 	static override properties: PropertyDeclarations = {
 		view: { attribute: false },
+		messages: { attribute: false },
 		_appearance: { state: true },
 		_bodyView: { state: true },
 		_bodyKey: { state: true },
@@ -232,6 +233,13 @@ export class BchcModal extends LitElement {
 
 	/** The state to render. Setting it re-renders the modal. */
 	declare view: ModalView | null;
+
+	/**
+	 * Overrides for the strings this element shows and announces.
+	 *
+	 * @defaultValue `null`
+	 */
+	declare messages: Partial<BchcMessages> | null;
 
 	// One per shown shell: a new key makes Lit build a fresh shell, which enters again.
 	declare private _appearance: number | null;
@@ -268,13 +276,16 @@ export class BchcModal extends LitElement {
 	readonly #codeHost: HTMLButtonElement = document.createElement("button");
 
 	get #messages(): BchcMessages {
-		return BCHC_MESSAGES_EN;
+		return this.messages === null
+			? BCHC_MESSAGES_EN
+			: { ...BCHC_MESSAGES_EN, ...this.messages };
 	}
 
 	constructor() {
 		super();
 		// Assigned here, not as class fields, which would shadow the reactive accessors.
 		this.view = null;
+		this.messages = null;
 		this._appearance = null;
 		this._bodyView = null;
 		this._bodyKey = null;
@@ -289,7 +300,6 @@ export class BchcModal extends LitElement {
 		this.#codeHost.className = "code";
 		this.#codeHost.type = "button";
 		this.#codeHost.setAttribute("data-act", "copy");
-		this.#codeHost.setAttribute("aria-label", this.#messages.copyLinkLabel);
 	}
 
 	/** Called by the browser when the element is attached. @internal */
@@ -472,7 +482,9 @@ export class BchcModal extends LitElement {
 	}
 
 	/** Lit hook run before each render; derives the shell and body state from `view`. @internal */
-	protected override willUpdate(): void {
+	protected override willUpdate(changed: PropertyValues<this>): void {
+		// Before the early returns: `messages` set while closed or detached must still reach the code host.
+		this.#codeHost.setAttribute("aria-label", this.#messages.copyLinkLabel);
 		const view = this.view;
 		if (view === null) {
 			this.#hide();
@@ -486,6 +498,10 @@ export class BchcModal extends LitElement {
 			this.#appearances += 1;
 			this._appearance = this.#appearances;
 			this._title = this.#messages[TITLE_KEYS[view.screen]];
+		} else if (changed.has("messages")) {
+			// New wording for the screen still on display; `updated` then animates any screen change as usual.
+			const shown = changed.get("view") ?? view;
+			this._title = this.#messages[TITLE_KEYS[shown.screen]];
 		}
 		const previousSheet = this._sheet;
 		// Bound rather than toggled after render, so the first style pass already sees them.
@@ -569,6 +585,7 @@ export class BchcModal extends LitElement {
 			this._appearance,
 			html`<div
 				class="overlay ${classMap({ "is-sheet": this._sheet, "is-rtl": this._rtl })}"
+				lang=${messages.lang}
 				${ref(this.#overlay)}
 				@click=${this.#onOverlayClick}
 				@keydown=${this.#onOverlayKeydown}

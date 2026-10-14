@@ -8,7 +8,7 @@
  * @beta
  */
 export interface BchcMessages {
-	/** The catalogue's language, as a BCP 47 tag. */
+	/** The catalogue's language, as a BCP 47 tag. The element sets it on its shadow content. */
 	readonly lang: string;
 	/** Dialog title on the connect screen. */
 	readonly connectTitle: string;

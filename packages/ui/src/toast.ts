@@ -73,6 +73,7 @@ export class BchcToast extends LitElement {
 	/** Lit's reactive property declarations. @internal */
 	static override properties: PropertyDeclarations = {
 		view: { attribute: false },
+		messages: { attribute: false },
 		_appearance: { state: true },
 	};
 
@@ -85,6 +86,13 @@ export class BchcToast extends LitElement {
 	 * and logo in place, without replaying the entrance.
 	 */
 	declare view: ToastView | null;
+
+	/**
+	 * Overrides for the strings this element shows and announces.
+	 *
+	 * @defaultValue `null`
+	 */
+	declare messages: Partial<BchcMessages> | null;
 
 	/**
 	 * How long the toast stays before it dismisses itself, in milliseconds.
@@ -115,7 +123,9 @@ export class BchcToast extends LitElement {
 	#duration = DEFAULT_DURATION;
 
 	get #messages(): BchcMessages {
-		return BCHC_MESSAGES_EN;
+		return this.messages === null
+			? BCHC_MESSAGES_EN
+			: { ...BCHC_MESSAGES_EN, ...this.messages };
 	}
 
 	// Ticked down on pause, restarted with this value on resume.
@@ -127,6 +137,7 @@ export class BchcToast extends LitElement {
 		super();
 		// Assigned here, not as class fields, which would shadow the reactive accessors.
 		this.view = null;
+		this.messages = null;
 		this._appearance = 0;
 	}
 
@@ -168,6 +179,7 @@ export class BchcToast extends LitElement {
 			this._appearance,
 			html`<div
 				class="toast"
+				lang=${messages.lang}
 				@click=${this.#onClick}
 				@pointerenter=${this.#onPauseStart}
 				@pointerleave=${this.#onPauseEnd}

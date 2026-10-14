@@ -5,14 +5,19 @@ import { html, nothing } from "lit";
 import { action } from "storybook/actions";
 import type { Mock } from "storybook/test";
 import { resolveMode } from "../.storybook/preview.ts";
+import type { BchcMessages } from "../src/messages.ts";
 import type { ModalView } from "../src/state.ts";
 import type { ThemeArgs } from "./theme.ts";
 
 export interface ModalStoryArgs extends ThemeArgs {
 	readonly view: ModalView;
+	readonly messages?: Partial<BchcMessages> | null;
 }
 
-export type ModalElement = HTMLElement & { view: ModalView | null };
+export type ModalElement = HTMLElement & {
+	view: ModalView | null;
+	messages: Partial<BchcMessages> | null;
+};
 
 /** The rendered `<bchc-modal>` in a story's canvas; throws if it never painted. */
 export function modalHost(canvasElement: HTMLElement): ModalElement {
@@ -49,6 +54,7 @@ export const modalRender = (
 		data-bchc-blur=${args.backdropBlur ?? nothing}
 		data-bchc-mode=${resolveMode(context.globals)}
 		.view=${args.view}
+		.messages=${args.messages ?? null}
 		@bchc-protocol=${action("bchc-protocol")}
 		@bchc-screen=${action("bchc-screen")}
 		@bchc-close=${action("bchc-close")}

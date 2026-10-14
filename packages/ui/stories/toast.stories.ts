@@ -3,6 +3,7 @@ import { action } from "storybook/actions";
 import { waitForAnimations } from "storybook/preview-api";
 import { expect, fn, userEvent, waitFor } from "storybook/test";
 import preview, { resolveMode } from "../.storybook/preview.ts";
+import type { BchcMessages } from "../src/messages.ts";
 import type { ToastView } from "../src/toast.ts";
 import { CONNECTED_WALLET } from "./fixtures.ts";
 import { THEME_ARG_TYPES, type ThemeArgs } from "./theme.ts";
@@ -11,6 +12,7 @@ import { THEME_ARG_TYPES, type ThemeArgs } from "./theme.ts";
 interface ToastStoryArgs extends Omit<ThemeArgs, "backdropBlur"> {
 	readonly view: ToastView;
 	readonly duration: number;
+	readonly messages?: Partial<BchcMessages> | null;
 }
 
 const { backdropBlur: _, ...TOAST_ARG_TYPES } = THEME_ARG_TYPES;
@@ -48,6 +50,7 @@ const meta = preview.type<{ args: ToastStoryArgs }>().meta({
 			data-bchc-mode=${resolveMode(context.globals)}
 			.view=${args.view}
 			.duration=${args.duration}
+			.messages=${args.messages ?? null}
 			@bchc-dismiss=${action("bchc-dismiss")}
 		></bchc-toast>
 	`,
@@ -103,6 +106,29 @@ export const NoLogo = meta.story({
 
 export const Unidentified = meta.story({
 	args: { view: { walletName: null, walletLogo: null } },
+});
+
+// Fixture copy, not a real translation: a function key, a plain key, and
+// `lang` all take effect.
+export const MessagesOverride = meta.story({
+	args: {
+		messages: {
+			connectedTo: (wallet) => `Fixture connected: ${wallet}`,
+			dismiss: "Fixture dismiss",
+			lang: "qaa",
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const shadow = toastShadow(canvasElement);
+		const heading = shadow.querySelector(".done-title");
+		expect(heading?.textContent).toBe(
+			`Fixture connected: ${CONNECTED_WALLET.name}`,
+		);
+		const dismiss = shadow.querySelector(".toast-dismiss");
+		expect(dismiss?.getAttribute("aria-label")).toBe("Fixture dismiss");
+		expect(shadow.querySelector(".toast")?.getAttribute("lang")).toBe("qaa");
+	},
 });
 
 export const AutoDismiss = meta.story({

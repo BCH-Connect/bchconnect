@@ -204,6 +204,68 @@ export const ClosesOnConnect = meta.story({
 	},
 });
 
+// Fixture copy, not a real translation: proves a partial override renders
+// and an un-overridden string stays English.
+export const MessagesOverride = meta.story({
+	args: {
+		view: viewFor({ phase: { kind: "failed", reason: "rejected" } }),
+		messages: { connectTitle: "Fixture title", tryAgain: "Fixture retry" },
+	},
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const shadow = modalShadow(canvasElement);
+		const title = shadow.querySelector(".title");
+		expect(title?.textContent).toBe("Fixture title");
+		const retry = shadow.querySelector('[data-act="retry"]');
+		expect(retry?.textContent).toContain("Fixture retry");
+		const close = shadow.querySelector('[aria-label="Close"]');
+		expect(close).not.toBeNull();
+		const overlay = shadow.querySelector(".overlay");
+		expect(overlay?.getAttribute("lang")).toBe("en");
+	},
+});
+
+// Setting `messages` while the modal is already open must take effect
+// without a page reload: title, the code's accessible name, and `lang`.
+export const MessagesLiveChange = meta.story({
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		modal.messages = {
+			connectTitle: "Fixture connect",
+			copyLinkLabel: "Fixture copy label",
+			lang: "qaa",
+		};
+		await waitFor(() =>
+			expect(shadow.querySelector(".title")?.textContent).toBe(
+				"Fixture connect",
+			),
+		);
+		const code = shadow.querySelector(".code");
+		expect(code?.getAttribute("aria-label")).toBe("Fixture copy label");
+		expect(shadow.querySelector(".overlay")?.getAttribute("lang")).toBe("qaa");
+	},
+});
+
+export const MessagesSetWhileClosed = meta.story({
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const view = modal.view;
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		modal.messages = { copyLinkLabel: "Fixture copy label" };
+		modal.view = view;
+		await waitFor(() =>
+			expect(shadow.querySelector(".code")?.getAttribute("aria-label")).toBe(
+				"Fixture copy label",
+			),
+		);
+	},
+});
+
 // Tagged so the dedicated reduced-motion Vitest project (see vitest.config.ts)
 // is the only one that runs it; the other browsers already cover this story's
 // markup under ordinary motion via `Scan`.
