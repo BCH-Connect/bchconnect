@@ -118,3 +118,19 @@ export const BCHC_MESSAGES_EN: BchcMessages = {
 	unsupportedTitle: "That wallet can't use this session type",
 	unsupportedDetail: "Choose another session type, or another wallet.",
 };
+
+/**
+ * The English catalogue with `overrides` applied key by key.
+ *
+ * @internal
+ */
+export function mergeMessages(
+	overrides: Partial<BchcMessages> | null,
+): BchcMessages {
+	if (overrides === null) return BCHC_MESSAGES_EN;
+	// JavaScript callers can pass `undefined` despite the type; it keeps the English value instead of blanking the string.
+	const defined = Object.entries(overrides).filter(
+		([, value]) => value !== undefined,
+	);
+	return { ...BCHC_MESSAGES_EN, ...Object.fromEntries(defined) };
+}

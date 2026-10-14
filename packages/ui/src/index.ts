@@ -6,6 +6,8 @@
  * attributes on the element itself: `data-bchc-accent`, `data-bchc-neutral`,
  * `data-bchc-radius`, `data-bchc-font`, `data-bchc-blur` and
  * `data-bchc-mode`, each taking the values of the exported `Bchc*` types.
+ * Reword or translate an element's strings with its `messages` property,
+ * typed by {@link BchcMessages}
  * The elements render with Lit: a page that enforces Trusted Types
  * (`require-trusted-types-for 'script'`) must allow the `lit-html` policy in
  * its `trusted-types` directive.

@@ -8,7 +8,7 @@ import {
 } from "lit";
 import { keyed } from "lit/directives/keyed.js";
 import { icon } from "./icons.ts";
-import { BCHC_MESSAGES_EN, type BchcMessages } from "./messages.ts";
+import { type BchcMessages, mergeMessages } from "./messages.ts";
 import { animationsFinished } from "./motion.ts";
 import theme from "./styles/theme.generated.css" with { type: "css" };
 import toast from "./styles/toast.css" with { type: "css" };
@@ -123,9 +123,7 @@ export class BchcToast extends LitElement {
 	#duration = DEFAULT_DURATION;
 
 	get #messages(): BchcMessages {
-		return this.messages === null
-			? BCHC_MESSAGES_EN
-			: { ...BCHC_MESSAGES_EN, ...this.messages };
+		return mergeMessages(this.messages);
 	}
 
 	// Ticked down on pause, restarted with this value on resume.

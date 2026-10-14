@@ -18,7 +18,7 @@ import { repeat } from "lit/directives/repeat.js";
 import { type CodeRenderer, renderCode } from "./code.ts";
 import { safeHref } from "./html.ts";
 import { icon } from "./icons.ts";
-import { BCHC_MESSAGES_EN, type BchcMessages } from "./messages.ts";
+import { type BchcMessages, mergeMessages } from "./messages.ts";
 import {
 	animationsFinished,
 	crossfade,
@@ -276,9 +276,7 @@ export class BchcModal extends LitElement {
 	readonly #codeHost: HTMLButtonElement = document.createElement("button");
 
 	get #messages(): BchcMessages {
-		return this.messages === null
-			? BCHC_MESSAGES_EN
-			: { ...BCHC_MESSAGES_EN, ...this.messages };
+		return mergeMessages(this.messages);
 	}
 
 	constructor() {
