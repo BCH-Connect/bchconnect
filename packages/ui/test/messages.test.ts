@@ -17,10 +17,17 @@ describe("mergeMessages", () => {
 		expect(merged.back).toBe(BCHC_MESSAGES_EN.back);
 	});
 
-	it("keeps English for keys a JavaScript caller sets to undefined", () => {
-		const overrides = { close: undefined, getWallet: undefined };
+	it("returns English when a JavaScript caller passes undefined", () => {
+		expect(
+			mergeMessages(undefined as unknown as Partial<BchcMessages> | null),
+		).toBe(BCHC_MESSAGES_EN);
+	});
+
+	it("keeps English for keys a JavaScript caller sets to undefined or null", () => {
+		const overrides = { close: undefined, back: null, getWallet: undefined };
 		const merged = mergeMessages(overrides as unknown as Partial<BchcMessages>);
 		expect(merged.close).toBe(BCHC_MESSAGES_EN.close);
+		expect(merged.back).toBe(BCHC_MESSAGES_EN.back);
 		expect(merged.getWallet("X")).toBe(BCHC_MESSAGES_EN.getWallet("X"));
 	});
 });

@@ -127,10 +127,11 @@ export const BCHC_MESSAGES_EN: BchcMessages = {
 export function mergeMessages(
 	overrides: Partial<BchcMessages> | null,
 ): BchcMessages {
-	if (overrides === null) return BCHC_MESSAGES_EN;
-	// JavaScript callers can pass `undefined` despite the type; it keeps the English value instead of blanking the string.
+	// JavaScript callers can pass `undefined` or `null` despite the type, for the whole
+	// catalogue or a key; either keeps English instead of throwing or blanking a string.
+	if (overrides == null) return BCHC_MESSAGES_EN;
 	const defined = Object.entries(overrides).filter(
-		([, value]) => value !== undefined,
+		([, value]) => value != null,
 	);
 	return { ...BCHC_MESSAGES_EN, ...Object.fromEntries(defined) };
 }
