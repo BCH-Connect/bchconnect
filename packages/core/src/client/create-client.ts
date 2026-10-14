@@ -107,6 +107,7 @@ export function createClient<const Connectors extends readonly Connector[]>(
 		runtime,
 		lifetime,
 		sessions.onConnectorEvent,
+		requests.settled,
 	);
 	const { store } = runtime;
 

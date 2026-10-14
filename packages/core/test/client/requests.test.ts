@@ -664,6 +664,23 @@ describe("request", () => {
 			expect(client.store.getState().pendingRequests.size).toBe(0);
 		});
 
+		it("should reject a signal that is not one before tracking anything", async () => {
+			const { client, connector, session, events } = await setup({
+				get_addresses: async () => ({ addresses: [] }),
+			});
+
+			await expect(
+				client.request(session, "get_addresses", undefined, {
+					signal: {} as AbortSignal,
+				}),
+			).rejects.toBeInstanceOf(TypeError);
+
+			expect(connector.calls).toEqual([]);
+			expect(events).toEqual([]);
+			expect(client.store.getState().pendingRequests.size).toBe(0);
+			await expect(client.dispose()).resolves.toBeUndefined();
+		});
+
 		it("should not call the connector when the signal is already aborted", async () => {
 			const { client, connector, session, events } = await setup({
 				get_addresses: async () => ({ addresses: [] }),
@@ -684,23 +701,164 @@ describe("request", () => {
 		});
 
 		it("should reject ABORTED when the client is disposed while the request is pending", async () => {
-			const { client, connector, session } = await setup({
+			const { client, connector, session, events } = await setup({
 				sign_message: "hang",
 			});
-			const pending = client.request(session, "sign_message", {
-				message: "hi",
-			});
+			const pending = client.request(
+				session,
+				"sign_message",
+				{ message: "hi" },
+				{ id: "d" },
+			);
 			await settle();
 			let notifications = 0;
 			client.store.subscribe(() => notifications++);
 
 			await client.dispose();
 
+			// Settled, and announced, before dispose() resolved.
+			expect(events[1]).toEqual([
+				"request:settled",
+				{ id: "d", sessionId: "s1", outcome: "aborted" },
+			]);
 			await expect(pending).rejects.toBeInstanceOf(AbortedError);
 			expect(connector.calls[0]?.signal?.aborted).toBe(true);
 			expect(client.store.getState().pendingRequests.size).toBe(0);
 			// The teardown's own transition; the request adds none.
 			expect(notifications).toBe(1);
+		});
+	});
+
+	describe("session end", () => {
+		it("should reject SESSION_MISSING when the session is disconnected by the dapp", async () => {
+			const { client, connector, session, events } = await setup({
+				sign_message: "hang",
+			});
+			const pending = client.request(
+				session,
+				"sign_message",
+				{ message: "hi" },
+				{ id: "e" },
+			);
+			await settle();
+
+			await client.disconnect(session);
+
+			const error = await rejection(pending);
+			expect(error).toBeInstanceOf(SessionMissingError);
+			expect(error.sessionId).toBe("s1");
+			expect(error.cause).toBe("user");
+			expect(connector.calls[0]?.signal?.aborted).toBe(true);
+			expect(events[1]).toEqual([
+				"request:settled",
+				{ id: "e", sessionId: "s1", outcome: "rejected" },
+			]);
+			expect(client.store.getState().pendingRequests.size).toBe(0);
+		});
+
+		it("should carry the reason when the wallet ends the session", async () => {
+			const { client, connector, session, events } = await setup({
+				sign_message: "hang",
+			});
+			const pending = client.request(session, "sign_message", {
+				message: "hi",
+			});
+			await settle();
+
+			connector.emit("session:disconnected", {
+				sessionId: "s1",
+				reason: "wallet",
+			});
+
+			const error = await rejection(pending);
+			expect(error).toBeInstanceOf(SessionMissingError);
+			expect(error.cause).toBe("wallet");
+			expect(events[1]?.[1]).toMatchObject({ outcome: "rejected" });
+		});
+
+		it("should keep an earlier abort when the session ends in the same tick", async () => {
+			const { client, connector, session, events } = await setup({
+				sign_message: "hang",
+			});
+			const controller = new AbortController();
+			const pending = client.request(
+				session,
+				"sign_message",
+				{ message: "hi" },
+				{ signal: controller.signal },
+			);
+			await settle();
+
+			controller.abort();
+			connector.emit("session:disconnected", {
+				sessionId: "s1",
+				reason: "wallet",
+			});
+
+			await expect(pending).rejects.toBeInstanceOf(AbortedError);
+			expect(events[1]?.[1]).toMatchObject({ outcome: "aborted" });
+		});
+
+		it("should reject a request issued while the session is being announced as gone", async () => {
+			const { client, session } = await setup({
+				get_addresses: async () => ({ addresses: [] }),
+			});
+			let issued: Promise<unknown> | undefined;
+			client.on("session:disconnected", () => {
+				issued = client.request(session, "get_addresses", undefined);
+			});
+
+			await client.disconnect(session);
+
+			await expect(issued).rejects.toBeInstanceOf(SessionMissingError);
+		});
+
+		it("should end the requests of a session that connect() replaces", async () => {
+			const connector = createFakeConnector<DemoProtocol>({
+				protocol: "demo",
+				restore: [demoSession({ id: "s1" })],
+				session: demoSession({ id: "s2" }),
+				methods: { sign_message: "hang" },
+			});
+			const client = createClient({
+				connectors: [connector],
+				network: "chipnet",
+				appMetadata,
+			});
+			await client.init();
+			const pending = client.request(
+				demoSession({ id: "s1" }),
+				"sign_message",
+				{
+					message: "hi",
+				},
+			);
+			await settle();
+
+			await client.connect("demo");
+
+			const error = await rejection(pending);
+			expect(error).toBeInstanceOf(SessionMissingError);
+			expect(error.sessionId).toBe("s1");
+		});
+
+		it("should leave the requests of other sessions alone", async () => {
+			const first = demoSession({ id: "s1" });
+			const other = demoSession({ id: "s2" });
+			const { client, connector, events } = await setup(
+				{ sign_message: "hang" },
+				{ restore: [first, other] },
+			);
+			const kept = client.request(other, "sign_message", { message: "hi" });
+			await settle();
+
+			await client.disconnect(first);
+			await settle();
+
+			expect(events).toHaveLength(1);
+			expect(connector.pending[0]?.signal?.aborted).toBe(false);
+			connector.pending[0]?.resolve("sig");
+			await expect(kept).resolves.toBe("sig");
 		});
 	});
 });

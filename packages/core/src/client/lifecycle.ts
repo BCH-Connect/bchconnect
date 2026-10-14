@@ -118,7 +118,12 @@ function withSavedIdentity(
  *
  * @example
  * ```ts
- * const lifecycle = createLifecycle(runtime, lifetime, sessions.onConnectorEvent);
+ * const lifecycle = createLifecycle(
+ * 	runtime,
+ * 	lifetime,
+ * 	sessions.onConnectorEvent,
+ * 	requests.settled,
+ * );
  * await lifecycle.init();
  * ```
  *
@@ -128,6 +133,7 @@ export function createLifecycle(
 	runtime: ClientRuntime,
 	lifetime: Lifetime,
 	onConnectorEvent: ConnectorEventHandler,
+	requestsSettled: () => Promise<void>,
 ): Lifecycle {
 	const { store } = runtime;
 	const persistence = createPersistence(runtime);
@@ -297,6 +303,7 @@ export function createLifecycle(
 		}
 
 		await persistence.stop();
+		await requestsSettled();
 		runtime.events.clear();
 	}
 
