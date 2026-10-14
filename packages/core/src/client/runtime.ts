@@ -37,6 +37,8 @@ export interface ClientRuntime {
 	readonly readTimeoutMs: number;
 	/** Default deadline for `connect()`, if the dapp set one. */
 	readonly connectTimeoutMs: number | undefined;
+	/** Default deadline for a request that waits on the user, if the dapp set one. */
+	readonly userInteractionTimeoutMs: number | undefined;
 	/** Where the client snapshot is persisted: the configured storage, else memory. */
 	readonly clientStorage: KeyValueStore;
 	/** Storage the connector namespaces live in. Never the client tier. */
@@ -124,6 +126,7 @@ export function createClientRuntime(
 		logger,
 		readTimeoutMs: config.defaultTimeoutMs?.read ?? 30_000,
 		connectTimeoutMs: config.defaultTimeoutMs?.connect,
+		userInteractionTimeoutMs: config.defaultTimeoutMs?.userInteraction,
 		clientStorage: config.storage ?? memory(),
 		connectorStorage: memory(),
 		disabled: new Map(),

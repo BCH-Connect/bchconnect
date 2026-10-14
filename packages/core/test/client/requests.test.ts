@@ -4,7 +4,7 @@ import {
 	demoMetadata,
 	demoSession,
 } from "@bchconnect/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../src/client/create-client.js";
 import {
 	AbortedError,
@@ -151,7 +151,11 @@ describe("request", () => {
 			expect(call?.params).toEqual({ address: "a" });
 			expect(call?.opts?.id).toMatch(uuid);
 			expect(call?.signal).toBeInstanceOf(AbortSignal);
-			expect(call?.opts).toEqual({ signal: call?.signal, id: call?.opts?.id });
+			expect(call?.opts).toEqual({
+				signal: call?.signal,
+				id: call?.opts?.id,
+				timeoutMs: 5_000,
+			});
 		});
 
 		it("should pass a caller-supplied id through unchanged", async () => {
@@ -394,6 +398,220 @@ describe("request", () => {
 			expect(error).toBeInstanceOf(TransportError);
 			expect(error.cause).toBeInstanceOf(TypeError);
 		});
+	});
+
+	describe("deadlines", () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		it("should give a read the client's default of thirty seconds", async () => {
+			const { client, connector, session, events } = await setup({
+				get_addresses: "hang",
+			});
+			const failure = rejection(
+				client.request(session, "get_addresses", undefined, { id: "r" }),
+			);
+
+			expect(connector.calls[0]?.opts?.timeoutMs).toBe(30_000);
+			await vi.advanceTimersByTimeAsync(29_999);
+			expect(events).toHaveLength(1);
+			await vi.advanceTimersByTimeAsync(1);
+
+			expect(await failure).toBeInstanceOf(TimeoutError);
+			expect(connector.calls[0]?.signal?.aborted).toBe(true);
+			expect(events[1]).toEqual([
+				"request:settled",
+				{ id: "r", sessionId: "s1", outcome: "timeout" },
+			]);
+			expect(client.store.getState().pendingRequests.size).toBe(0);
+		});
+
+		it("should prefer the method's own deadline over the read default", async () => {
+			const { client, connector, session } = await setup({
+				get_balance: "hang",
+			});
+			const failure = rejection(
+				client.request(session, "get_balance", { address: "a" }),
+			);
+
+			expect(connector.calls[0]?.opts?.timeoutMs).toBe(5_000);
+			await vi.advanceTimersByTimeAsync(5_000);
+
+			expect(await failure).toBeInstanceOf(TimeoutError);
+		});
+
+		it("should prefer the caller's deadline over everything", async () => {
+			const { client, connector, session } = await setup({
+				get_balance: "hang",
+			});
+			const failure = rejection(
+				client.request(
+					session,
+					"get_balance",
+					{ address: "a" },
+					{ timeoutMs: 10 },
+				),
+			);
+
+			expect(connector.calls[0]?.opts?.timeoutMs).toBe(10);
+			await vi.advanceTimersByTimeAsync(10);
+
+			expect(await failure).toBeInstanceOf(TimeoutError);
+		});
+
+		it("should keep the user-interaction label when the caller sets a deadline", async () => {
+			const { client, connector, session, events } = await setup({
+				sign_message: "hang",
+			});
+			const failure = rejection(
+				client.request(
+					session,
+					"sign_message",
+					{ message: "hi" },
+					{ timeoutMs: 10, id: "u" },
+				),
+			);
+
+			expect(client.store.getState().pendingRequests.get("u")).toMatchObject({
+				userInteraction: true,
+			});
+			expect(events[0]?.[1]).toMatchObject({ userInteraction: true });
+			expect(connector.calls[0]?.opts?.timeoutMs).toBe(10);
+			await vi.advanceTimersByTimeAsync(10);
+
+			expect(await failure).toBeInstanceOf(TimeoutError);
+		});
+
+		it("should abort the connector's signal with the timeout as its reason", async () => {
+			const { client, connector, session } = await setup({
+				get_balance: "hang",
+			});
+			const failure = rejection(
+				client.request(session, "get_balance", { address: "a" }),
+			);
+			await vi.advanceTimersByTimeAsync(5_000);
+
+			const error = await failure;
+			expect(connector.calls[0]?.signal?.reason).toBe(error);
+		});
+
+		it("should set no deadline on a request that waits on the user", async () => {
+			const { client, connector, session, events } = await setup({
+				sign_message: "hang",
+			});
+			const pending = client.request(session, "sign_message", {
+				message: "hi",
+			});
+
+			expect(vi.getTimerCount()).toBe(0);
+			expect(connector.calls[0]?.opts).not.toHaveProperty("timeoutMs");
+			await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000);
+			expect(events).toHaveLength(1);
+
+			connector.pending[0]?.resolve("sig");
+			await expect(pending).resolves.toBe("sig");
+		});
+
+		it("should apply a configured default to requests that wait on the user", async () => {
+			const connector = createFakeConnector<DemoProtocol>({
+				protocol: "demo",
+				restore: [demoSession({ id: "s1" })],
+				methods: { sign_message: "hang" },
+				metadata: demoMetadata,
+			});
+			const client = createClient({
+				connectors: [connector],
+				network: "chipnet",
+				appMetadata,
+				defaultTimeoutMs: { userInteraction: 60_000 },
+			});
+			await client.init();
+			const failure = rejection(
+				client.request(demoSession({ id: "s1" }), "sign_message", {
+					message: "hi",
+				}),
+			);
+
+			expect(connector.calls[0]?.opts?.timeoutMs).toBe(60_000);
+			await vi.advanceTimersByTimeAsync(60_000);
+
+			expect(await failure).toBeInstanceOf(TimeoutError);
+		});
+
+		it("should apply a configured read default", async () => {
+			const connector = createFakeConnector<DemoProtocol>({
+				protocol: "demo",
+				restore: [demoSession({ id: "s1" })],
+				methods: { get_addresses: "hang" },
+			});
+			const client = createClient({
+				connectors: [connector],
+				network: "chipnet",
+				appMetadata,
+				defaultTimeoutMs: { read: 100 },
+			});
+			await client.init();
+			const failure = rejection(
+				client.request(demoSession({ id: "s1" }), "get_addresses", undefined),
+			);
+
+			expect(connector.calls[0]?.opts?.timeoutMs).toBe(100);
+			await vi.advanceTimersByTimeAsync(100);
+
+			expect(await failure).toBeInstanceOf(TimeoutError);
+		});
+
+		it("should ignore a result that arrives after the deadline", async () => {
+			const { client, connector, session, events } = await setup({
+				get_balance: "hang",
+			});
+			const failure = rejection(
+				client.request(session, "get_balance", { address: "a" }),
+			);
+			const held = connector.pending[0];
+			await vi.advanceTimersByTimeAsync(5_000);
+			expect(await failure).toBeInstanceOf(TimeoutError);
+
+			held?.resolve({ sats: 1n });
+			await vi.advanceTimersByTimeAsync(0);
+
+			expect(events).toHaveLength(2);
+			expect(client.store.getState().pendingRequests.size).toBe(0);
+		});
+
+		it("should clear the timer when the request settles first", async () => {
+			const { client, connector, session } = await setup({
+				get_balance: "hang",
+			});
+			const pending = client.request(session, "get_balance", { address: "a" });
+
+			expect(vi.getTimerCount()).toBe(1);
+			connector.pending[0]?.resolve({ sats: 1n });
+			await expect(pending).resolves.toEqual({ sats: 1n });
+
+			expect(vi.getTimerCount()).toBe(0);
+		});
+
+		it.each([0, -1, 1.5e10, Number.NaN, Number.POSITIVE_INFINITY])(
+			"should reject CONFIG for the deadline %s",
+			async (timeoutMs) => {
+				const { client, connector, session, events } = await setup({
+					get_addresses: async () => ({ addresses: [] }),
+				});
+
+				await expect(
+					client.request(session, "get_addresses", undefined, { timeoutMs }),
+				).rejects.toThrow(ConfigError);
+
+				expect(connector.calls).toEqual([]);
+				expect(events).toEqual([]);
+				expect(client.store.getState().pendingRequests.size).toBe(0);
+			},
+		);
 	});
 
 	describe("cancellation", () => {
