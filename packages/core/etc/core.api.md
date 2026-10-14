@@ -216,6 +216,9 @@ export interface ContractDisplay {
 }
 
 // @public
+export function cookieStorage(cookieHeader?: string): KeyValueStore;
+
+// @public
 export function createClient<const Connectors extends readonly Connector[]>(config: ClientConfig<Connectors>): Client<ProtocolOf<Connectors[number]>>;
 
 // @public
