@@ -75,8 +75,12 @@ export interface WalletDirectoryEntry {
 	readonly name: string;
 	/** The wallet's logo, as a URL or data URI, or `null` to show a generic wallet mark. */
 	readonly logo: string | null;
-	/** Where to get the wallet, or `null` when there is nowhere to send visitors yet. The row is then shown with no link. */
-	readonly link: { readonly label: string; readonly href: string } | null;
+	/**
+	 * Where to get the wallet, or `null` when there is nowhere to send
+	 * visitors yet. The row is then shown with no link. `label` is optional;
+	 * without it the modal falls back to `messages.getWallet(name)`.
+	 */
+	readonly link: { readonly label?: string; readonly href: string } | null;
 }
 
 /**
@@ -173,33 +177,3 @@ export interface ModalView {
 	/** Where the attempt currently is. */
 	readonly phase: ConnectPhase;
 }
-
-// Second person, plain, no exclamation marks; never a code, URI, or transport name.
-export const FAILURE_COPY: Readonly<
-	Record<FailureReason, { readonly title: string; readonly detail: string }>
-> = {
-	rejected: {
-		title: "Your wallet declined",
-		detail: "Nothing was shared and nothing was sent.",
-	},
-	timeout: {
-		title: "No answer from your wallet",
-		detail: "It may have closed before approving. You can try again.",
-	},
-	aborted: {
-		title: "Connection stopped",
-		detail: "The request ended before your wallet answered.",
-	},
-	transport: {
-		title: "Couldn't reach your wallet",
-		detail: "Try again in a moment.",
-	},
-	"network-mismatch": {
-		title: "Your wallet is on a different network",
-		detail: "Switch networks in your wallet, then connect again.",
-	},
-	unsupported: {
-		title: "That wallet can't use this session type",
-		detail: "Choose another session type, or another wallet.",
-	},
-};

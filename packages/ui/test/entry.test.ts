@@ -37,6 +37,7 @@ describe("package entry", () => {
 			"BCHC_DEFAULT_NEUTRAL",
 			"BCHC_DIRECTORY",
 			"BCHC_FONTS",
+			"BCHC_MESSAGES_EN",
 			"BCHC_NEUTRALS",
 			"BCHC_PROTOCOLS",
 			"BCHC_RADII",

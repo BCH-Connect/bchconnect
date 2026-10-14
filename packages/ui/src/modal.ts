@@ -18,6 +18,7 @@ import { repeat } from "lit/directives/repeat.js";
 import { type CodeRenderer, renderCode } from "./code.ts";
 import { safeHref } from "./html.ts";
 import { icon } from "./icons.ts";
+import { BCHC_MESSAGES_EN, type BchcMessages } from "./messages.ts";
 import {
 	animationsFinished,
 	crossfade,
@@ -33,7 +34,6 @@ import {
 } from "./motion.ts";
 import { type DraggableSheet, draggableSheet } from "./sheet.ts";
 import {
-	FAILURE_COPY,
 	type FailureReason,
 	type ModalScreen,
 	type ModalView,
@@ -73,6 +73,32 @@ const NO_BROKEN_LOGOS: ReadonlySet<string> = new Set();
 
 type CaptionKind = "initiating" | "hint" | "scan" | "none";
 
+// The catalogue's copy keys: `lang` is a tag, and the function keys need a value.
+type MessageTextKey = Exclude<
+	{
+		[K in keyof BchcMessages]: BchcMessages[K] extends string ? K : never;
+	}[keyof BchcMessages],
+	"lang"
+>;
+
+// Exhaustive on FailureReason, so a new reason fails typecheck here first.
+const FAILURE_MESSAGE_KEYS: Readonly<
+	Record<
+		FailureReason,
+		{ readonly title: MessageTextKey; readonly detail: MessageTextKey }
+	>
+> = {
+	rejected: { title: "rejectedTitle", detail: "rejectedDetail" },
+	timeout: { title: "timeoutTitle", detail: "timeoutDetail" },
+	aborted: { title: "abortedTitle", detail: "abortedDetail" },
+	transport: { title: "transportTitle", detail: "transportDetail" },
+	"network-mismatch": {
+		title: "networkMismatchTitle",
+		detail: "networkMismatchDetail",
+	},
+	unsupported: { title: "unsupportedTitle", detail: "unsupportedDetail" },
+};
+
 // How the next body rebuild moves: measured in `willUpdate`, played around the commit in `update`.
 type BodyMotion =
 	| { readonly kind: "crossfade"; readonly sheet: boolean }
@@ -82,11 +108,12 @@ type BodyMotion =
 			readonly rows: Map<string, RowSnapshot>;
 	  };
 
-function titleOf(view: ModalView): string {
-	return view.screen === "wallets" ? "Get a wallet" : "Connect a wallet";
-}
+const TITLE_KEYS: Readonly<Record<ModalScreen, MessageTextKey>> = {
+	connect: "connectTitle",
+	wallets: "getWalletTitle",
+};
 
-function captionOf(view: ModalView, linkFailed: boolean): CaptionKind {
+function captionKind(view: ModalView, linkFailed: boolean): CaptionKind {
 	switch (view.phase.kind) {
 		case "initiating":
 			return "initiating";
@@ -97,20 +124,20 @@ function captionOf(view: ModalView, linkFailed: boolean): CaptionKind {
 	}
 }
 
-function copyFace(copied: boolean): TemplateResult {
+function copyFace(messages: BchcMessages, copied: boolean): TemplateResult {
 	return copied
-		? html`${icon("check")}Link copied`
-		: html`${icon("link")}Copy link`;
+		? html`${icon("check")}${messages.linkCopied}`
+		: html`${icon("link")}${messages.copyLink}`;
 }
 
-function caption(kind: CaptionKind): unknown {
+function caption(messages: BchcMessages, kind: CaptionKind): unknown {
 	switch (kind) {
 		case "initiating":
-			return html`<span class="dots"><i></i><i></i><i></i></span><span class="caption-text">Getting your connection link</span>`;
+			return html`<span class="dots"><i></i><i></i><i></i></span><span class="caption-text">${messages.initiating}</span>`;
 		case "hint":
-			return html`${icon("info")}<span class="caption-text">Didn't open? Copy the link.</span>`;
+			return html`${icon("info")}<span class="caption-text">${messages.linkFailed}</span>`;
 		case "scan":
-			return html`${icon("scanLine")}<span class="caption-text">Scan with your wallet</span>`;
+			return html`${icon("scanLine")}<span class="caption-text">${messages.scan}</span>`;
 		default:
 			return nothing;
 	}
@@ -129,14 +156,17 @@ const RING = html`<svg class="ring" width="96" height="96" viewBox="0 0 96 96" f
 	},
 )}</svg>`;
 
-function statusFace(reason: FailureReason | null): unknown {
+function statusFace(
+	messages: BchcMessages,
+	reason: FailureReason | null,
+): unknown {
 	if (reason === null) return nothing;
-	const copy = FAILURE_COPY[reason];
+	const keys = FAILURE_MESSAGE_KEYS[reason];
 	return html`
 		<span class="status-mark">${RING}${icon("x", 34)}</span>
-		<strong class="status-title">${copy.title}</strong>
-		<p class="status-detail">${copy.detail}</p>
-		<button class="button primary pill retry" type="button" data-act="retry">${icon("rotateCcw", 15)}Try again</button>
+		<strong class="status-title">${messages[keys.title]}</strong>
+		<p class="status-detail">${messages[keys.detail]}</p>
+		<button class="button primary pill retry" type="button" data-act="retry">${icon("rotateCcw", 15)}${messages.tryAgain}</button>
 	`;
 }
 
@@ -237,6 +267,10 @@ export class BchcModal extends LitElement {
 	// Outlives every re-render, so the renderer updates the existing drawing instead of restarting it.
 	readonly #codeHost: HTMLButtonElement = document.createElement("button");
 
+	get #messages(): BchcMessages {
+		return BCHC_MESSAGES_EN;
+	}
+
 	constructor() {
 		super();
 		// Assigned here, not as class fields, which would shadow the reactive accessors.
@@ -255,7 +289,7 @@ export class BchcModal extends LitElement {
 		this.#codeHost.className = "code";
 		this.#codeHost.type = "button";
 		this.#codeHost.setAttribute("data-act", "copy");
-		this.#codeHost.setAttribute("aria-label", "Copy connection link");
+		this.#codeHost.setAttribute("aria-label", this.#messages.copyLinkLabel);
 	}
 
 	/** Called by the browser when the element is attached. @internal */
@@ -451,7 +485,7 @@ export class BchcModal extends LitElement {
 			if (view.phase.kind === "connected") return;
 			this.#appearances += 1;
 			this._appearance = this.#appearances;
-			this._title = titleOf(view);
+			this._title = this.#messages[TITLE_KEYS[view.screen]];
 		}
 		const previousSheet = this._sheet;
 		// Bound rather than toggled after render, so the first style pass already sees them.
@@ -472,7 +506,7 @@ export class BchcModal extends LitElement {
 		if (key === previousKey) return;
 		this._bodyKey = key;
 		this._linkFailed = false;
-		this._caption = captionOf(view, false);
+		this._caption = captionKind(view, false);
 		this._status = view.phase.kind === "failed" ? view.phase.reason : null;
 		this.#motion = null;
 
@@ -530,6 +564,7 @@ export class BchcModal extends LitElement {
 	protected override render(): unknown {
 		const view = this.view;
 		if (this._appearance === null || view === null) return nothing;
+		const messages = this.#messages;
 		return keyed(
 			this._appearance,
 			html`<div
@@ -542,10 +577,10 @@ export class BchcModal extends LitElement {
 				<div class="card" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1" ${ref(this.#card)}>
 					<div class="grabber" aria-hidden="true"></div>
 					<div class="head">
-						<button class="back" type="button" data-act="back" aria-label="Back" .hidden=${view.screen !== "wallets"}>${icon("chevronLeft")}</button>
+						<button class="back" type="button" data-act="back" aria-label=${messages.back} .hidden=${view.screen !== "wallets"}>${icon("chevronLeft")}</button>
 						<h2 class="title" id="modal-title">${this._title}</h2>
 						<span class="badge" .hidden=${view.network === "mainnet" || view.screen === "wallets"}>${NETWORK_LABEL[view.network]}</span>
-						<button class="close" type="button" aria-label="Close">${icon("x")}</button>
+						<button class="close" type="button" aria-label=${messages.close}>${icon("x")}</button>
 					</div>
 					<div class="body" ${ref(this.#body)}>${this.#bodyTemplate()}</div>
 				</div>
@@ -585,7 +620,7 @@ export class BchcModal extends LitElement {
 		const sheet = this._sheet;
 
 		const title = overlay.querySelector(".title");
-		const titleText = titleOf(view);
+		const titleText = this.#messages[TITLE_KEYS[view.screen]];
 		if (title instanceof HTMLElement && titleText !== this._title) {
 			retext(title, titleText, () => {
 				this._title = titleText;
@@ -630,15 +665,15 @@ export class BchcModal extends LitElement {
 
 	// A swap from a body that was rebuilt meanwhile is dropped; the new body already shows the view.
 	#retextBody(body: HTMLElement, view: ModalView): void {
-		const captionKind = captionOf(view, this._linkFailed);
+		const nextCaption = captionKind(view, this._linkFailed);
 		const captionElement = body.querySelector(".caption");
 		if (
 			captionElement instanceof HTMLElement &&
-			captionKind !== this._caption
+			nextCaption !== this._caption
 		) {
-			retext(captionElement, captionKind, () => {
+			retext(captionElement, nextCaption, () => {
 				if (!captionElement.isConnected) return;
-				this._caption = captionKind;
+				this._caption = nextCaption;
 				return this.updateComplete;
 			});
 		}
@@ -672,11 +707,12 @@ export class BchcModal extends LitElement {
 	// A native <select> opens an unstyleable platform menu, so this pops a styled listbox.
 	#sessionType(view: ModalView): TemplateResult {
 		const current = view.protocols.find((entry) => entry.id === view.protocol);
+		const sessionType = this.#messages.sessionType;
 		// A single session type has nothing to choose, so it shows as the same pill, without the chevron or any interactive state.
 		if (view.protocols.length === 1) {
 			return html`
 				<div class="field">
-					<span class="label" id="session-type">Session type</span>
+					<span class="label" id="session-type">${sessionType}</span>
 					<span class="select" aria-labelledby="session-type">${current?.name ?? ""}</span>
 				</div>
 			`;
@@ -684,7 +720,7 @@ export class BchcModal extends LitElement {
 		// `aria-expanded` and the menu's `hidden` are static: the menu methods own them.
 		return html`
 			<div class="field">
-				<span class="label" id="session-type">Session type</span>
+				<span class="label" id="session-type">${sessionType}</span>
 				<div class="select-wrap">
 					<button class="select" type="button" data-act="menu" aria-haspopup="listbox" aria-expanded="false" aria-controls="session-menu" aria-labelledby="session-type select-value">
 						<span id="select-value">${current?.name ?? ""}</span>
@@ -792,7 +828,7 @@ export class BchcModal extends LitElement {
 
 	#walletPrompt(): TemplateResult {
 		// data-id lets it FLIP with the rows instead of jumping to its new place.
-		return html`<p class="get-one" data-id="get-one"><button type="button" data-act="wallets">Don't have a wallet?</button></p>`;
+		return html`<p class="get-one" data-id="get-one"><button type="button" data-act="wallets">${this.#messages.noWallet}</button></p>`;
 	}
 
 	// `null`, empty, whitespace-only or failed renders the generic wallet tile in place of an `<img>`.
@@ -822,22 +858,24 @@ export class BchcModal extends LitElement {
 	// The component-owned code host goes where the slot was, so the drawing survives rebuilds.
 	#code(view: ModalView): TemplateResult {
 		const failed = view.phase.kind === "failed";
+		const messages = this.#messages;
 		return html`
 			<div class="tile ${classMap({ "is-initiating": view.phase.kind === "initiating", "is-failed": failed })}">
 				<span class="probe" aria-hidden="true"></span>
 				<span class="skeleton" aria-hidden="true"></span>
 				${codeRenderer === null ? html`<div class="code"></div>` : this.#codeHost}
-				<div class="status" role="status">${statusFace(this._status)}</div>
+				<div class="status" role="status">${statusFace(messages, this._status)}</div>
 			</div>
 			<div class="footer ${classMap({ "is-void": failed })}">
-				<p class="caption">${caption(this._caption)}</p>
-				<button class="button pill ${classMap({ "is-copied": this._copied })}" type="button" data-act="copy" .disabled=${view.phase.kind !== "awaiting-approval"}>${copyFace(this._copied)}</button>
+				<p class="caption">${caption(messages, this._caption)}</p>
+				<button class="button pill ${classMap({ "is-copied": this._copied })}" type="button" data-act="copy" .disabled=${view.phase.kind !== "awaiting-approval"}>${copyFace(messages, this._copied)}</button>
 			</div>
 		`;
 	}
 
 	#connectScreen(view: ModalView, sheet: boolean): TemplateResult {
 		const failed = view.phase.kind === "failed";
+		const messages = this.#messages;
 		// No href keeps the anchor inert and unfocusable, instead of navigating to `#`.
 		const link =
 			view.phase.kind === "awaiting-approval"
@@ -850,8 +888,8 @@ export class BchcModal extends LitElement {
 					${this.#sessionType(view)}
 					${this.#code(view)}
 					<div class="primary-slot ${classMap({ "is-failed": failed })}">
-						<a class="button primary block" data-act="open" href=${link ?? nothing} aria-disabled=${link === null ? "true" : nothing}>Open in your wallet</a>
-						<button class="button primary block retry" type="button" data-act="retry">${icon("rotateCcw", 15)}Try again</button>
+						<a class="button primary block" data-act="open" href=${link ?? nothing} aria-disabled=${link === null ? "true" : nothing}>${messages.openInWallet}</a>
+						<button class="button primary block retry" type="button" data-act="retry">${icon("rotateCcw", 15)}${messages.tryAgain}</button>
 					</div>
 					${this.#walletPrompt()}
 				</div>
@@ -863,7 +901,7 @@ export class BchcModal extends LitElement {
 			<div class="split">
 				<div class="left">
 					${this.#sessionType(view)}
-					<p class="section-label">Open in your wallet</p>
+					<p class="section-label">${messages.walletsHeading}</p>
 					<div class="wallets">
 						${repeat(
 							view.wallets,
@@ -890,9 +928,10 @@ export class BchcModal extends LitElement {
 	}
 
 	#walletsScreen(view: ModalView): TemplateResult {
+		const messages = this.#messages;
 		return html`
 			<div class="single">
-				<p class="section-label">Bitcoin Cash wallets that work here</p>
+				<p class="section-label">${messages.directoryHeading}</p>
 				<div class="directory">
 					${view.directory.map((entry) => {
 						const href = entry.link === null ? null : safeHref(entry.link.href);
@@ -909,7 +948,7 @@ export class BchcModal extends LitElement {
 							${logo}
 							${name}
 							<span class="directory-links">
-								<span class="button pill">${entry.link?.label ?? "Get it"}${icon("arrowUpRight", 14)}</span>
+								<span class="button pill">${entry.link?.label ?? messages.getWallet(entry.name)}${icon("arrowUpRight", 14)}</span>
 							</span>
 						</a>`;
 					})}

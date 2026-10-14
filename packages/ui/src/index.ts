@@ -20,6 +20,8 @@ export {
 	BCHC_WALLETS,
 } from "./defaults.ts";
 export { defineElements } from "./define.ts";
+export type { BchcMessages } from "./messages.ts";
+export { BCHC_MESSAGES_EN } from "./messages.ts";
 export type { BchcModalEvents } from "./modal.ts";
 export { BchcModal } from "./modal.ts";
 export type {
