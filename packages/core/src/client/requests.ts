@@ -69,10 +69,6 @@ export function createRequests(
 		if (pendingRequests.has(id)) {
 			throw new ConfigError(`Request "${id}" is already pending`);
 		}
-		if (opts.timeoutMs !== undefined && !isTimeoutMs(opts.timeoutMs)) {
-			throw new ConfigError(`Invalid timeoutMs: ${opts.timeoutMs}`);
-		}
-
 		const metadata = connector.methods?.[method];
 		const userInteraction = metadata?.userInteraction === true;
 		const timeoutMs =
@@ -81,6 +77,9 @@ export function createRequests(
 			(userInteraction
 				? runtime.userInteractionTimeoutMs
 				: runtime.readTimeoutMs);
+		if (timeoutMs !== undefined && !isTimeoutMs(timeoutMs)) {
+			throw new ConfigError(`Invalid timeoutMs: ${timeoutMs}`);
+		}
 
 		store.setState((state) => ({
 			...state,
