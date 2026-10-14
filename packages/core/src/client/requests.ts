@@ -109,6 +109,12 @@ export function createRequests(
 			event,
 			listener,
 		);
+		// The connector may end the session before `subscribe()` returns, when
+		// there was nothing to unsubscribe yet.
+		if (!store.getState().sessions.has(sessionId)) {
+			unsubscribeFromConnector();
+			return () => {};
+		}
 		const unsubscribes = subscriptions.get(sessionId) ?? new Set();
 		subscriptions.set(sessionId, unsubscribes);
 		const unsubscribe = () => {

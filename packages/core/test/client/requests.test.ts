@@ -957,6 +957,24 @@ describe("subscribe", () => {
 		).toHaveLength(3);
 	});
 
+	it("should end the subscription when the wallet ends the session while subscribing", async () => {
+		const { client, connector, session } = await setup();
+		const off = vi.fn();
+		vi.spyOn(connector, "subscribe").mockImplementation(() => {
+			connector.emit("session:disconnected", {
+				sessionId: "s1",
+				reason: "wallet",
+			});
+			return off;
+		});
+
+		const unsubscribe = client.subscribe(session, "wallet_ready", () => {});
+		expect(off).toHaveBeenCalledTimes(1);
+
+		unsubscribe();
+		expect(off).toHaveBeenCalledTimes(1);
+	});
+
 	it("should leave the subscriptions of other sessions alone", async () => {
 		const first = demoSession({ id: "s1" });
 		const other = demoSession({ id: "s2" });
