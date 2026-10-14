@@ -63,6 +63,22 @@ export const LONG_LINK_LABEL_DIRECTORY_ENTRY: WalletDirectoryEntry = {
 	},
 };
 
+/** No `label`: the link falls back to the catalogue's `getWallet(name)`. */
+export const NO_LABEL_DIRECTORY_ENTRY: WalletDirectoryEntry = {
+	id: "no-label",
+	name: "No Label Wallet",
+	logo: SVG_LOGO,
+	link: { href: "https://example.com/no-label" },
+};
+
+/** Carries its own `label`, which wins over the `getWallet(name)` fallback. */
+export const LABELED_DIRECTORY_ENTRY: WalletDirectoryEntry = {
+	id: "labeled",
+	name: "Labeled Wallet",
+	logo: SVG_LOGO,
+	link: { label: "Download now", href: "https://example.com/labeled" },
+};
+
 /** No usable link: the row renders with no "Get it" pill at all. */
 export const NO_LINK_DIRECTORY_ENTRY: WalletDirectoryEntry = {
 	id: "no-link",

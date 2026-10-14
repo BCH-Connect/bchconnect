@@ -6,6 +6,7 @@ import { waitForAnimations } from "storybook/preview-api";
 import { expect, userEvent, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { BCHC_PROTOCOLS } from "../src/defaults.ts";
+import { BCHC_MESSAGES_EN, type BchcMessages } from "../src/messages.ts";
 import {
 	ARABIC_NAME,
 	CJK_NAME,
@@ -273,6 +274,31 @@ export const InternationalWalletNamesRtl = meta.story({
 			(el) => el.textContent,
 		);
 		expect(names).toEqual([CJK_NAME, EMOJI_NAME, ARABIC_NAME, HEBREW_NAME]);
+		await waitForAnimations();
+	},
+});
+
+// Fixture copy, not a real translation: a handful of keys stand in for an
+// Arabic locale so `dir="rtl"` and a non-English `messages.lang` are proven
+// together, the combination a built-in locale alone wouldn't cover (both
+// built-in locales ship LTR today).
+const FIXTURE_MESSAGES_AR: BchcMessages = {
+	...BCHC_MESSAGES_EN,
+	lang: "ar",
+	connectTitle: ARABIC_NAME,
+};
+
+export const ScanRtlTranslated = meta.story({
+	args: { messages: FIXTURE_MESSAGES_AR },
+	globals: { direction: "rtl" },
+	play: async ({ canvasElement }) => {
+		const shadow = modalShadow(canvasElement);
+		const overlay = shadow.querySelector(".overlay");
+		if (overlay === null) throw new Error("overlay missing");
+		expect(overlay.getAttribute("lang")).toBe("ar");
+		expect(getComputedStyle(overlay).direction).toBe("rtl");
+		const title = shadow.querySelector(".title");
+		expect(title?.textContent).toBe(ARABIC_NAME);
 		await waitForAnimations();
 	},
 });

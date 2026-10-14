@@ -1,9 +1,15 @@
 import { waitForAnimations } from "storybook/preview-api";
 import { expect } from "storybook/test";
 import preview from "../.storybook/preview.ts";
+import { BCHC_MESSAGES_ES } from "../src/locales/es.ts";
 import { manyDirectory, manyWallets } from "./custom-wallets.ts";
 import { viewFor } from "./fixtures.ts";
-import { type ModalStoryArgs, modalRender, modalShadow } from "./modal.ts";
+import {
+	expectFailureCopy,
+	type ModalStoryArgs,
+	modalRender,
+	modalShadow,
+} from "./modal.ts";
 import { THEME_ARG_TYPES } from "./theme.ts";
 
 const meta = preview.type<{ args: ModalStoryArgs }>().meta({
@@ -52,6 +58,47 @@ export const FailurePhone = meta.story({
 	play: async ({ canvasElement }) => {
 		await waitForAnimations();
 		const shadow = expectSheet(canvasElement);
+		const retry = shadow.querySelector('[data-act="retry"]');
+		if (!(retry instanceof HTMLElement))
+			throw new Error("retry button missing");
+		const box = retry.getBoundingClientRect();
+		expect(box.bottom).toBeLessThanOrEqual(667);
+		expect(box.top).toBeGreaterThanOrEqual(0);
+	},
+});
+
+// Same failure as `FailurePhone`, in Spanish: the status copy, `lang` and the
+// sheet layout all hold at the drawer's own breakpoint.
+export const FailurePhoneEs = meta.story({
+	args: {
+		view: viewFor({ phase: { kind: "failed", reason: "unsupported" } }),
+		messages: BCHC_MESSAGES_ES,
+	},
+	globals: { viewport: { value: "phoneSmall" } },
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const shadow = expectSheet(canvasElement);
+		expectFailureCopy(canvasElement, "unsupported", BCHC_MESSAGES_ES);
+		const overlay = shadow.querySelector(".overlay");
+		expect(overlay?.getAttribute("lang")).toBe("es");
+
+		const tile = shadow.querySelector(".tile");
+		const title = shadow.querySelector(".status-title");
+		const detail = shadow.querySelector(".status-detail");
+		if (
+			!(tile instanceof HTMLElement) ||
+			!(title instanceof HTMLElement) ||
+			!(detail instanceof HTMLElement)
+		)
+			throw new Error("tile, status title or status detail missing");
+		const tileBox = tile.getBoundingClientRect();
+		const titleBox = title.getBoundingClientRect();
+		const detailBox = detail.getBoundingClientRect();
+		expect(titleBox.top).toBeGreaterThanOrEqual(tileBox.top - 1);
+		expect(titleBox.bottom).toBeLessThanOrEqual(tileBox.bottom + 1);
+		expect(detailBox.top).toBeGreaterThanOrEqual(tileBox.top - 1);
+		expect(detailBox.bottom).toBeLessThanOrEqual(tileBox.bottom + 1);
+
 		const retry = shadow.querySelector('[data-act="retry"]');
 		if (!(retry instanceof HTMLElement))
 			throw new Error("retry button missing");

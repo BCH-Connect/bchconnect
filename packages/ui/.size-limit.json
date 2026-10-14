@@ -4,7 +4,7 @@
 		"path": "dist/index.js",
 		"import": "{ defineElements }",
 		"gzip": true,
-		"limit": "42 kB"
+		"limit": "42.5 kB"
 	},
 	{
 		"name": "Default data (protocols, wallets, directory)",
@@ -19,5 +19,12 @@
 		"import": "{ BCHC_ACCENTS, BCHC_NEUTRALS, BCHC_RADII, BCHC_FONTS, BCHC_BLURS }",
 		"gzip": true,
 		"limit": "250 B"
+	},
+	{
+		"name": "Spanish locale",
+		"path": "dist/locales/es.js",
+		"import": "{ BCHC_MESSAGES_ES }",
+		"gzip": true,
+		"limit": "1 kB"
 	}
 ]

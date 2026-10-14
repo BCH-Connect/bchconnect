@@ -100,24 +100,24 @@ export const BCHC_DIRECTORY: readonly WalletDirectoryEntry[] = [
 		id: "cashonize",
 		name: "Cashonize",
 		logo: LOGO_CASHONIZE,
-		link: { label: "Get Cashonize", href: "https://about.cashonize.com/" },
+		link: { href: "https://about.cashonize.com/" },
 	},
 	{
 		id: "selene",
 		name: "Selene",
 		logo: LOGO_SELENE,
-		link: { label: "Get Selene", href: "https://selene.cash" },
+		link: { href: "https://selene.cash" },
 	},
 	{
 		id: "paytaca",
 		name: "Paytaca",
 		logo: LOGO_PAYTACA,
-		link: { label: "Get Paytaca", href: "https://paytaca.com" },
+		link: { href: "https://paytaca.com" },
 	},
 	{
 		id: "optn",
 		name: "OPTN",
 		logo: LOGO_OPTN,
-		link: { label: "Get OPTN", href: "https://optn.cash" },
+		link: { href: "https://optn.cash" },
 	},
 ];

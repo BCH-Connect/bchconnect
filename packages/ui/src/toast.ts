@@ -8,6 +8,7 @@ import {
 } from "lit";
 import { keyed } from "lit/directives/keyed.js";
 import { icon } from "./icons.ts";
+import { type BchcMessages, mergeMessages } from "./messages.ts";
 import { animationsFinished } from "./motion.ts";
 import theme from "./styles/theme.generated.css" with { type: "css" };
 import toast from "./styles/toast.css" with { type: "css" };
@@ -72,6 +73,7 @@ export class BchcToast extends LitElement {
 	/** Lit's reactive property declarations. @internal */
 	static override properties: PropertyDeclarations = {
 		view: { attribute: false },
+		messages: { attribute: false },
 		_appearance: { state: true },
 	};
 
@@ -84,6 +86,13 @@ export class BchcToast extends LitElement {
 	 * and logo in place, without replaying the entrance.
 	 */
 	declare view: ToastView | null;
+
+	/**
+	 * Overrides for the strings this element shows and announces.
+	 *
+	 * @defaultValue `null`
+	 */
+	declare messages: Partial<BchcMessages> | null;
 
 	/**
 	 * How long the toast stays before it dismisses itself, in milliseconds.
@@ -113,6 +122,10 @@ export class BchcToast extends LitElement {
 	#exiting = false;
 	#duration = DEFAULT_DURATION;
 
+	get #messages(): BchcMessages {
+		return mergeMessages(this.messages);
+	}
+
 	// Ticked down on pause, restarted with this value on resume.
 	#remainingMs = DEFAULT_DURATION;
 	#timerStartedAt = 0;
@@ -122,6 +135,7 @@ export class BchcToast extends LitElement {
 		super();
 		// Assigned here, not as class fields, which would shadow the reactive accessors.
 		this.view = null;
+		this.messages = null;
 		this._appearance = 0;
 	}
 
@@ -157,11 +171,13 @@ export class BchcToast extends LitElement {
 		const view = this.view;
 		if (view === null) return nothing;
 		const logo = view.walletLogo;
+		const messages = this.#messages;
 		// Siblings, not nested: a live region inside the button wouldn't announce.
 		return keyed(
 			this._appearance,
 			html`<div
 				class="toast"
+				lang=${messages.lang}
 				@click=${this.#onClick}
 				@pointerenter=${this.#onPauseStart}
 				@pointerleave=${this.#onPauseEnd}
@@ -175,11 +191,11 @@ export class BchcToast extends LitElement {
 					</span>
 					<span class="done-title">${
 						view.walletName === null
-							? "Wallet connected"
-							: `Connected to ${view.walletName}`
+							? messages.walletConnected
+							: messages.connectedTo(view.walletName)
 					}</span>
 				</span>
-				<button class="toast-dismiss" type="button" aria-label="Dismiss"></button>
+				<button class="toast-dismiss" type="button" aria-label=${messages.dismiss}></button>
 			</div>`,
 		);
 	}
