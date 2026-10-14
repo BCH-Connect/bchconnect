@@ -277,6 +277,10 @@ export interface LifecycleEvents<P extends ProtocolDefinition = ProtocolDefiniti
 }
 
 // @public
+function localStorage_2(): KeyValueStore;
+export { localStorage_2 as localStorage }
+
+// @public
 export interface Logger {
     debug(msg: string, ...data: unknown[]): void;
     error(msg: string, ...data: unknown[]): void;

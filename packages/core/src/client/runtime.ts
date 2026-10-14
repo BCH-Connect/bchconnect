@@ -1,6 +1,6 @@
 import { type BchConnectError, isBchConnectError } from "../errors.js";
 import { isClientSnapshot } from "../snapshot.js";
-import { memory } from "../storage/memory.js";
+import { localStorage } from "../storage/local-storage.js";
 import { createStore, type Store } from "../store.js";
 import type {
 	ClientConfig,
@@ -39,7 +39,7 @@ export interface ClientRuntime {
 	readonly connectTimeoutMs: number | undefined;
 	/** Default deadline for a request that waits on the user, if the dapp set one. */
 	readonly userInteractionTimeoutMs: number | undefined;
-	/** Where the client snapshot is persisted: the configured storage, else memory. */
+	/** Where the client snapshot is persisted: the configured storage, else `localStorage()`. */
 	readonly clientStorage: KeyValueStore;
 	/** Storage the connector namespaces live in. Never the client tier. */
 	readonly connectorStorage: KeyValueStore;
@@ -127,8 +127,8 @@ export function createClientRuntime(
 		readTimeoutMs: config.defaultTimeoutMs?.read ?? 30_000,
 		connectTimeoutMs: config.defaultTimeoutMs?.connect,
 		userInteractionTimeoutMs: config.defaultTimeoutMs?.userInteraction,
-		clientStorage: config.storage ?? memory(),
-		connectorStorage: memory(),
+		clientStorage: config.storage ?? localStorage(),
+		connectorStorage: localStorage(),
 		disabled: new Map(),
 		store,
 		publicStore: { getState, subscribe },

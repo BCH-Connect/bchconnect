@@ -21,6 +21,7 @@ export {
 	TimeoutError,
 	TransportError,
 } from "./errors.js";
+export { localStorage } from "./storage/local-storage.js";
 export { memory } from "./storage/memory.js";
 export type {
 	CapabilityRegistry,

@@ -49,6 +49,10 @@ function validate(config: ClientConfig<readonly Connector[]>): void {
 		if (protocol.includes(":")) {
 			throw new ConfigError(`Reserved ":" in protocol id: ${protocol}`);
 		}
+		// Connector keys share storage with the client snapshot under `bchconnect:client:`.
+		if (protocol === "client") {
+			throw new ConfigError(`Reserved protocol id: ${protocol}`);
+		}
 		if (protocols.has(protocol)) {
 			throw new ConfigError(`Duplicate protocol id: ${protocol}`);
 		}
