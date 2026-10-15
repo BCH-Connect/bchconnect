@@ -71,6 +71,32 @@ const COPIED_FOR = 1800;
 const EXIT_ANIMATIONS = new Set(["lift", "sink", "sheet-out", "scrim-out"]);
 const NO_BROKEN_LOGOS: ReadonlySet<string> = new Set();
 
+// Shared by every modal, so overlapping ones can't restore each other's lock: the first lock
+// saves the page's own inline values and the last unlock restores them.
+let pageScrollLocks = 0;
+let savedOverflow = "";
+let savedScrollbarGutter = "";
+
+function lockPageScroll(): void {
+	pageScrollLocks += 1;
+	if (pageScrollLocks > 1) return;
+	const root = document.documentElement;
+	savedOverflow = root.style.overflow;
+	savedScrollbarGutter = root.style.scrollbarGutter;
+	// Measured before hiding overflow, which would itself remove the scrollbar.
+	const hasScrollbar = innerWidth - root.clientWidth > 0;
+	root.style.overflow = "hidden";
+	if (hasScrollbar) root.style.scrollbarGutter = "stable";
+}
+
+function unlockPageScroll(): void {
+	pageScrollLocks -= 1;
+	if (pageScrollLocks > 0) return;
+	const root = document.documentElement;
+	root.style.overflow = savedOverflow;
+	root.style.scrollbarGutter = savedScrollbarGutter;
+}
+
 type CaptionKind = "initiating" | "hint" | "scan" | "none";
 
 // The catalogue's copy keys: `lang` is a tag, and the function keys need a value.
@@ -266,7 +292,9 @@ export class BchcModal extends LitElement {
 	#entered = false;
 	#appearances = 0;
 	#motion: BodyMotion | null = null;
-	readonly #overlay = createRef<HTMLDivElement>();
+	// Set only while this shell holds the page scroll lock, so unlocking twice is a no-op.
+	#scrollLocked = false;
+	readonly #overlay = createRef<HTMLDialogElement>();
 	readonly #card = createRef<HTMLDivElement>();
 	readonly #scrim = createRef<HTMLDivElement>();
 	readonly #body = createRef<HTMLDivElement>();
@@ -361,7 +389,14 @@ export class BchcModal extends LitElement {
 			// Waits only for the exit keyframes, not e.g. the code's write-in animation.
 			await namedAnimationsFinished(overlay, EXIT_ANIMATIONS);
 		}
-		this.#emit("bchc-close");
+		// `close` is queued as a task; awaiting it keeps `close()` resolving after `bchc-close`.
+		// A dialog the browser already closed fires no second one.
+		if (!overlay.open) return;
+		const closed = new Promise((resolve) =>
+			overlay.addEventListener("close", resolve, { once: true }),
+		);
+		overlay.close();
+		await closed;
 	}
 
 	// A sheet/split switch changes markup, not just layout, so it must re-render.
@@ -369,14 +404,35 @@ export class BchcModal extends LitElement {
 		this.requestUpdate();
 	};
 
-	readonly #onKey = (event: KeyboardEvent): void => {
-		if (event.key !== "Escape" || event.defaultPrevented) return;
-		event.preventDefault();
+	// The menu closes first; with no menu open this plays the exit before the
+	// dialog closes. Shared by Escape and the dialog's own `cancel`.
+	#requestClose(): void {
 		if (this.#menuOpen()) {
 			this.#closeMenu();
 			return;
 		}
 		void this.close();
+	}
+
+	readonly #onKey = (event: KeyboardEvent): void => {
+		if (event.key !== "Escape" || event.defaultPrevented) return;
+		// Also keeps the dialog's close watcher from firing `cancel` for this same keypress
+		event.preventDefault();
+		this.#requestClose();
+	};
+
+	// Catches a close request with no keydown of its own, e.g. a mobile back gesture
+	readonly #onCancel = (event: Event): void => {
+		if (event.defaultPrevented || !event.cancelable) return;
+		event.preventDefault();
+		this.#requestClose();
+	};
+
+	readonly #onDialogClose = (event: Event): void => {
+		if (event.currentTarget !== this.#overlay.value) return;
+		this.#closing = true;
+		this.#unlockScroll();
+		this.#emit("bchc-close");
 	};
 
 	// Focus leaving means the deep link opened something; don't report it failed.
@@ -470,6 +526,9 @@ export class BchcModal extends LitElement {
 
 	// Drops the shell; the next update removes it from the shadow root.
 	#hide(): void {
+		// Closing before the shell goes lets the browser return focus to the opener.
+		this.#overlay.value?.close();
+		this.#unlockScroll();
 		this.#drag?.release();
 		this.#drag = null;
 		this.#motion = null;
@@ -477,6 +536,18 @@ export class BchcModal extends LitElement {
 		this._bodyView = null;
 		this._bodyKey = null;
 		this._brokenLogos = NO_BROKEN_LOGOS;
+	}
+
+	#lockScroll(): void {
+		if (this.#scrollLocked) return;
+		this.#scrollLocked = true;
+		lockPageScroll();
+	}
+
+	#unlockScroll(): void {
+		if (!this.#scrollLocked) return;
+		this.#scrollLocked = false;
+		unlockPageScroll();
 	}
 
 	/** Lit hook run before each render; derives the shell and body state from `view`. @internal */
@@ -581,15 +652,18 @@ export class BchcModal extends LitElement {
 		const messages = this.#messages;
 		return keyed(
 			this._appearance,
-			html`<div
+			html`<dialog
 				class="overlay ${classMap({ "is-sheet": this._sheet, "is-rtl": this._rtl })}"
 				lang=${messages.lang}
+				aria-labelledby="modal-title"
 				${ref(this.#overlay)}
 				@click=${this.#onOverlayClick}
 				@keydown=${this.#onOverlayKeydown}
+				@cancel=${this.#onCancel}
+				@close=${this.#onDialogClose}
 			>
 				<div class="scrim" aria-hidden="true" ${ref(this.#scrim)}></div>
-				<div class="card" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1" ${ref(this.#card)}>
+				<div class="card" tabindex="-1" autofocus ${ref(this.#card)}>
 					<div class="grabber" aria-hidden="true"></div>
 					<div class="head">
 						<button class="back" type="button" data-act="back" aria-label=${messages.back} .hidden=${view.screen !== "wallets"}>${icon("chevronLeft")}</button>
@@ -599,7 +673,7 @@ export class BchcModal extends LitElement {
 					</div>
 					<div class="body" ${ref(this.#body)}>${this.#bodyTemplate()}</div>
 				</div>
-			</div>`,
+			</dialog>`,
 		);
 	}
 
@@ -626,6 +700,8 @@ export class BchcModal extends LitElement {
 
 		// The drag is created with each shell, so its absence marks the shell's first paint.
 		if (this.#drag === null) {
+			overlay.showModal();
+			this.#lockScroll();
 			this.#drag = draggableSheet(card, scrim, {
 				isActive: () => this.#media.matches,
 				onDismiss: (settled) => void this.#close(true, settled),
@@ -659,7 +735,6 @@ export class BchcModal extends LitElement {
 
 		if (!this.#entered) {
 			this.#entered = true;
-			card.focus({ preventScroll: true });
 			// The drawer's contents ride with the sheet instead of staggering in.
 			if (!sheet) {
 				enter(
