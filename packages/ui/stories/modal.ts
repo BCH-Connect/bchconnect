@@ -36,6 +36,7 @@ export interface ModalStoryArgs extends ThemeArgs {
 export type ModalElement = HTMLElement & {
 	view: ModalView | null;
 	messages: Partial<BchcMessages> | null;
+	close: () => Promise<void>;
 };
 
 /** The rendered `<bchc-modal>` in a story's canvas; throws if it never painted. */

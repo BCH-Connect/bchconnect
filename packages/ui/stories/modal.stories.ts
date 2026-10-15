@@ -1,3 +1,4 @@
+import { html } from "lit";
 import { waitForAnimations } from "storybook/preview-api";
 import { expect, fn, userEvent, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
@@ -31,12 +32,15 @@ const meta = preview.type<{ args: ModalStoryArgs }>().meta({
 export const Scan = meta.story({
 	play: async ({ canvasElement }) => {
 		const shadow = modalShadow(canvasElement);
-		// The entrance focuses the dialog itself, once it has entered.
+		// The entrance focuses the card, once it has entered; the dialog
+		// itself is the native modal `<dialog>` (SPEC §8.7).
 		await waitFor(() =>
-			expect(shadow.activeElement).toBe(
-				shadow.querySelector('[role="dialog"]'),
-			),
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
 		);
+		const dialog = shadow.querySelector(".overlay");
+		expect(dialog).toBeInstanceOf(HTMLDialogElement);
+		expect(dialog instanceof HTMLDialogElement && dialog.open).toBe(true);
+		expect(dialog?.matches(":modal")).toBe(true);
 		await waitForAnimations();
 	},
 });
@@ -385,9 +389,7 @@ export const ReducedMotion = meta.story({
 		await waitForAnimations();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
-		await waitFor(() =>
-			expect(shadow.querySelector('[role="dialog"]')).toBeVisible(),
-		);
+		await waitFor(() => expect(shadow.querySelector(".card")).toBeVisible());
 
 		const onClose = fn<(event: Event) => void>();
 		modal.addEventListener("bchc-close", onClose);
@@ -400,5 +402,466 @@ export const ReducedMotion = meta.story({
 			timeout: 5000,
 		});
 		await waitForAnimations();
+	},
+});
+
+// SPEC §8.7: an opener button living outside the modal, in the light DOM,
+// so the stories below can prove the page behind stays inert and that focus
+// returns to it once the modal closes.
+function withOpener(
+	args: ModalStoryArgs,
+	context: Parameters<typeof modalRender>[1],
+) {
+	return html`<button type="button">Opener</button>${modalRender(args, context)}`;
+}
+
+/** The light-DOM opener button rendered by `withOpener`. */
+function opener(canvasElement: HTMLElement): HTMLButtonElement {
+	const button = canvasElement.querySelector("button");
+	if (!(button instanceof HTMLButtonElement))
+		throw new Error("opener button missing");
+	return button;
+}
+
+export const PageInert = meta.story({
+	render: withOpener,
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const shadow = modalShadow(canvasElement);
+		await waitFor(() =>
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
+		);
+		const openerButton = opener(canvasElement);
+
+		// The rest of the page is inert while the dialog is open: a scripted
+		// focus doesn't land on it (a real click's hit-testing is blocked the
+		// same way, but a synthetic click event bypasses hit-testing, so it
+		// isn't something this harness can assert).
+		openerButton.focus();
+		expect(document.activeElement).not.toBe(openerButton);
+		await waitForAnimations();
+	},
+});
+
+export const FocusRestoredAfterEscape = meta.story({
+	render: withOpener,
+	play: async ({ canvasElement, args }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const openerButton = opener(canvasElement);
+
+		// Closed first, so reopening captures this test's own opener as the
+		// element the native dialog restores focus to.
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		openerButton.focus();
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+		modal.view = args.view;
+		await waitFor(() =>
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
+		);
+		await userEvent.keyboard("{Escape}");
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
+			timeout: 5000,
+		});
+		await waitFor(() => expect(document.activeElement).toBe(openerButton));
+		await waitForAnimations();
+	},
+});
+
+export const FocusRestoredAfterCloseButton = meta.story({
+	render: withOpener,
+	play: async ({ canvasElement, args }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const openerButton = opener(canvasElement);
+
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		openerButton.focus();
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+		modal.view = args.view;
+		await waitFor(() =>
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
+		);
+		const close = shadow.querySelector<HTMLButtonElement>(
+			'[aria-label="Close"]',
+		);
+		if (close === null) throw new Error("close button missing");
+		await userEvent.click(close);
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
+			timeout: 5000,
+		});
+		await waitFor(() => expect(document.activeElement).toBe(openerButton));
+		await waitForAnimations();
+	},
+});
+
+export const FocusRestoredAfterViewCleared = meta.story({
+	render: withOpener,
+	play: async ({ canvasElement, args }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const openerButton = opener(canvasElement);
+
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		openerButton.focus();
+		modal.view = args.view;
+		await waitFor(() =>
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
+		);
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		expect(document.activeElement).toBe(openerButton);
+	},
+});
+
+// Escape with the session-type menu open closes only the menu; a second
+// Escape then plays the exit and closes the modal, with exactly one
+// `bchc-close` (SPEC §8.7).
+export const EscapeClosesMenuThenModal = meta.story({
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const trigger = shadow.querySelector<HTMLButtonElement>(
+			'[aria-haspopup="listbox"]',
+		);
+		if (trigger === null) throw new Error("session type trigger missing");
+		await userEvent.click(trigger);
+		await waitFor(() =>
+			expect(trigger.getAttribute("aria-expanded")).toBe("true"),
+		);
+
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+
+		await userEvent.keyboard("{Escape}");
+		await waitFor(() =>
+			expect(trigger.getAttribute("aria-expanded")).toBe("false"),
+		);
+		// The menu's own close animation must settle (`#closeMenu`) before a
+		// second Escape can tell it's closed and move on to the modal.
+		const menu = shadow.querySelector<HTMLElement>(".menu");
+		await waitFor(() => expect(menu?.hidden).toBe(true));
+		expect(onClose).not.toHaveBeenCalled();
+
+		await userEvent.keyboard("{Escape}");
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
+			timeout: 5000,
+		});
+		await waitForAnimations();
+		// Re-checked after the exit has fully settled: still exactly one.
+		expect(onClose).toHaveBeenCalledTimes(1);
+	},
+});
+
+// A synthetic `cancel`, standing in for the dialog's own close-watcher
+// signal (independent of the Escape keypress that normally triggers it):
+// the menu closes first, a second one plays the exit, and each is prevented
+// so the native close watcher never runs ahead of our own handling.
+export const CancelClosesMenuThenModal = meta.story({
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const dialog = shadow.querySelector(".overlay");
+		if (!(dialog instanceof HTMLDialogElement))
+			throw new Error("dialog missing");
+		const trigger = shadow.querySelector<HTMLButtonElement>(
+			'[aria-haspopup="listbox"]',
+		);
+		if (trigger === null) throw new Error("session type trigger missing");
+		await userEvent.click(trigger);
+		await waitFor(() =>
+			expect(trigger.getAttribute("aria-expanded")).toBe("true"),
+		);
+
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+
+		const firstCancel = new Event("cancel", { cancelable: true });
+		dialog.dispatchEvent(firstCancel);
+		expect(firstCancel.defaultPrevented).toBe(true);
+		await waitFor(() =>
+			expect(trigger.getAttribute("aria-expanded")).toBe("false"),
+		);
+		const menu = shadow.querySelector<HTMLElement>(".menu");
+		await waitFor(() => expect(menu?.hidden).toBe(true));
+		expect(onClose).not.toHaveBeenCalled();
+
+		const secondCancel = new Event("cancel", { cancelable: true });
+		dialog.dispatchEvent(secondCancel);
+		expect(secondCancel.defaultPrevented).toBe(true);
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
+			timeout: 5000,
+		});
+		await waitForAnimations();
+		expect(onClose).toHaveBeenCalledTimes(1);
+	},
+});
+
+// A close the browser forces (an uncancelable `cancel`, then the dialog closes without the exit):
+// one `bchc-close`, the dialog hidden, and a later `close()` a no-op (SPEC §8.7).
+export const BrowserForcedClose = meta.story({
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const dialog = shadow.querySelector(".overlay");
+		if (!(dialog instanceof HTMLDialogElement))
+			throw new Error("dialog missing");
+
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+
+		dialog.dispatchEvent(new Event("cancel", { cancelable: false }));
+		expect(dialog.classList.contains("is-closing")).toBe(false);
+		dialog.close();
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+		await waitForAnimations();
+		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(getComputedStyle(dialog).display).toBe("none");
+		expect(document.documentElement.style.overflow).not.toBe("hidden");
+
+		await modal.close();
+		await waitForAnimations();
+		expect(onClose).toHaveBeenCalledTimes(1);
+	},
+});
+
+// A close the browser forces while the exit plays still emits once, and the pending `close()` settles.
+export const BrowserForcedCloseMidExit = meta.story({
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const dialog = shadow.querySelector(".overlay");
+		if (!(dialog instanceof HTMLDialogElement))
+			throw new Error("dialog missing");
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+
+		const closing = modal.close();
+		await waitFor(() =>
+			expect(dialog.classList.contains("is-closing")).toBe(true),
+		);
+		dialog.close();
+		await closing;
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+		await waitForAnimations();
+		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(getComputedStyle(dialog).display).toBe("none");
+		expect(document.documentElement.style.overflow).not.toBe("hidden");
+	},
+});
+
+// `close()` resolves only after `bchc-close` has fired (its TSDoc contract).
+export const CloseResolvesAfterEvent = meta.story({
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+		await modal.close();
+		expect(onClose).toHaveBeenCalledTimes(1);
+	},
+});
+
+// `view = null` can drop the shell while `#close` is still waiting on that
+// exact dialog's exit animation; the later `close()` it eventually makes on
+// the now-detached, still-open node must not emit for a shell that's gone
+// (SPEC §8.7).
+export const StaleShellDoesNotEmitAfterViewCleared = meta.story({
+	play: async ({ canvasElement }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const overlay = shadow.querySelector(".overlay");
+		if (overlay === null) throw new Error("overlay missing");
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+
+		const staleClosed = new Promise((resolve) =>
+			overlay.addEventListener("close", resolve, { once: true }),
+		);
+		const closing = modal.close();
+		// Mid-exit: `#close` has started the animation and is awaiting it.
+		await waitFor(() =>
+			expect(overlay.classList.contains("is-closing")).toBe(true),
+		);
+		modal.view = null;
+		await closing;
+		await staleClosed;
+		await waitForAnimations();
+
+		// View stayed null, so there's no new shell to emit for either: the
+		// stale shell's own (later) close must be silently dropped.
+		expect(onClose).not.toHaveBeenCalled();
+		expect(shadow.querySelector(".overlay")).toBeNull();
+	},
+});
+
+// A tall light-DOM page, so the page itself can scroll (and, in an engine
+// with a classic scrollbar, actually shows one) around the stories below.
+function withTallPage(
+	args: ModalStoryArgs,
+	context: Parameters<typeof modalRender>[1],
+) {
+	return html`<div style="height: 3000px;"></div>${modalRender(args, context)}`;
+}
+
+// SPEC §8.7: the page behind doesn't scroll while the modal is open, and the
+// vanishing scrollbar (where one exists) doesn't shift the page's width.
+export const ScrollLockedWhileOpen = meta.story({
+	render: withTallPage,
+	play: async ({ canvasElement, args }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const root = document.documentElement;
+
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		expect(getComputedStyle(root).overflow).not.toBe("hidden");
+		const widthBefore = root.clientWidth;
+
+		modal.view = args.view;
+		await waitFor(() =>
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
+		);
+		expect(getComputedStyle(root).overflow).toBe("hidden");
+		expect(root.clientWidth).toBe(widthBefore);
+		await waitForAnimations();
+	},
+});
+
+// A pre-set inline value on the page survives a lock/unlock round trip
+// exactly, closing via Escape.
+export const ScrollUnlockedAfterEscape = meta.story({
+	render: withTallPage,
+	play: async ({ canvasElement, args }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const root = document.documentElement;
+
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		root.style.overflow = "auto";
+		root.style.scrollbarGutter = "auto";
+
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+		modal.view = args.view;
+		await waitFor(() =>
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
+		);
+		expect(root.style.overflow).toBe("hidden");
+
+		await userEvent.keyboard("{Escape}");
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
+			timeout: 5000,
+		});
+		await waitForAnimations();
+		expect(root.style.overflow).toBe("auto");
+		expect(root.style.scrollbarGutter).toBe("auto");
+	},
+});
+
+// `view = null` unlocks too, with no close event involved; an unset value
+// is restored by clearing the inline style back out, not by writing "".
+export const ScrollUnlockedWhenViewCleared = meta.story({
+	render: withTallPage,
+	play: async ({ canvasElement, args }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const root = document.documentElement;
+
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		// A clean, explicitly-unset baseline: the document is shared with the
+		// other stories in this file, so a sibling's own leftover value
+		// (restored correctly, for a *different* original value) must not be
+		// mistaken for this story's starting point.
+		root.style.overflow = "";
+
+		modal.view = args.view;
+		await waitFor(() =>
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
+		);
+		expect(root.style.overflow).toBe("hidden");
+
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		expect(root.style.overflow).toBe("");
+	},
+});
+
+// Overlapping modals share one lock: the first to go leaves the page locked, the last restores it.
+export const ScrollLockSharedByOverlappingModals = meta.story({
+	render: withTallPage,
+	play: async ({ canvasElement, args }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const root = document.documentElement;
+
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		// The document is shared with the other stories in this file.
+		root.style.overflow = "";
+		modal.view = args.view;
+		await waitFor(() =>
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
+		);
+
+		const second = document.createElement("bchc-modal") as typeof modal;
+		second.view = args.view;
+		canvasElement.append(second);
+		await waitFor(() =>
+			expect(second.shadowRoot?.querySelector(".overlay")).not.toBeNull(),
+		);
+
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		expect(root.style.overflow).toBe("hidden");
+
+		second.remove();
+		expect(root.style.overflow).toBe("");
+	},
+});
+
+// Removing the element while open (`disconnectedCallback`) unlocks too,
+// synchronously, with no event round trip to wait for.
+export const ScrollUnlockedWhenRemoved = meta.story({
+	render: withTallPage,
+	play: async ({ canvasElement, args }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const root = document.documentElement;
+
+		// Closed and reset first, so this story's own (clean) baseline is
+		// what gets saved when it reopens below (the document is shared with
+		// the other stories in this file).
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+		root.style.overflow = "";
+		modal.view = args.view;
+		await waitFor(() =>
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
+		);
+		expect(root.style.overflow).toBe("hidden");
+
+		modal.remove();
+		expect(root.style.overflow).toBe("");
 	},
 });
