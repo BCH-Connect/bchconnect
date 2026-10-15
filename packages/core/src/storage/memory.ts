@@ -11,7 +11,7 @@ import type { KeyValueStore } from "../types/protocol.js";
  * await storage.get("key"); // "value"
  * ```
  *
- * @internal
+ * @public
  */
 export function memory(): KeyValueStore {
 	const entries = new Map<string, string>();

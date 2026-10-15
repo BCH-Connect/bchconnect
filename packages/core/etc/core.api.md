@@ -216,6 +216,12 @@ export interface ContractDisplay {
 }
 
 // @public
+export function cookieStorage(cookieHeader?: string): KeyValueStore;
+
+// @public
+export function cookieToInitialState(client: ClientLifecycle, cookieHeader?: string): ClientSnapshot | undefined;
+
+// @public
 export function createClient<const Connectors extends readonly Connector[]>(config: ClientConfig<Connectors>): Client<ProtocolOf<Connectors[number]>>;
 
 // @public
@@ -277,12 +283,19 @@ export interface LifecycleEvents<P extends ProtocolDefinition = ProtocolDefiniti
 }
 
 // @public
+function localStorage_2(): KeyValueStore;
+export { localStorage_2 as localStorage }
+
+// @public
 export interface Logger {
     debug(msg: string, ...data: unknown[]): void;
     error(msg: string, ...data: unknown[]): void;
     info(msg: string, ...data: unknown[]): void;
     warn(msg: string, ...data: unknown[]): void;
 }
+
+// @public
+export function memory(): KeyValueStore;
 
 // @public
 export interface MessageSigning {

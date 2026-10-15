@@ -1,6 +1,6 @@
 import type { DemoAltProtocol, DemoProtocol } from "@bchconnect/test-utils";
 import { createFakeConnector, demoSession } from "@bchconnect/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../src/client/create-client.js";
 import type { ClientSnapshot } from "../../src/types/client.js";
 import type {
@@ -119,6 +119,18 @@ describe("createClient", () => {
 				appMetadata,
 			}),
 		).toThrow(configError('Reserved ":" in protocol id: demo:alt'));
+	});
+
+	it("should throw CONFIG for the reserved protocol id 'client'", () => {
+		expect(() =>
+			createClient({
+				connectors: [
+					createFakeConnector<ProtocolDefinition>({ protocol: "client" }),
+				],
+				network: "chipnet",
+				appMetadata,
+			}),
+		).toThrow(configError("Reserved protocol id: client"));
 	});
 
 	it("should throw CONFIG when the network is missing", () => {
@@ -404,5 +416,128 @@ describe("createClient", () => {
 				configError(`${method}() is not implemented yet`),
 			);
 		});
+	});
+});
+
+describe("default storage", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	function stubWebStorage() {
+		const entries = new Map<string, string>();
+		const read = vi.fn(() => ({
+			getItem: (key: string) => entries.get(key) ?? null,
+			setItem: (key: string, value: string) => entries.set(key, value),
+			removeItem: (key: string) => entries.delete(key),
+		}));
+		vi.stubGlobal("window", {
+			get localStorage() {
+				return read();
+			},
+		});
+
+		return { entries, read };
+	}
+
+	it("should not touch web storage while creating the client", () => {
+		const { read } = stubWebStorage();
+
+		createDemoClient();
+
+		expect(read).not.toHaveBeenCalled();
+	});
+
+	it("should keep both tiers in web storage when none is configured", async () => {
+		const { entries } = stubWebStorage();
+		const client = createClient({
+			connectors: [
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					session: demoSession({ id: "first" }),
+				}),
+			],
+			network: "chipnet",
+			appMetadata,
+		});
+		await client.init();
+
+		await client.connect("demo");
+		await new Promise((resolve) => setTimeout(resolve));
+
+		expect(entries.get("bchconnect:demo:session:first")).toBe("1");
+		expect(JSON.parse(entries.get("bchconnect:client:v1") ?? "")).toEqual(
+			expect.objectContaining({ currentSessionId: "first" }),
+		);
+	});
+
+	it("should restore the session and its wallet pick after a reload", async () => {
+		const { entries } = stubWebStorage();
+		const session = demoSession({
+			id: "first",
+			wallet: { source: "protocol" },
+		});
+		const first = createClient({
+			connectors: [
+				createFakeConnector<DemoProtocol>({ protocol: "demo", session }),
+			],
+			network: "chipnet",
+			appMetadata,
+		});
+		await first.init();
+		await first.connect("demo", {
+			wallet: { id: "cashonize", name: "Cashonize" },
+		});
+		await new Promise((resolve) => setTimeout(resolve));
+		expect(entries.has("bchconnect:demo:session:first")).toBe(true);
+
+		const reloaded = createClient({
+			connectors: [
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: async () =>
+						entries.has("bchconnect:demo:session:first")
+							? [demoSession({ id: "first", wallet: { source: "protocol" } })]
+							: [],
+				}),
+			],
+			network: "chipnet",
+			appMetadata,
+		});
+		await reloaded.init();
+
+		expect(reloaded.current?.id).toBe("first");
+		expect(reloaded.current?.wallet).toStrictEqual({
+			id: "cashonize",
+			name: "Cashonize",
+			source: "selection",
+		});
+	});
+
+	it("should keep connector state in web storage when storage is configured", async () => {
+		const { entries } = stubWebStorage();
+		const storage = createStorage();
+		const client = createClient({
+			connectors: [
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					session: demoSession({ id: "first" }),
+				}),
+			],
+			network: "chipnet",
+			appMetadata,
+			storage,
+		});
+		await client.init();
+
+		await client.connect("demo");
+		await new Promise((resolve) => setTimeout(resolve));
+
+		expect(entries.get("bchconnect:demo:session:first")).toBe("1");
+		expect(entries.has("bchconnect:client:v1")).toBe(false);
+		expect(storage.set).toHaveBeenCalledWith(
+			"bchconnect:client:v1",
+			expect.any(String),
+		);
 	});
 });

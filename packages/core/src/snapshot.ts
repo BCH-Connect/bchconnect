@@ -1,4 +1,9 @@
-import type { ClientSnapshot, ClientState } from "./types/client.js";
+import { parseCookies } from "./storage/cookie.js";
+import type {
+	ClientLifecycle,
+	ClientSnapshot,
+	ClientState,
+} from "./types/client.js";
 import type { Logger, Network, WalletIdentity } from "./types/protocol.js";
 
 /**
@@ -167,8 +172,8 @@ export function serializeSnapshot(snapshot: ClientSnapshot): string {
 /**
  * Parses a persisted snapshot. Returns `undefined` without logging when
  * `raw` is `undefined` (nothing was ever persisted); returns `undefined` and
- * logs one `debug` message when `raw` is invalid JSON or does not describe a
- * well-formed {@link ClientSnapshot}. Never throws.
+ * logs one `debug` message to `logger`, if given, when `raw` is invalid JSON
+ * or does not describe a well-formed {@link ClientSnapshot}. Never throws.
  *
  * @example
  * ```ts
@@ -179,7 +184,7 @@ export function serializeSnapshot(snapshot: ClientSnapshot): string {
  */
 export function parseSnapshot(
 	raw: string | undefined,
-	logger: Logger,
+	logger?: Logger,
 ): ClientSnapshot | undefined {
 	if (raw === undefined) return undefined;
 
@@ -187,14 +192,53 @@ export function parseSnapshot(
 	try {
 		parsed = JSON.parse(raw);
 	} catch (error) {
-		logger.debug("Discarding unparsable client snapshot", error);
+		logger?.debug("Discarding unparsable client snapshot", error);
 		return undefined;
 	}
 
 	if (!isClientSnapshot(parsed)) {
-		logger.debug("Discarding malformed client snapshot", parsed);
+		logger?.debug("Discarding malformed client snapshot", parsed);
 		return undefined;
 	}
 
 	return parsed;
+}
+
+/**
+ * Reads the client snapshot from a request's `Cookie` header, to pass as
+ * `initialState` so the first render already shows the connected state.
+ * Sessions of protocols `client` doesn't register are dropped. Returns
+ * `undefined` when the header holds no well-formed snapshot, or none of its
+ * sessions remain.
+ *
+ * @example
+ * ```ts
+ * // server, per request
+ * const client = createClient({ ...config, ssr: true, storage: cookieStorage(cookieHeader) });
+ * const initialState = cookieToInitialState(client, cookieHeader);
+ * // the browser passes initialState to createClient alongside ssr: true
+ * ```
+ *
+ * @public
+ */
+export function cookieToInitialState(
+	client: ClientLifecycle,
+	cookieHeader?: string,
+): ClientSnapshot | undefined {
+	const snapshot = parseSnapshot(
+		parseCookies(cookieHeader ?? "").get(SNAPSHOT_KEY),
+	);
+	if (snapshot === undefined) return undefined;
+
+	const sessions = snapshot.sessions.filter((session) =>
+		client.protocols.includes(session.protocol),
+	);
+	if (sessions.length === 0) return undefined;
+	const currentSessionId = sessions.some(
+		(session) => session.id === snapshot.currentSessionId,
+	)
+		? snapshot.currentSessionId
+		: null;
+
+	return { version: 1, currentSessionId, sessions };
 }

@@ -1,5 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { createFakeConnector } from "@bchconnect/test-utils";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createClient } from "../src/client/create-client.js";
 import {
+	cookieToInitialState,
 	isClientSnapshot,
 	isNetwork,
 	parseSnapshot,
@@ -7,8 +10,13 @@ import {
 	serializeSnapshot,
 	toSnapshot,
 } from "../src/snapshot.js";
+import { cookieStorage } from "../src/storage/cookie.js";
 import type { ClientSnapshot } from "../src/types/client.js";
-import type { Logger, Session } from "../src/types/protocol.js";
+import type {
+	Logger,
+	ProtocolDefinition,
+	Session,
+} from "../src/types/protocol.js";
 
 function createLogger(): Logger {
 	return {
@@ -405,6 +413,140 @@ describe("snapshot", () => {
 			expect(parseSnapshot(JSON.stringify(VALID_SNAPSHOT), logger)).toEqual(
 				VALID_SNAPSHOT,
 			);
+		});
+	});
+
+	describe("cookieToInitialState", () => {
+		afterEach(() => {
+			vi.unstubAllGlobals();
+		});
+
+		function clientOf(...protocols: string[]) {
+			return createClient({
+				connectors: protocols.map((protocol) =>
+					createFakeConnector<ProtocolDefinition>({ protocol }),
+				),
+				network: "chipnet",
+				appMetadata: { name: "Test", url: "https://example.com" },
+			});
+		}
+
+		function header(snapshot: unknown) {
+			const value = encodeURIComponent(JSON.stringify(snapshot));
+			return `theme=dark; ${encodeURIComponent(SNAPSHOT_KEY)}=${value}`;
+		}
+
+		const altSession = {
+			...VALID_SESSION,
+			id: "session-2",
+			protocol: "cashconnect",
+		};
+
+		it("should read the snapshot from the cookie header", () => {
+			expect(
+				cookieToInitialState(clientOf("wizardconnect"), header(VALID_SNAPSHOT)),
+			).toEqual(VALID_SNAPSHOT);
+		});
+
+		it("should read the cookie cookieStorage writes in the browser", async () => {
+			let written = "";
+			vi.stubGlobal("location", { protocol: "https:" });
+			vi.stubGlobal("document", {
+				get cookie() {
+					return written;
+				},
+				set cookie(cookie: string) {
+					[written = ""] = cookie.split("; ");
+				},
+			});
+			await cookieStorage().set(
+				SNAPSHOT_KEY,
+				serializeSnapshot(VALID_SNAPSHOT),
+			);
+
+			expect(cookieToInitialState(clientOf("wizardconnect"), written)).toEqual(
+				VALID_SNAPSHOT,
+			);
+		});
+
+		it("should drop sessions of protocols the client doesn't register", () => {
+			const snapshot = {
+				...VALID_SNAPSHOT,
+				sessions: [VALID_SESSION, altSession],
+			};
+
+			expect(
+				cookieToInitialState(clientOf("wizardconnect"), header(snapshot)),
+			).toEqual(VALID_SNAPSHOT);
+		});
+
+		it("should clear the current session when it was dropped", () => {
+			const snapshot = {
+				version: 1,
+				currentSessionId: "session-2",
+				sessions: [VALID_SESSION, altSession],
+			};
+
+			expect(
+				cookieToInitialState(clientOf("wizardconnect"), header(snapshot)),
+			).toEqual({
+				version: 1,
+				currentSessionId: null,
+				sessions: [VALID_SESSION],
+			});
+		});
+
+		it("should return undefined when no session remains", () => {
+			expect(
+				cookieToInitialState(clientOf("cashconnect"), header(VALID_SNAPSHOT)),
+			).toBeUndefined();
+		});
+
+		it("should return undefined without a header or a snapshot cookie", () => {
+			const client = clientOf("wizardconnect");
+
+			expect(cookieToInitialState(client)).toBeUndefined();
+			expect(cookieToInitialState(client, "theme=dark")).toBeUndefined();
+		});
+
+		it("should return undefined for a malformed snapshot", () => {
+			const client = clientOf("wizardconnect");
+
+			expect(
+				cookieToInitialState(client, header({ version: 2 })),
+			).toBeUndefined();
+			expect(
+				cookieToInitialState(client, `${encodeURIComponent(SNAPSHOT_KEY)}={`),
+			).toBeUndefined();
+		});
+	});
+
+	describe("cookie size", () => {
+		it("should keep a three-session snapshot under half the cookie limit", () => {
+			const sessions = ["first", "second", "third"].map((id) =>
+				createSession({
+					id: `${id}-3f2b8c1e-9a4d-4e7b-8c2f-1d6a5b9e0c7f`,
+					wallet: {
+						source: "protocol",
+						id: "cashonize",
+						name: "Cashonize",
+						icon: "https://cashonize.com/images/cashonize-icon.png",
+					},
+				}),
+			);
+			const snapshot = toSnapshot(
+				{
+					sessions: new Map(sessions.map((session) => [session.id, session])),
+					currentSessionId: sessions[0]?.id ?? null,
+				},
+				"mainnet",
+			);
+
+			const cookie = `${encodeURIComponent(SNAPSHOT_KEY)}${encodeURIComponent(
+				serializeSnapshot(snapshot),
+			)}`;
+
+			expect(cookie.length).toBeLessThan(2048);
 		});
 	});
 });
