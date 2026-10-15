@@ -69,7 +69,19 @@ export function cookieStorage(cookieHeader?: string): KeyValueStore {
 	};
 }
 
-function parseCookies(header: string): Map<string, string> {
+/**
+ * Parses a `Cookie` header or `document.cookie` into decoded names and values.
+ * The first of two cookies with the same name wins; cookies that fail to
+ * decode are skipped.
+ *
+ * @example
+ * ```ts
+ * parseCookies("a=1; b=%7B%7D").get("b"); // "{}"
+ * ```
+ *
+ * @internal
+ */
+export function parseCookies(header: string): Map<string, string> {
 	const cookies = new Map<string, string>();
 	for (const part of header.split(";")) {
 		const separator = part.indexOf("=");
