@@ -471,6 +471,49 @@ describe("default storage", () => {
 		);
 	});
 
+	it("should restore the session and its wallet pick after a reload", async () => {
+		const { entries } = stubWebStorage();
+		const session = demoSession({
+			id: "first",
+			wallet: { source: "protocol" },
+		});
+		const first = createClient({
+			connectors: [
+				createFakeConnector<DemoProtocol>({ protocol: "demo", session }),
+			],
+			network: "chipnet",
+			appMetadata,
+		});
+		await first.init();
+		await first.connect("demo", {
+			wallet: { id: "cashonize", name: "Cashonize" },
+		});
+		await new Promise((resolve) => setTimeout(resolve));
+		expect(entries.has("bchconnect:demo:session:first")).toBe(true);
+
+		const reloaded = createClient({
+			connectors: [
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					restore: async () =>
+						entries.has("bchconnect:demo:session:first")
+							? [demoSession({ id: "first", wallet: { source: "protocol" } })]
+							: [],
+				}),
+			],
+			network: "chipnet",
+			appMetadata,
+		});
+		await reloaded.init();
+
+		expect(reloaded.current?.id).toBe("first");
+		expect(reloaded.current?.wallet).toStrictEqual({
+			id: "cashonize",
+			name: "Cashonize",
+			source: "selection",
+		});
+	});
+
 	it("should keep connector state in web storage when storage is configured", async () => {
 		const { entries } = stubWebStorage();
 		const storage = createStorage();
