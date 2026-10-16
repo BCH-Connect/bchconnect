@@ -1,6 +1,6 @@
 import { html } from "lit";
 import { waitForAnimations } from "storybook/preview-api";
-import { expect, fn, userEvent, waitFor } from "storybook/test";
+import { expect, fn, spyOn, userEvent, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { BCHC_DIRECTORY } from "../src/defaults.ts";
 import { BCHC_MESSAGES_ES } from "../src/locales/es.ts";
@@ -708,6 +708,95 @@ export const StaleShellDoesNotEmitAfterViewCleared = meta.story({
 	},
 });
 
+// After `bchc-close`, view updates leave the modal closed; even a
+// `connected` one doesn't emit a second `bchc-close`.
+export const StaysClosedOnViewUpdateAfterClose = meta.story({
+	play: async ({ canvasElement, args }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+
+		await userEvent.keyboard("{Escape}");
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
+			timeout: 5000,
+		});
+
+		modal.view = { ...args.view, phase: { kind: "failed", reason: "timeout" } };
+		await waitForAnimations();
+		modal.view = {
+			...args.view,
+			phase: {
+				kind: "connected",
+				walletName: CONNECTED_WALLET.name,
+				walletLogo: CONNECTED_WALLET.logo,
+			},
+		};
+		await waitForAnimations();
+		expect(shadow.querySelector("dialog")?.open).toBe(false);
+		expect(onClose).toHaveBeenCalledTimes(1);
+	},
+});
+
+// Clearing `view` after a close and setting it again shows a fresh
+// appearance: it enters, locks the page, starts uncopied and closes again.
+export const ReopensAfterViewClearedAndReset = meta.story({
+	play: async ({ canvasElement, args }) => {
+		await waitForAnimations();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const root = document.documentElement;
+		const onClose = fn<(event: Event) => void>();
+		modal.addEventListener("bchc-close", onClose);
+		spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+
+		const copy = shadow.querySelector<HTMLButtonElement>(
+			'.button[data-act="copy"]',
+		);
+		if (copy === null) throw new Error("copy button missing");
+		await userEvent.click(copy);
+		await waitFor(() =>
+			expect(copy.classList.contains("is-copied")).toBe(true),
+		);
+		await userEvent.keyboard("{Escape}");
+		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
+			timeout: 5000,
+		});
+		modal.view = null;
+		await waitFor(() => expect(shadow.querySelector(".overlay")).toBeNull());
+
+		// The entrance class may come and go between polls, so record it.
+		let entered = false;
+		const observer = new MutationObserver(() => {
+			entered ||= shadow.querySelector(".overlay.is-entering") !== null;
+		});
+		observer.observe(shadow, {
+			subtree: true,
+			childList: true,
+			attributeFilter: ["class"],
+		});
+		modal.view = args.view;
+		await waitFor(() =>
+			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
+		);
+		observer.disconnect();
+		expect(entered).toBe(true);
+		expect(getComputedStyle(root).overflow).toBe("hidden");
+		expect(
+			shadow
+				.querySelector('.button[data-act="copy"]')
+				?.classList.contains("is-copied"),
+		).toBe(false);
+
+		await waitForAnimations();
+		await modal.close();
+		expect(onClose).toHaveBeenCalledTimes(2);
+		expect(shadow.querySelector("dialog")?.open).toBe(false);
+		expect(getComputedStyle(root).overflow).not.toBe("hidden");
+	},
+});
+
 // A tall light-DOM page, so the page itself can scroll (and, in an engine
 // with a classic scrollbar, actually shows one) around the stories below.
 function withTallPage(
@@ -765,13 +854,19 @@ export const ScrollUnlockedAfterEscape = meta.story({
 		);
 		expect(root.style.overflow).toBe("hidden");
 
-		await userEvent.keyboard("{Escape}");
-		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
-			timeout: 5000,
-		});
-		await waitForAnimations();
-		expect(root.style.overflow).toBe("auto");
-		expect(root.style.scrollbarGutter).toBe("auto");
+		// The document is shared with the other stories in this file.
+		try {
+			await userEvent.keyboard("{Escape}");
+			await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
+				timeout: 5000,
+			});
+			await waitForAnimations();
+			expect(root.style.overflow).toBe("auto");
+			expect(root.style.scrollbarGutter).toBe("auto");
+		} finally {
+			root.style.overflow = "";
+			root.style.scrollbarGutter = "";
+		}
 	},
 });
 
