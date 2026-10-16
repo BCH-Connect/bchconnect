@@ -219,7 +219,7 @@ export function useCodeRenderer(renderer: CodeRenderer): void {
  *
  * @fires {CustomEvent<{ protocol: ProtocolId }>} bchc-protocol - Fired when the visitor picks a different session type.
  * @fires {CustomEvent<{ screen: ModalScreen }>} bchc-screen - Fired when the visitor moves between the connect and wallets screens.
- * @fires {CustomEvent<void>} bchc-close - Fired once the exit has played. Remove the element on it.
+ * @fires {CustomEvent<void>} bchc-close - Fired once the exit has played. Remove the element on it, or set `view` to `null` before showing it again.
  * @fires {CustomEvent<void>} bchc-retry - Fired when "Try again" is pressed after a failure.
  *
  * @cssprop --bchc-font-brand-family - Brand font family read when `data-bchc-font="brand"`; falls back to the system stack until set.
@@ -346,19 +346,8 @@ export class BchcModal extends LitElement {
 		document.removeEventListener("visibilitychange", this.#onLeft);
 		document.removeEventListener("keydown", this.#onKey);
 		removeEventListener("blur", this.#onLeft);
-		if (this.#copyResetTimer !== null) {
-			clearTimeout(this.#copyResetTimer);
-			this.#copyResetTimer = null;
-		}
-		if (this.#deepLinkTimer !== null) {
-			clearTimeout(this.#deepLinkTimer);
-			this.#deepLinkTimer = null;
-		}
-		this._copied = false;
 		// A re-attached modal is a new appearance: it enters again.
 		this.#hide();
-		this.#closing = false;
-		this.#entered = false;
 		this.requestUpdate();
 	}
 
@@ -531,6 +520,17 @@ export class BchcModal extends LitElement {
 		this.#unlockScroll();
 		this.#drag?.release();
 		this.#drag = null;
+		if (this.#copyResetTimer !== null) {
+			clearTimeout(this.#copyResetTimer);
+			this.#copyResetTimer = null;
+		}
+		if (this.#deepLinkTimer !== null) {
+			clearTimeout(this.#deepLinkTimer);
+			this.#deepLinkTimer = null;
+		}
+		this._copied = false;
+		this.#closing = false;
+		this.#entered = false;
 		this.#motion = null;
 		this._appearance = null;
 		this._bodyView = null;
