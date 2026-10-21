@@ -8,7 +8,6 @@ import {
 	nothing,
 	type PropertyDeclarations,
 	type PropertyValues,
-	svg,
 	type TemplateResult,
 } from "lit";
 import { classMap } from "lit/directives/class-map.js";
@@ -16,6 +15,15 @@ import { keyed } from "lit/directives/keyed.js";
 import { createRef, ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
 import { type CodeRenderer, renderCode } from "./code.ts";
+import { directoryScreen } from "./directory.ts";
+import {
+	type CaptionKind,
+	caption,
+	captionKind,
+	copyFace,
+	type MessageTextKey,
+	statusFace,
+} from "./faces.ts";
 import { safeHref } from "./html.ts";
 import { icon } from "./icons.ts";
 import { type BchcMessages, mergeMessages } from "./messages.ts";
@@ -32,6 +40,7 @@ import {
 	snapshotRows,
 	tempoOf,
 } from "./motion.ts";
+import { lockPageScroll, unlockPageScroll } from "./page-scroll.ts";
 import { type DraggableSheet, draggableSheet } from "./sheet.ts";
 import {
 	type FailureReason,
@@ -71,60 +80,6 @@ const COPIED_FOR = 1800;
 const EXIT_ANIMATIONS = new Set(["lift", "sink", "sheet-out", "scrim-out"]);
 const NO_BROKEN_LOGOS: ReadonlySet<string> = new Set();
 
-// Shared by every modal, so overlapping ones can't restore each other's lock: the first lock
-// saves the page's own inline values and the last unlock restores them.
-let pageScrollLocks = 0;
-let savedOverflow = "";
-let savedScrollbarGutter = "";
-
-function lockPageScroll(): void {
-	pageScrollLocks += 1;
-	if (pageScrollLocks > 1) return;
-	const root = document.documentElement;
-	savedOverflow = root.style.overflow;
-	savedScrollbarGutter = root.style.scrollbarGutter;
-	// Measured before hiding overflow, which would itself remove the scrollbar.
-	const hasScrollbar = innerWidth - root.clientWidth > 0;
-	root.style.overflow = "hidden";
-	if (hasScrollbar) root.style.scrollbarGutter = "stable";
-}
-
-function unlockPageScroll(): void {
-	pageScrollLocks -= 1;
-	if (pageScrollLocks > 0) return;
-	const root = document.documentElement;
-	root.style.overflow = savedOverflow;
-	root.style.scrollbarGutter = savedScrollbarGutter;
-}
-
-type CaptionKind = "initiating" | "hint" | "scan" | "none";
-
-// The catalogue's copy keys: `lang` is a tag, and the function keys need a value.
-type MessageTextKey = Exclude<
-	{
-		[K in keyof BchcMessages]: BchcMessages[K] extends string ? K : never;
-	}[keyof BchcMessages],
-	"lang"
->;
-
-// Exhaustive on FailureReason, so a new reason fails typecheck here first.
-const FAILURE_MESSAGE_KEYS: Readonly<
-	Record<
-		FailureReason,
-		{ readonly title: MessageTextKey; readonly detail: MessageTextKey }
-	>
-> = {
-	rejected: { title: "rejectedTitle", detail: "rejectedDetail" },
-	timeout: { title: "timeoutTitle", detail: "timeoutDetail" },
-	aborted: { title: "abortedTitle", detail: "abortedDetail" },
-	transport: { title: "transportTitle", detail: "transportDetail" },
-	"network-mismatch": {
-		title: "networkMismatchTitle",
-		detail: "networkMismatchDetail",
-	},
-	unsupported: { title: "unsupportedTitle", detail: "unsupportedDetail" },
-};
-
 // How the next body rebuild moves: measured in `willUpdate`, played around the commit in `update`.
 type BodyMotion =
 	| { readonly kind: "crossfade"; readonly sheet: boolean }
@@ -138,63 +93,6 @@ const TITLE_KEYS: Readonly<Record<ModalScreen, MessageTextKey>> = {
 	connect: "connectTitle",
 	wallets: "getWalletTitle",
 };
-
-function captionKind(view: ModalView, linkFailed: boolean): CaptionKind {
-	switch (view.phase.kind) {
-		case "initiating":
-			return "initiating";
-		case "awaiting-approval":
-			return linkFailed ? "hint" : "scan";
-		default:
-			return "none";
-	}
-}
-
-function copyFace(messages: BchcMessages, copied: boolean): TemplateResult {
-	return copied
-		? html`${icon("check")}${messages.linkCopied}`
-		: html`${icon("link")}${messages.copyLink}`;
-}
-
-function caption(messages: BchcMessages, kind: CaptionKind): unknown {
-	switch (kind) {
-		case "initiating":
-			return html`<span class="dots"><i></i><i></i><i></i></span><span class="caption-text">${messages.initiating}</span>`;
-		case "hint":
-			return html`${icon("info")}<span class="caption-text">${messages.linkFailed}</span>`;
-		case "scan":
-			return html`${icon("scanLine")}<span class="caption-text">${messages.scan}</span>`;
-		default:
-			return nothing;
-	}
-}
-
-const RING_DOTS = 14;
-
-/** Each dot carries its index (`--i`) so the stylesheet can animate them in order. */
-const RING = html`<svg class="ring" width="96" height="96" viewBox="0 0 96 96" fill="currentColor" aria-hidden="true">${Array.from(
-	{ length: RING_DOTS },
-	(_, index) => {
-		const angle = (index / RING_DOTS) * Math.PI * 2 - Math.PI / 2;
-		const x = (48 + Math.cos(angle) * 41).toFixed(2);
-		const y = (48 + Math.sin(angle) * 41).toFixed(2);
-		return svg`<circle cx=${x} cy=${y} r="3.6" style="--i:${index}"/>`;
-	},
-)}</svg>`;
-
-function statusFace(
-	messages: BchcMessages,
-	reason: FailureReason | null,
-): unknown {
-	if (reason === null) return nothing;
-	const keys = FAILURE_MESSAGE_KEYS[reason];
-	return html`
-		<span class="status-mark">${RING}${icon("x", 34)}</span>
-		<strong class="status-title">${messages[keys.title]}</strong>
-		<p class="status-detail">${messages[keys.detail]}</p>
-		<button class="button primary pill retry" type="button" data-act="retry">${icon("rotateCcw", 15)}${messages.tryAgain}</button>
-	`;
-}
 
 // Injected by register.ts instead of importing code.ts directly, so
 // qr-code-styling stays out of modal.ts's own module graph.
@@ -789,7 +687,9 @@ export class BchcModal extends LitElement {
 		return keyed(
 			this._bodyKey,
 			view.screen === "wallets"
-				? this.#walletsScreen(view)
+				? directoryScreen(view.directory, this.#messages, (logo, size, extra) =>
+						this.#logo(logo, size, extra),
+					)
 				: this.#connectScreen(view, this._sheet),
 		);
 	}
@@ -1012,36 +912,6 @@ export class BchcModal extends LitElement {
 				</div>
 				<div class="right">
 					${this.#code(view)}
-				</div>
-			</div>
-		`;
-	}
-
-	#walletsScreen(view: ModalView): TemplateResult {
-		const messages = this.#messages;
-		return html`
-			<div class="single">
-				<p class="section-label">${messages.directoryHeading}</p>
-				<div class="directory">
-					${view.directory.map((entry) => {
-						const href = entry.link === null ? null : safeHref(entry.link.href);
-						const logo = this.#logo(entry.logo, 36, "directory-logo");
-						const name = html`<span class="wallet-name" title=${entry.name}>${entry.name}</span>`;
-						if (href === null)
-							return html`
-						<div class="directory-row">
-							${logo}
-							${name}
-						</div>`;
-						return html`
-						<a class="directory-row" href=${href} target="_blank" rel="noreferrer">
-							${logo}
-							${name}
-							<span class="directory-links">
-								<span class="button pill">${entry.link?.label ?? messages.getWallet(entry.name)}${icon("arrowUpRight", 14)}</span>
-							</span>
-						</a>`;
-					})}
 				</div>
 			</div>
 		`;
