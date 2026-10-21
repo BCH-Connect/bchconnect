@@ -8,6 +8,7 @@ import { Connector } from '@bchconnect/core';
 import { ConnectorContext } from '@bchconnect/core';
 import { EventName } from '@bchconnect/core';
 import { EventPayload } from '@bchconnect/core';
+import { MethodMetadata } from '@bchconnect/core';
 import { MethodName } from '@bchconnect/core';
 import { MethodParams } from '@bchconnect/core';
 import { MethodResult } from '@bchconnect/core';
@@ -48,6 +49,9 @@ export function demoAltSession(init?: Partial<FakeSessionInit<DemoAltProtocol>>)
 export interface DemoAltSessionData {
     readonly pubkey: Uint8Array;
 }
+
+// @beta
+export const demoMetadata: { readonly [M in keyof DemoProtocol["methods"]]: Pick<DemoProtocol["methods"][M], keyof DemoProtocol["methods"][M] & keyof MethodMetadata> & { readonly [K in Exclude<keyof MethodMetadata, keyof DemoProtocol["methods"][M]>]?: never; }; };
 
 // @beta
 export interface DemoProtocol extends ProtocolDefinition {
@@ -128,6 +132,7 @@ export interface FakeConnectorScript<P extends ProtocolDefinition> {
     }) => Promise<Session<P>>);
     readonly disconnect?: "throw";
     readonly dispose?: "throw";
+    readonly metadata?: FakeMethodMetadata<P>;
     readonly methods?: FakeMethodScripts<P>;
     readonly pairing?: Pairing;
     readonly persist?: boolean;
@@ -163,6 +168,9 @@ export type FakeLogEntry<P extends ProtocolDefinition> = {
 } | {
     readonly kind: "dispose";
 };
+
+// @beta
+export type FakeMethodMetadata<P extends ProtocolDefinition> = NonNullable<Connector<P>["methods"]>;
 
 // @beta
 export type FakeMethodScript<P extends ProtocolDefinition, M extends MethodName<P>> = ((params: MethodParams<P, M>, opts: RequestOptions | undefined) => Promise<MethodResult<P, M>>) | "reject" | "hang" | "malformed";

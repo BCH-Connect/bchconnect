@@ -118,6 +118,15 @@ describe("custom property references", () => {
 		);
 		expect(missing).toEqual([]);
 	});
+
+	it("never declares a token in terms of itself", async () => {
+		// A self-reference is a cycle, which CSS resolves to an empty value.
+		const css = await readFile(GENERATED, "utf8");
+		const cycles = [...css.matchAll(/(--[\w-]+)\s*:([^;]*);/g)]
+			.filter(([, name, value]) => value?.includes(`var(${name})`))
+			.map(([declaration]) => declaration);
+		expect(cycles).toEqual([]);
+	});
 });
 
 describe("the default theme", () => {

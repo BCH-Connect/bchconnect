@@ -5,6 +5,7 @@
  * @packageDocumentation
  */
 
+export { createClient } from "./client/create-client.js";
 export type { BchConnectErrorCode } from "./errors.js";
 export {
 	AbortedError,
@@ -20,6 +21,10 @@ export {
 	TimeoutError,
 	TransportError,
 } from "./errors.js";
+export { cookieToInitialState } from "./snapshot.js";
+export { cookieStorage } from "./storage/cookie.js";
+export { localStorage } from "./storage/local-storage.js";
+export { memory } from "./storage/memory.js";
 export type {
 	CapabilityRegistry,
 	LibauthSigning,
@@ -52,6 +57,7 @@ export type {
 	KeyValueStore,
 	Logger,
 	MethodDefinition,
+	MethodMetadata,
 	MethodName,
 	MethodParams,
 	MethodResult,

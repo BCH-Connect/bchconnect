@@ -1,26 +1,15 @@
-export function escapeHtml(value: string): string {
-	return value.replace(
-		/[&<>"']/g,
-		(character) =>
-			({
-				"&": "&amp;",
-				"<": "&lt;",
-				">": "&gt;",
-				'"': "&quot;",
-				"'": "&#39;",
-			})[character] ?? character,
-	);
-}
-
 const SCRIPT_SCHEMES = new Set(["javascript", "data", "vbscript"]);
 
 // Denylist, not an allowlist: pairing links use custom schemes (wc:, WIZ://,
-// bch-cc-v1:), so only script-capable schemes are refused.
+// bch-cc-v1:), so only script-capable schemes are refused. A blank link is no link.
+// Lit binds URLs as given, so every bound href goes through here first.
 export function safeHref(url: string): string | null {
+	const trimmed = url.trim();
+	if (trimmed === "") return null;
 	const scheme = /^([a-z][a-z\d+.-]*):/i.exec(
-		url.replace(/[\s\p{Cc}]/gu, ""),
+		trimmed.replace(/[\s\p{Cc}]/gu, ""),
 	)?.[1];
 	return scheme !== undefined && SCRIPT_SCHEMES.has(scheme.toLowerCase())
 		? null
-		: url;
+		: trimmed;
 }

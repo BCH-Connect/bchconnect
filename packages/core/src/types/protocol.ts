@@ -10,11 +10,26 @@ export interface MethodDefinition {
 	params: unknown;
 	/** Result the wallet returns, after validation. */
 	result: unknown;
-	/** Default timeout for this method in milliseconds. */
+	/**
+	 * Default timeout for this method in milliseconds: a positive, finite
+	 * number of at most 2^31 - 1. Omit it for a plain read or a request that
+	 * waits on the user; the client's defaults apply then.
+	 */
 	timeoutMs?: number;
 	/** True when the method waits on human approval in the wallet. */
 	userInteraction?: boolean;
 }
+
+/**
+ * The runtime part of a {@link MethodDefinition}: what the client needs to
+ * resolve a request's deadline and label it for the UI.
+ *
+ * @public
+ */
+export type MethodMetadata = Pick<
+	MethodDefinition,
+	"timeoutMs" | "userInteraction"
+>;
 
 /**
  * The type-level description of one protocol. Each protocol package exports one.
@@ -274,6 +289,13 @@ export interface Connector<P extends ProtocolDefinition = ProtocolDefinition> {
 	/** Id of the protocol this connector implements. */
 	readonly protocol: P["id"];
 
+	/**
+	 * Deadline and user-interaction metadata, by method name. A method missing
+	 * from the map, or a connector with no map, is treated as a read: no user
+	 * interaction, with the client's read deadline.
+	 */
+	readonly methods?: Readonly<Partial<Record<MethodName<P>, MethodMetadata>>>;
+
 	/** One-time initialization. Opens no sockets and writes no storage. */
 	setup?(ctx: ConnectorContext): Promise<void> | void;
 
@@ -311,6 +333,10 @@ export interface Connector<P extends ProtocolDefinition = ProtocolDefinition> {
 	/** The capabilities this session actually has. */
 	capabilitiesOf(session: Session<P>): ReadonlySet<P["capability"]>;
 
-	/** Releases resources held by this connector without disconnecting sessions. */
+	/**
+	 * Releases resources held by this connector without disconnecting
+	 * sessions. May be called while `setup()` or `restore()` is still pending;
+	 * whatever they open after that must be released too.
+	 */
 	dispose?(): Promise<void>;
 }

@@ -1,3 +1,5 @@
+import type { Logger } from "./types/protocol.js";
+
 /**
  * External store. It's the single source of truth behind a client.
  *
@@ -11,19 +13,23 @@ export interface Store<T> {
 	 * unchanged notifies nobody.
 	 */
 	setState(update: (previous: T) => T): void;
-	/** Calls `listener` once per state transition. Returns unsubscribe. */
+	/**
+	 * Calls `listener` on every state transition, once for each time it is
+	 * subscribed. Returns unsubscribe, which removes only this registration.
+	 */
 	subscribe(listener: () => void): () => void;
 }
 
 /**
  * Creates a {@link Store} holding `initial`.
  *
- * Listeners run synchronously, in subscription order, once per transition.
- * A listener that throws stops the notification.
+ * Listeners run synchronously, in subscription order, once per registration
+ * and transition. A listener that throws is reported to `logger.error` and
+ * the remaining listeners still run.
  *
  * @example
  * ```ts
- * const store = createStore({ count: 0 });
+ * const store = createStore({ count: 0 }, logger);
  * const unsubscribe = store.subscribe(() => console.log(store.getState()));
  *
  * store.setState((previous) => ({ count: previous.count + 1 }));
@@ -32,9 +38,12 @@ export interface Store<T> {
  *
  * @internal
  */
-export function createStore<T>(initial: T): Store<T> {
+export function createStore<T>(initial: T, logger: Logger): Store<T> {
 	let state = initial;
-	const listeners = new Set<() => void>();
+	// One entry per `subscribe()` call, so unsubscribing removes only that
+	// call's registration even when the same function is subscribed more
+	// than once.
+	const listeners = new Set<{ listener: () => void }>();
 
 	return {
 		getState() {
@@ -47,14 +56,20 @@ export function createStore<T>(initial: T): Store<T> {
 			state = next;
 			// A copy, so that subscribing during a notification never grows the
 			// loop; `has` skips listeners that unsubscribed inside it.
-			for (const listener of [...listeners]) {
-				if (listeners.has(listener)) listener();
+			for (const entry of [...listeners]) {
+				if (!listeners.has(entry)) continue;
+				try {
+					entry.listener();
+				} catch (error) {
+					logger.error("A store listener threw", error);
+				}
 			}
 		},
 		subscribe(listener) {
-			listeners.add(listener);
+			const entry = { listener };
+			listeners.add(entry);
 			return () => {
-				listeners.delete(listener);
+				listeners.delete(entry);
 			};
 		},
 	};

@@ -73,10 +73,14 @@ export interface WalletDirectoryEntry {
 	readonly id: string;
 	/** The wallet's display name. */
 	readonly name: string;
-	/** The wallet's logo, as a URL or data URI. */
-	readonly logo: string;
-	/** Where to get the wallet, one link per platform or store. */
-	readonly links: readonly { readonly label: string; readonly href: string }[];
+	/** The wallet's logo, as a URL or data URI, or `null` to show a generic wallet mark. */
+	readonly logo: string | null;
+	/**
+	 * Where to get the wallet, or `null` when there is nowhere to send
+	 * visitors yet. The row is then shown with no link. `label` is optional;
+	 * without it the modal falls back to `messages.getWallet(name)`.
+	 */
+	readonly link: { readonly label?: string; readonly href: string } | null;
 }
 
 /**
@@ -89,8 +93,8 @@ export interface WalletOption {
 	readonly id: string;
 	/** The wallet's display name. */
 	readonly name: string;
-	/** The wallet's logo, as a URL or data URI. */
-	readonly logo: string;
+	/** The wallet's logo, as a URL or data URI, or `null` to show a generic wallet mark. */
+	readonly logo: string | null;
 	/** The wallet's link, or `null` when it has none on this platform. The row is then shown disabled. */
 	readonly href: string | null;
 }
@@ -145,7 +149,8 @@ export type ConnectPhase =
 	 */
 	| {
 			readonly kind: "connected";
-			readonly walletName: string;
+			/** `null` when the wallet didn't identify itself. */
+			readonly walletName: string | null;
 			/** The wallet's logo, so the success moment shows who answered. */
 			readonly walletLogo: string | null;
 	  }
@@ -159,7 +164,7 @@ export type ConnectPhase =
 export interface ModalView {
 	/** The screen to show. */
 	readonly screen: ModalScreen;
-	/** The session type currently selected. */
+	/** The session type currently selected. Must be one of `protocols[].id`. */
 	readonly protocol: ProtocolId;
 	/** Every session type the visitor may choose between. */
 	readonly protocols: readonly ProtocolOption[];
@@ -172,33 +177,3 @@ export interface ModalView {
 	/** Where the attempt currently is. */
 	readonly phase: ConnectPhase;
 }
-
-// Second person, plain, no exclamation marks; never a code, URI, or transport name.
-export const FAILURE_COPY: Readonly<
-	Record<FailureReason, { readonly title: string; readonly detail: string }>
-> = {
-	rejected: {
-		title: "Your wallet declined",
-		detail: "Nothing was shared and nothing was sent.",
-	},
-	timeout: {
-		title: "No answer from your wallet",
-		detail: "It may have closed before approving. You can try again.",
-	},
-	aborted: {
-		title: "Connection stopped",
-		detail: "The request ended before your wallet answered.",
-	},
-	transport: {
-		title: "Couldn't reach your wallet",
-		detail: "Try again in a moment.",
-	},
-	"network-mismatch": {
-		title: "Your wallet is on a different network",
-		detail: "Switch networks in your wallet, then connect again.",
-	},
-	unsupported: {
-		title: "That wallet can't use this session type",
-		detail: "Choose another session type, or another wallet.",
-	},
-};

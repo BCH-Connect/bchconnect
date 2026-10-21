@@ -137,7 +137,7 @@ export interface ClientState {
 }
 
 // @public
-export type ClientStatus = "idle" | "restoring" | "ready";
+export type ClientStatus = "idle" | "restoring" | "ready" | "disposed";
 
 // @public
 export interface ClientStore {
@@ -174,6 +174,7 @@ export interface Connector<P extends ProtocolDefinition = ProtocolDefinition> {
     }): Promise<Session<P>>;
     disconnect(session: Session<P>): Promise<void>;
     dispose?(): Promise<void>;
+    readonly methods?: Readonly<Partial<Record<MethodName<P>, MethodMetadata>>>;
     readonly protocol: P["id"];
     request<M extends MethodName<P>>(session: Session<P>, method: M, params: MethodParams<P, M>, opts?: RequestOptions): Promise<MethodResult<P, M>>;
     restore(): Promise<Session<P>[]>;
@@ -213,6 +214,15 @@ export interface ContractDisplay {
     readonly artifact: Partial<ContractArtifact>;
     readonly redeemScript: Uint8Array;
 }
+
+// @public
+export function cookieStorage(cookieHeader?: string): KeyValueStore;
+
+// @public
+export function cookieToInitialState(client: ClientLifecycle, cookieHeader?: string): ClientSnapshot | undefined;
+
+// @public
+export function createClient<const Connectors extends readonly Connector[]>(config: ClientConfig<Connectors>): Client<ProtocolOf<Connectors[number]>>;
 
 // @public
 export type EventName<P extends ProtocolDefinition> = keyof P["events"] & string;
@@ -273,12 +283,19 @@ export interface LifecycleEvents<P extends ProtocolDefinition = ProtocolDefiniti
 }
 
 // @public
+function localStorage_2(): KeyValueStore;
+export { localStorage_2 as localStorage }
+
+// @public
 export interface Logger {
     debug(msg: string, ...data: unknown[]): void;
     error(msg: string, ...data: unknown[]): void;
     info(msg: string, ...data: unknown[]): void;
     warn(msg: string, ...data: unknown[]): void;
 }
+
+// @public
+export function memory(): KeyValueStore;
 
 // @public
 export interface MessageSigning {
@@ -292,6 +309,9 @@ export interface MethodDefinition {
     timeoutMs?: number;
     userInteraction?: boolean;
 }
+
+// @public
+export type MethodMetadata = Pick<MethodDefinition, "timeoutMs" | "userInteraction">;
 
 // @public
 export type MethodName<P extends ProtocolDefinition> = keyof P["methods"] & string;

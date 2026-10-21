@@ -1,6 +1,8 @@
 import type { ActionResult } from "@cashconnect-js/core/templates";
 import { describe, expectTypeOf, it } from "vitest";
 import type {
+	Connector,
+	MethodMetadata,
 	MethodName,
 	ProtocolFor,
 	Session,
@@ -27,6 +29,8 @@ declare const ccSession: Session<TestCashConnect>;
 declare const unnarrowed: NonNullable<typeof client.current>;
 declare const signRequest: SignTransactionRequest;
 declare const bytes: Uint8Array;
+declare const agnostic: Connector;
+declare const anyMethod: string;
 
 describe("request", () => {
 	it("should type the result by method", () => {
@@ -62,6 +66,32 @@ describe("request", () => {
 		>().toBeNever();
 		// @ts-expect-error - not common to every protocol.
 		client.request(unnarrowed, "bch_signMessage", { message: "hi" });
+	});
+});
+
+describe("connector method metadata", () => {
+	it("should look up any method name on a protocol-agnostic connector", () => {
+		expectTypeOf(agnostic.methods?.[anyMethod]).toEqualTypeOf<
+			MethodMetadata | undefined
+		>();
+	});
+
+	it("should accept a subset of the methods", () => {
+		// biome-ignore lint/style/useNamingConvention: wc2 wire method name.
+		const metadata = { bch_signMessage: { userInteraction: true } };
+		expectTypeOf(metadata).toExtend<Connector<Wc2>["methods"]>();
+	});
+
+	it("should reject an unknown method", () => {
+		const metadata: Connector<Wc2>["methods"] = {
+			// @ts-expect-error - not a wc2 method.
+			bchNope: {},
+		};
+		expectTypeOf(metadata).toExtend<Connector<Wc2>["methods"]>();
+	});
+
+	it("should keep a typed connector assignable to the config constraint", () => {
+		expectTypeOf<Connector<Wc2>>().toExtend<Connector>();
 	});
 });
 

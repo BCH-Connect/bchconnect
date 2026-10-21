@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeHtml, safeHref } from "../src/html.ts";
-
-describe("escapeHtml", () => {
-	it("should escape every character that can end text or an attribute", () => {
-		expect(escapeHtml(`<a href="x" title='y'>&</a>`)).toBe(
-			"&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;&amp;&lt;/a&gt;",
-		);
-	});
-});
+import { safeHref } from "../src/html.ts";
 
 describe("safeHref", () => {
 	it.each([
@@ -31,5 +23,16 @@ describe("safeHref", () => {
 		"vbscript:msgbox(1)",
 	])("should refuse %j", (url) => {
 		expect(safeHref(url)).toBeNull();
+	});
+
+	it.each(["", "   ", "\t\n"])(
+		"should treat the blank link %j as absent",
+		(url) => {
+			expect(safeHref(url)).toBeNull();
+		},
+	);
+
+	it("should drop surrounding whitespace", () => {
+		expect(safeHref("  https://cashonize.com  ")).toBe("https://cashonize.com");
 	});
 });

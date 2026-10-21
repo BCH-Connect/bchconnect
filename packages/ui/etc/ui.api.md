@@ -4,6 +4,11 @@
 
 ```ts
 
+import { CSSResultGroup } from 'lit';
+import { LitElement } from 'lit';
+import { PropertyDeclarations } from 'lit';
+import { PropertyValues } from 'lit';
+
 // @beta
 export const BCHC_ACCENT_DEFAULT_NEUTRAL: Readonly<Record<BchcAccent, BchcNeutral>>;
 
@@ -24,6 +29,9 @@ export const BCHC_DIRECTORY: readonly WalletDirectoryEntry[];
 
 // @beta
 export const BCHC_FONTS: readonly ["brand", "system", "mono"];
+
+// @beta
+export const BCHC_MESSAGES_EN: BchcMessages;
 
 // @beta
 export const BCHC_NEUTRALS: readonly ["sage", "slate", "sand", "pure"];
@@ -47,15 +55,64 @@ export type BchcBlur = "none" | "small" | "large";
 export type BchcFont = "brand" | "system" | "mono";
 
 // @beta
-export class BchcModal extends ElementBase {
+export interface BchcMessages {
+    readonly abortedDetail: string;
+    readonly abortedTitle: string;
+    readonly back: string;
+    readonly close: string;
+    readonly connectedTo: (wallet: string) => string;
+    readonly connectTitle: string;
+    readonly copyLink: string;
+    readonly copyLinkLabel: string;
+    readonly directoryHeading: string;
+    readonly dismiss: string;
+    readonly getWallet: (name: string) => string;
+    readonly getWalletTitle: string;
+    readonly initiating: string;
+    readonly lang: string;
+    readonly linkCopied: string;
+    readonly linkFailed: string;
+    readonly networkMismatchDetail: string;
+    readonly networkMismatchTitle: string;
+    readonly noWallet: string;
+    readonly openInWallet: string;
+    readonly rejectedDetail: string;
+    readonly rejectedTitle: string;
+    readonly scan: string;
+    readonly sessionType: string;
+    readonly timeoutDetail: string;
+    readonly timeoutTitle: string;
+    readonly transportDetail: string;
+    readonly transportTitle: string;
+    readonly tryAgain: string;
+    readonly unsupportedDetail: string;
+    readonly unsupportedTitle: string;
+    readonly walletConnected: string;
+    readonly walletsHeading: string;
+}
+
+// @beta
+export class BchcModal extends LitElement {
     constructor();
     close(): Promise<void>;
     // @internal
-    connectedCallback(): void;
+    override connectedCallback(): void;
     // @internal
-    disconnectedCallback(): void;
-    get view(): ModalView | null;
-    set view(next: ModalView | null);
+    override disconnectedCallback(): void;
+    messages: Partial<BchcMessages> | null;
+    // @internal
+    static override properties: PropertyDeclarations;
+    // @internal
+    protected override render(): unknown;
+    // @internal
+    static override styles: CSSResultGroup;
+    // @internal
+    protected override update(changed: PropertyValues<this>): void;
+    // @internal
+    protected override updated(): void;
+    view: ModalView | null;
+    // @internal
+    protected override willUpdate(changed: PropertyValues<this>): void;
 }
 
 // @beta
@@ -80,15 +137,23 @@ export type BchcNeutral = "sage" | "slate" | "sand" | "pure";
 export type BchcRadius = "none" | "small" | "medium" | "large" | "full";
 
 // @beta
-export class BchcToast extends ElementBase {
+export class BchcToast extends LitElement {
     constructor();
     // @internal
-    connectedCallback(): void;
-    // @internal
-    disconnectedCallback(): void;
+    override disconnectedCallback(): void;
     dismiss(): Promise<void>;
-    get view(): ToastView | null;
-    set view(next: ToastView | null);
+    get duration(): number;
+    set duration(next: number);
+    messages: Partial<BchcMessages> | null;
+    // @internal
+    static override properties: PropertyDeclarations;
+    // @internal
+    protected override render(): unknown;
+    // @internal
+    static override styles: CSSResultGroup;
+    // @internal
+    protected override updated(changed: PropertyValues<this>): void;
+    view: ToastView | null;
 }
 
 // @beta
@@ -104,7 +169,7 @@ export type ConnectPhase = {
     readonly link: string;
 } | {
     readonly kind: "connected";
-    readonly walletName: string;
+    readonly walletName: string | null;
     readonly walletLogo: string | null;
 } | {
     readonly kind: "failed";
@@ -156,17 +221,17 @@ export interface ProtocolOption {
 // @beta
 export interface ToastView {
     readonly walletLogo: string | null;
-    readonly walletName: string;
+    readonly walletName: string | null;
 }
 
 // @beta
 export interface WalletDirectoryEntry {
     readonly id: string;
-    readonly links: readonly {
-        readonly label: string;
+    readonly link: {
+        readonly label?: string;
         readonly href: string;
-    }[];
-    readonly logo: string;
+    } | null;
+    readonly logo: string | null;
     readonly name: string;
 }
 
@@ -174,7 +239,7 @@ export interface WalletDirectoryEntry {
 export interface WalletOption {
     readonly href: string | null;
     readonly id: string;
-    readonly logo: string;
+    readonly logo: string | null;
     readonly name: string;
 }
 

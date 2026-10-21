@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+	DISMISS_RATIO,
 	DISMISS_VELOCITY,
 	decideRelease,
 	intent,
 	recordVelocitySample,
+	releaseDuration,
+	scrimOpacity,
 	type VelocitySample,
 	velocityAt,
 } from "../src/gesture.ts";
@@ -87,5 +90,55 @@ describe("decideRelease", () => {
 	it("never dismisses at zero or negative offset", () => {
 		expect(decideRelease(0, 400, 10)).toBe(false);
 		expect(decideRelease(-50, 400, 10)).toBe(false);
+	});
+
+	it("uses the current thresholds", () => {
+		expect(DISMISS_RATIO).toBe(0.25);
+		expect(DISMISS_VELOCITY).toBe(0.4);
+	});
+});
+
+describe("releaseDuration", () => {
+	it("returns the ceiling when the finger was still or moving away", () => {
+		expect(releaseDuration(100, 0, 300)).toBe(300);
+		expect(releaseDuration(100, -0.5, 300)).toBe(300);
+	});
+
+	it("is shorter for a faster release", () => {
+		const slow = releaseDuration(100, 0.3, 300);
+		const fast = releaseDuration(100, 3, 300);
+		expect(fast).toBeLessThan(slow);
+		expect(fast).toBeLessThan(300);
+	});
+
+	it("never goes below 30% of the ceiling", () => {
+		expect(releaseDuration(1000, 100, 300)).toBeGreaterThanOrEqual(300 * 0.3);
+	});
+
+	it("never goes above the ceiling", () => {
+		expect(releaseDuration(1000, 0.001, 300)).toBeLessThanOrEqual(300);
+	});
+
+	it("stays at or below a 1ms ceiling", () => {
+		expect(releaseDuration(1000, 0.001, 1)).toBeLessThanOrEqual(1);
+		expect(releaseDuration(1000, 5, 1)).toBeLessThanOrEqual(1);
+	});
+});
+
+describe("scrimOpacity", () => {
+	it("is fully visible at zero offset", () => {
+		expect(scrimOpacity(0, 400)).toBe(1);
+	});
+
+	it("is fully hidden at the sheet's full height", () => {
+		expect(scrimOpacity(400, 400)).toBe(0);
+	});
+
+	it("stays fully visible on an upward pull", () => {
+		expect(scrimOpacity(-20, 400)).toBe(1);
+	});
+
+	it("clamps to 0 past the sheet's height", () => {
+		expect(scrimOpacity(500, 400)).toBe(0);
 	});
 });

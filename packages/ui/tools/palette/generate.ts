@@ -160,10 +160,10 @@ function emitSemantic(): string {
 	const lines: string[] = [];
 	for (const [token, source] of Object.entries(SEMANTIC)) {
 		const name = token.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+		// Each accent scale already declares it under this name; aliasing it here would be a cycle.
+		if (source.from === "accentForeground") continue;
 		let value: string;
-		if (source.from === "accentForeground") {
-			value = "var(--bchc-accent-foreground)";
-		} else if (source.from === "accentDerived") {
+		if (source.from === "accentDerived") {
 			value = `var(--bchc-accent-${source.name})`;
 		} else {
 			value = `var(--bchc-${source.from}-${source.step})`;

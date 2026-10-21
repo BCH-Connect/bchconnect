@@ -1,4 +1,5 @@
 import type {
+	MethodMetadata,
 	ProtocolDefinition,
 	Session,
 	SignMessageRequest,
@@ -73,6 +74,30 @@ export interface DemoProtocol extends ProtocolDefinition {
 	/** Capabilities sessions of this protocol may have. */
 	capability: "libauth-signing" | "message-signing";
 }
+
+/**
+ * The runtime metadata of {@link DemoProtocol}'s methods, as its connector
+ * reports it: `get_balance` carries its own deadline, the signing methods
+ * wait on the user, and `get_addresses` is a plain read.
+ *
+ * @beta
+ */
+export const demoMetadata: {
+	readonly [M in keyof DemoProtocol["methods"]]: Pick<
+		DemoProtocol["methods"][M],
+		keyof DemoProtocol["methods"][M] & keyof MethodMetadata
+	> & {
+		readonly [K in Exclude<
+			keyof MethodMetadata,
+			keyof DemoProtocol["methods"][M]
+		>]?: never;
+	};
+} = {
+	get_addresses: {},
+	get_balance: { timeoutMs: 5_000 },
+	sign_transaction: { userInteraction: true },
+	sign_message: { userInteraction: true },
+};
 
 /**
  * Handshake payload of {@link DemoAltProtocol}.

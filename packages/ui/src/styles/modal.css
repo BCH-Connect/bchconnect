@@ -18,6 +18,15 @@
 }
 
 .overlay {
+	/* Resets the `<dialog>` UA stylesheet, which otherwise adds its own
+	   border/margin/sizing/scrolling on top of this rule. */
+	margin: 0;
+	border: 0;
+	max-width: none;
+	max-height: none;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
 	position: fixed;
 	inset: 0;
 	display: grid;
@@ -30,14 +39,34 @@
 	animation: fade var(--bchc-duration-fast) var(--bchc-ease-out) both;
 }
 
+/* The dimming is painted by `.overlay`'s own background (and `.scrim` in
+   drawer mode); the UA's own backdrop stays out of the way entirely. */
+.overlay::backdrop {
+	background: transparent;
+}
+
+/* `display: grid` beats the UA rule that hides a closed dialog, so a close the browser forces would leave the card painted. */
+.overlay:not([open]) {
+	display: none;
+}
+
 @keyframes fade {
 	from {
 		opacity: 0;
 	}
 }
 
+/* Its own layer so its opacity can follow the drag independently of the card; inert, so presses still reach `.overlay` underneath. */
+.scrim {
+	display: none;
+	pointer-events: none;
+}
+
 .card {
 	position: relative;
+	/* Local, not theme tokens: the code column and the "Get a wallet" height cap share them. */
+	--code-size: 368px;
+	--footer-size: 36px;
 	width: 760px;
 	max-width: 100%;
 	max-height: calc(100dvh - var(--bchc-space-8));
@@ -122,7 +151,7 @@
 	align-items: center;
 	height: 26px;
 	padding: 0 var(--bchc-space-3);
-	margin-right: var(--bchc-space-1);
+	margin-inline-end: var(--bchc-space-1);
 	border-radius: var(--bchc-radius-pill);
 	background: var(--bchc-accent-subtle);
 	color: var(--bchc-accent-text);
@@ -170,11 +199,15 @@
 	transition: transform var(--bchc-duration-fast) var(--bchc-ease-out);
 }
 
-/* Rows are outdented by one step (padded back) so their hover fill can extend past the text. */
+/* Rows are outdented by one step (padded back) so their hover fill can extend past the text.
+   A flex column, so `.split` gets a bounded height that `.wallets` can scroll within. */
 .body {
+	display: flex;
+	flex-direction: column;
 	min-height: 0;
-	margin: calc(var(--bchc-space-1) * -1) calc(var(--bchc-space-3) * -1);
-	padding: var(--bchc-space-1) var(--bchc-space-3);
+	/* One step wider than the rows' outdent, so a focused wallet row's ring isn't clipped. */
+	margin: calc(var(--bchc-space-1) * -1) calc(var(--bchc-space-4) * -1);
+	padding: var(--bchc-space-1) var(--bchc-space-4);
 	overflow-y: auto;
 	overscroll-behavior: contain;
 	scrollbar-width: thin;
@@ -194,9 +227,10 @@
 
 .split {
 	display: grid;
-	grid-template-columns: 1fr 368px;
+	grid-template-columns: 1fr var(--code-size);
 	gap: var(--bchc-space-10);
 	align-items: start;
+	min-height: 0;
 }
 
 .single {
@@ -204,6 +238,12 @@
 	flex-direction: column;
 	gap: var(--bchc-space-4);
 	min-width: 0;
+}
+
+/* On a wide viewport, "Get a wallet" never grows past Connect's height (built from the same QR
+   column tokens); past that, `.directory` below scrolls on its own instead. */
+.overlay:not(.is-sheet) .single {
+	max-height: calc(var(--code-size) + var(--bchc-space-4) + var(--footer-size));
 }
 
 .grabber {
@@ -217,6 +257,10 @@
 	flex-direction: column;
 	gap: var(--bchc-space-3);
 	min-width: 0;
+	min-height: 0;
+	/* The code column alone sets the row height; this column stretches to it and the list scrolls. */
+	contain: size;
+	align-self: stretch;
 }
 
 .field {
@@ -238,12 +282,14 @@
 	align-items: center;
 }
 
+/* The pill's look, shared by the dropdown trigger (a `button.select`, see below) and the
+   single-protocol static label (a plain `span.select`, with no hover/active state or chevron). */
 .select {
 	display: inline-flex;
 	align-items: center;
 	gap: var(--bchc-space-2);
 	height: 30px;
-	padding: 0 10px 0 var(--bchc-space-3);
+	padding-inline: var(--bchc-space-3) 10px;
 	border: 0;
 	border-radius: var(--bchc-radius-pill);
 	background: var(--bchc-text);
@@ -253,18 +299,21 @@
 	font-weight: var(--bchc-weight-semibold);
 	line-height: 1;
 	white-space: nowrap;
+}
+
+button.select {
 	cursor: pointer;
 	transition:
 		background var(--bchc-duration-fast) var(--bchc-ease-out),
 		transform var(--bchc-duration-fast) var(--bchc-ease-spring);
 }
 
-.select:hover,
-.select[aria-expanded="true"] {
+button.select:hover,
+button.select[aria-expanded="true"] {
 	background: var(--bchc-text-muted);
 }
 
-.select:active {
+button.select:active {
 	transform: scale(0.97);
 }
 
@@ -276,7 +325,7 @@
 .menu {
 	position: absolute;
 	top: calc(100% + var(--bchc-space-1));
-	left: 0;
+	inset-inline-start: 0;
 	z-index: 2;
 	min-width: 208px;
 	margin: 0;
@@ -369,7 +418,15 @@
 	display: flex;
 	flex-direction: column;
 	gap: var(--bchc-space-1);
-	margin: 0 calc(var(--bchc-space-3) * -1);
+	/* The padding gives the rows' focus ring room inside the scroll clip; the margin cancels it. */
+	margin: calc(var(--bchc-space-1) * -1)
+		calc((var(--bchc-space-3) + var(--bchc-space-1)) * -1);
+	padding: var(--bchc-space-1);
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+	scrollbar-color: var(--bchc-border) transparent;
 }
 
 .wallet {
@@ -385,7 +442,7 @@
 	font-family: inherit;
 	font-size: var(--bchc-text-md);
 	font-weight: var(--bchc-weight-semibold);
-	text-align: left;
+	text-align: start;
 	text-decoration: none;
 	cursor: pointer;
 	transition:
@@ -402,21 +459,40 @@
 	transition-duration: var(--bchc-duration-press);
 }
 
-.wallet img {
+.wallet img,
+.wallet .logo-fallback {
 	width: 32px;
 	height: 32px;
 	flex: none;
 	border-radius: var(--bchc-radius-media);
-	object-fit: cover;
 	transition: transform var(--bchc-duration-base) var(--bchc-ease-spring);
 }
 
-.wallet:hover img {
+.wallet img {
+	object-fit: cover;
+}
+
+.wallet:hover img,
+.wallet:hover .logo-fallback {
 	transform: scale(1.06) translateX(1px);
 }
 
+/* A missing or failed logo, in the same footprint as a real one. `:where()` keeps this below the sizing/hover rules' specificity regardless of source order. */
+:where(.logo-fallback) {
+	display: grid;
+	place-items: center;
+	background: var(--bchc-surface-sunken);
+	border: 1px solid var(--bchc-border-subtle);
+	color: var(--bchc-text-muted);
+}
+
+.logo-fallback svg {
+	width: 55%;
+	height: 55%;
+}
+
 .go {
-	margin-left: auto;
+	margin-inline-start: auto;
 	display: grid;
 	place-items: center;
 	color: var(--bchc-text-muted);
@@ -442,7 +518,8 @@
 	background: transparent;
 }
 
-.wallet[aria-disabled="true"]:hover img {
+.wallet[aria-disabled="true"]:hover img,
+.wallet[aria-disabled="true"]:hover .logo-fallback {
 	transform: none;
 }
 
@@ -456,12 +533,20 @@
 .wallet-name {
 	min-width: 0;
 	line-height: var(--bchc-leading-snug);
+	/* A long name ellipsizes on one line instead of wrapping and growing the row. */
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .get-one {
 	margin: var(--bchc-space-2) 0 0;
 }
 
+/* English copy, always: isolated so its own trailing "?" doesn't reorder to
+   the front under an inherited RTL paragraph direction; the underline below
+   then always grows from its left, matching this text's own reading order. */
 .get-one button {
 	padding: 0;
 	border: 0;
@@ -472,6 +557,7 @@
 	font-size: var(--bchc-text-md);
 	font-weight: var(--bchc-weight-bold);
 	text-decoration: none;
+	unicode-bidi: plaintext;
 	background-image: linear-gradient(currentColor, currentColor);
 	background-repeat: no-repeat;
 	background-size: 0% 1.5px;
@@ -502,6 +588,8 @@
 	position: relative;
 	width: 100%;
 	aspect-ratio: 1;
+	/* A flex item with aspect-ratio and padding gets an automatic minimum height in WebKit; this pins it to the ratio instead. */
+	min-height: 0;
 	display: grid;
 	place-items: center;
 	padding: var(--bchc-space-4);
@@ -617,6 +705,7 @@
 	overflow: clip;
 }
 
+/* Sweeps the same physical way in RTL: it dresses the QR tile, which never mirrors. */
 .skeleton::after {
 	content: "";
 	position: absolute;
@@ -812,6 +901,8 @@
 	text-wrap: balance;
 }
 
+/* English copy, always: isolated so its own trailing punctuation doesn't
+   reorder to the front under an inherited RTL paragraph direction. */
 .status-detail {
 	margin: 0;
 	max-width: 32ch;
@@ -819,12 +910,13 @@
 	line-height: var(--bchc-leading-snug);
 	color: var(--bchc-text-muted);
 	text-wrap: pretty;
+	unicode-bidi: plaintext;
 }
 
 .status .retry {
 	margin-top: var(--bchc-space-4);
 	min-height: 44px;
-	padding: 0 var(--bchc-space-5) 0 var(--bchc-space-4);
+	padding-inline: var(--bchc-space-4) var(--bchc-space-5);
 	font-size: var(--bchc-text-md);
 	font-weight: var(--bchc-weight-bold);
 	letter-spacing: var(--bchc-tracking-snug);
@@ -875,6 +967,8 @@
 	min-width: 0;
 	font-size: var(--bchc-text-sm);
 	font-weight: var(--bchc-weight-medium);
+	/* Two lines still fit the row's 36px, so a caption that wraps on a narrow phone doesn't grow the sheet. */
+	line-height: var(--bchc-leading-snug);
 	color: var(--bchc-text-muted);
 }
 
@@ -882,8 +976,10 @@
 	flex: none;
 }
 
+/* Each text takes its direction from its own content, so copy keeps its punctuation in place under any page direction. */
 .caption-text {
 	min-width: 0;
+	unicode-bidi: plaintext;
 }
 
 .button {
@@ -922,7 +1018,7 @@
 }
 
 .button.pill {
-	min-height: 36px;
+	min-height: var(--footer-size);
 	padding: 0 var(--bchc-space-4);
 	border-radius: var(--bchc-radius-pill);
 	background: var(--bchc-surface-raised);
@@ -1039,6 +1135,12 @@
 	}
 }
 
+@media (prefers-reduced-transparency: reduce) {
+	.overlay {
+		backdrop-filter: none;
+	}
+}
+
 /* These loops use literal durations, which the token collapse in tokens.css can't stop. */
 @media (prefers-reduced-motion: reduce) {
 	.skeleton::after {
@@ -1061,6 +1163,36 @@
 .overlay.is-sheet {
 	padding: 0;
 	place-items: end stretch;
+	/* The scrim is its own layer below; an animated overlay opacity here would make it the backdrop root instead, and `.scrim`'s blur would stop seeing the page. */
+	background: none;
+	backdrop-filter: none;
+	animation: none;
+}
+
+.overlay.is-sheet.is-closing {
+	animation: none;
+}
+
+.overlay.is-sheet .scrim {
+	display: block;
+	position: absolute;
+	inset: 0;
+	background: var(--bchc-overlay);
+	backdrop-filter: blur(var(--bchc-overlay-blur));
+	animation: scrim-in calc(var(--bchc-duration-slow) * 0.9)
+		var(--bchc-ease-sheet) both;
+}
+
+@keyframes scrim-in {
+	from {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-transparency: reduce) {
+	.overlay.is-sheet .scrim {
+		backdrop-filter: none;
+	}
 }
 
 .overlay.is-sheet .card {
@@ -1070,7 +1202,13 @@
 		calc(var(--bchc-space-6) + env(safe-area-inset-bottom, 0px));
 	border-radius: var(--bchc-radius-modal) var(--bchc-radius-modal) 0 0;
 	touch-action: pan-x;
-	animation: sheet var(--bchc-duration-slow) var(--bchc-ease-settle) both;
+	/* With the bleed's negative z-index, keeps it under the contents that leave during a slide. */
+	isolation: isolate;
+	/* Both are set from script: the measured height of everything but the tile, and how far a shrinking sheet starts raised. */
+	--bchc-sheet-rest: 333px;
+	--bchc-sheet-travel: 0px;
+	animation: sheet calc(var(--bchc-duration-slow) * 0.9) var(--bchc-ease-sheet)
+		both;
 }
 
 @keyframes sheet {
@@ -1079,14 +1217,51 @@
 	}
 }
 
-.overlay.is-sheet.is-closing .card {
-	animation: sheet var(--bchc-duration-base) var(--bchc-ease-out) reverse both;
+/* Continues the card's surface below its bottom edge, so a sheet pulled up or starting raised never shows the page under it. */
+.overlay.is-sheet .card::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 100%;
+	height: max(64px, var(--bchc-sheet-travel));
+	background: var(--bchc-surface);
+	pointer-events: none;
+	z-index: -1;
 }
 
-/* The drag already carried the sheet off (sheet.ts); nothing left to animate. */
+/* Own keyframes (only a `to` block): the sheet may be mid-drag when this starts, so the exit begins from wherever it already is, not always from the resting position. */
+.overlay.is-sheet.is-closing .card {
+	animation: sheet-out calc(var(--bchc-duration-base) * 1.1)
+		var(--bchc-ease-sheet) both;
+}
+
+@keyframes sheet-out {
+	to {
+		transform: translateY(100%);
+	}
+}
+
+.overlay.is-sheet.is-closing .scrim {
+	animation: scrim-out calc(var(--bchc-duration-base) * 1.1)
+		var(--bchc-ease-sheet) both;
+}
+
+@keyframes scrim-out {
+	to {
+		opacity: 0;
+	}
+}
+
+/* The drag already carried the sheet off (sheet.ts); nothing left to animate, and the end state must match what it already set inline. */
 .overlay.is-sheet.is-closing.is-dragged .card {
 	animation: none;
 	transform: translateY(100%);
+}
+
+.overlay.is-sheet.is-closing.is-dragged .scrim {
+	animation: none;
+	opacity: 0;
 }
 
 .overlay.is-sheet .grabber {
@@ -1097,12 +1272,40 @@
 	border-radius: var(--bchc-radius-pill);
 	background: var(--bchc-border);
 	flex: none;
+	transition:
+		transform var(--bchc-duration-fast) var(--bchc-ease-out),
+		background var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+.overlay.is-sheet .card.is-dragging .grabber {
+	transform: scaleX(1.22);
+	background: var(--bchc-border-hover);
+}
+
+/* A drawer closes by dragging or tapping outside, so the button is left to the keyboard. It keeps its box so the header doesn't shift. */
+.overlay.is-sheet .close {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.overlay.is-sheet .close:focus-visible {
+	opacity: 1;
+	pointer-events: auto;
 }
 
 .overlay.is-sheet .tile {
-	width: min(100%, 320px);
+	/* Full size wherever the sheet fits the viewport; smaller only when it would not, down to 232px. */
+	width: min(
+		100%,
+		clamp(232px, 100dvh - var(--bchc-space-10) - var(--bchc-sheet-rest), 320px)
+	);
 	margin: var(--bchc-space-1) auto;
 	padding: var(--bchc-space-3);
+}
+
+/* The primary slot carries "Try again" in the drawer. */
+.overlay.is-sheet .status .retry {
+	display: none;
 }
 
 .button.block {
@@ -1110,6 +1313,41 @@
 	min-height: 52px;
 	font-size: var(--bchc-text-md);
 	border-radius: var(--bchc-radius-pill);
+}
+
+/* Both controls share one cell, so swapping them never changes the slot's size. It sticks to the bottom of a body that has to scroll, on the card's surface so nothing shows through around the pill. */
+.overlay.is-sheet .primary-slot {
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
+	display: grid;
+	background: var(--bchc-surface);
+}
+
+.overlay.is-sheet .primary-slot > * {
+	grid-area: 1 / 1;
+}
+
+/* Fades out what scrolls under the slot. Surface over surface otherwise, so it shows only then. */
+.overlay.is-sheet .primary-slot::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 100%;
+	height: 16px;
+	background: linear-gradient(to bottom, transparent, var(--bchc-surface));
+	pointer-events: none;
+}
+
+.overlay.is-sheet .primary-slot:not(.is-failed) [data-act="retry"],
+.overlay.is-sheet .primary-slot.is-failed [data-act="open"] {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	transition:
+		opacity var(--bchc-duration-fast) var(--bchc-ease-out),
+		visibility 0s var(--bchc-duration-fast);
 }
 
 /* Kept here, after every plain `<selector> svg` rule, so their higher specificity never sits ahead (noDescendingSpecificity). */
@@ -1121,6 +1359,7 @@
 	transform: translateX(-1px);
 }
 
+/* No `button.` prefix needed: the static single-protocol span never has an svg child to match. */
 .select:hover svg {
 	transform: translateY(1px);
 }
@@ -1142,6 +1381,13 @@
 	flex-direction: column;
 	gap: var(--bchc-space-1);
 	margin: 0 calc(var(--bchc-space-3) * -1);
+	/* Absorbs the overflow once `.single`'s wide-viewport height cap kicks in; inert otherwise. */
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+	scrollbar-color: var(--bchc-border) transparent;
 }
 
 .directory-row {
@@ -1155,13 +1401,17 @@
 	color: var(--bchc-text);
 	font-weight: var(--bchc-weight-semibold);
 	text-decoration: none;
-	cursor: pointer;
 	transition:
 		background var(--bchc-duration-fast) var(--bchc-ease-out),
 		transform var(--bchc-duration-fast) var(--bchc-ease-out);
 }
 
-.directory-row:active {
+/* Only a row with a link is interactive; one without is a plain listing. */
+.directory-row:where(a) {
+	cursor: pointer;
+}
+
+.directory-row:where(a):active {
 	transform: scale(0.985);
 	transition-duration: var(--bchc-duration-press);
 }
@@ -1174,12 +1424,12 @@
 	object-fit: cover;
 }
 
-.directory-row:hover {
+.directory-row:where(a):hover {
 	background: var(--bchc-surface-raised);
 }
 
 .directory-links {
-	margin-left: auto;
+	margin-inline-start: auto;
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--bchc-space-2);
@@ -1196,12 +1446,44 @@
 	transition: transform var(--bchc-duration-fast) var(--bchc-ease-out);
 }
 
-.directory-row:hover .button.pill {
+.directory-row:where(a):hover .button.pill {
 	background: var(--bchc-surface-hover);
 }
 
-.directory-row:hover .button svg {
+/* Northeast nudge on the fixed external-link arrow; it never mirrors with direction. */
+.directory-row:where(a):hover .button svg {
 	transform: translate(1px, -1px);
+}
+
+/* Every `.is-rtl` rule lives here, in ascending specificity, so none of them
+   ever sits ahead of a lower-specificity rule above (noDescendingSpecificity).
+   `.is-rtl` is set from script: `:dir()` doesn't reliably see directionality
+   inherited from outside the shadow tree, but the `direction` property does
+   (see `modal.ts`). `transform-origin` has no logical form, so the menu's is
+   mirrored to its own inline-start corner. "Back" is relative to reading
+   order, so it mirrors; "go to wallet" (`.go`, an external-link arrow) and
+   the directory's own link icon do not: both keep their fixed northeast/exit
+   meaning, matching the convention every major platform uses for that glyph.
+   The icon on `.go` never mirrors; only the side it slides in from does. */
+.overlay.is-rtl .menu {
+	transform-origin: calc(100% - 12px) 0;
+}
+
+.overlay.is-rtl .go {
+	transform: translateX(6px);
+}
+
+.overlay.is-rtl .back svg {
+	transform: scaleX(-1);
+}
+
+.overlay.is-rtl .back:hover svg {
+	transform: scaleX(-1) translateX(-1px);
+}
+
+.overlay.is-rtl .wallet:hover img,
+.overlay.is-rtl .wallet:hover .logo-fallback {
+	transform: scale(1.06) translateX(-1px);
 }
 
 /* Must stay last: it beats `.badge` and `.back`'s `display` by source order, without `!important`. */

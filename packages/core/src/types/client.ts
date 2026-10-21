@@ -20,11 +20,11 @@ import type {
 } from "./protocol.js";
 
 /**
- * Client lifecycle status.
+ * Client lifecycle status. `"disposed"` is terminal.
  *
  * @public
  */
-export type ClientStatus = "idle" | "restoring" | "ready";
+export type ClientStatus = "idle" | "restoring" | "ready" | "disposed";
 
 /**
  * Serializable summary of the client's sessions, small enough for a cookie.
@@ -120,6 +120,13 @@ export interface LifecycleEvents<
 }
 
 /**
+ * How a request settled, as `request:settled` reports it.
+ *
+ * @internal
+ */
+export type RequestOutcome = LifecycleEvents["request:settled"]["outcome"];
+
+/**
  * The lifecycle events a connector may emit through its context.
  *
  * @public
@@ -169,9 +176,15 @@ export interface ClientLifecycle {
 	/** The external store. The single source of truth. */
 	readonly store: ClientStore;
 
-	/** Runs connector setup, then restores persisted sessions. Idempotent. */
+	/** Runs connector setup, then restores persisted sessions idempotently */
 	init(): Promise<void>;
-	/** Releases every resource. The client is unusable afterwards. */
+	/**
+	 * Releases every connector's resources and moves the client to the
+	 * terminal `"disposed"` status, keeping its sessions. Every later call
+	 * returns the promise of the first. Every other method then rejects or
+	 * throws `CONFIG`, except `session()` and the derived getters, which keep
+	 * answering.
+	 */
 	dispose(): Promise<void>;
 	/** Establishes a session over the given protocol, e.g. `"wizardconnect"`. */
 	connect(

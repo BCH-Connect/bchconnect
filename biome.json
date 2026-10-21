@@ -10,8 +10,7 @@
 			"**",
 			"!**/routeTree.gen.ts",
 			"!**/*.generated.*",
-			"!packages/*/assets",
-			"!packages/ui/lab"
+			"!packages/*/assets"
 		]
 	},
 	"linter": {
@@ -60,7 +59,7 @@
 			}
 		},
 		{
-			"includes": ["packages/core/test/types/**"],
+			"includes": ["packages/core/test/**"],
 			"linter": {
 				"rules": {
 					"style": {
@@ -71,6 +70,12 @@
 									{
 										"selector": {
 											"kind": "typeProperty"
+										},
+										"formats": ["camelCase", "snake_case"]
+									},
+									{
+										"selector": {
+											"kind": "objectLiteralProperty"
 										},
 										"formats": ["camelCase", "snake_case"]
 									}
