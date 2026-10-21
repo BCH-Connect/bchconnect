@@ -4,6 +4,8 @@ import {
 	cookieToInitialState,
 	localStorage,
 	memory,
+	parseExtendedJson,
+	stringifyExtendedJson,
 } from "../src/index.js";
 
 describe("package entry", () => {
@@ -12,5 +14,10 @@ describe("package entry", () => {
 		expect(cookieToInitialState).toBeTypeOf("function");
 		expect(localStorage).toBeTypeOf("function");
 		expect(memory).toBeTypeOf("function");
+	});
+
+	it("should export the extended JSON codec", () => {
+		expect(parseExtendedJson).toBeTypeOf("function");
+		expect(stringifyExtendedJson).toBeTypeOf("function");
 	});
 });

@@ -6,6 +6,10 @@
  */
 
 export { createClient } from "./client/create-client.js";
+export {
+	parseExtendedJson,
+	stringifyExtendedJson,
+} from "./codec/extended-json.js";
 export type { BchConnectErrorCode } from "./errors.js";
 export {
 	AbortedError,

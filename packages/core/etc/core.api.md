@@ -350,6 +350,9 @@ export type Pairing = {
 };
 
 // @public
+export function parseExtendedJson(text: string): unknown;
+
+// @public
 export interface ProtocolDefinition {
     capability: string;
     events: Record<string, unknown>;
@@ -451,6 +454,9 @@ export interface SignTransactionResponse {
 export interface SourceOutput extends TransactionInput, TransactionOutput {
     readonly contract?: ContractDisplay;
 }
+
+// @public
+export function stringifyExtendedJson(value: unknown): string;
 
 // @public
 export class TimeoutError extends BchConnectError {

@@ -36,6 +36,7 @@
 		"@vitest/coverage-v8": "5.0.2",
 		"apcach": "0.6.4",
 		"colorjs.io": "0.7.1",
+		"fast-check": "4.10.2",
 		"playwright": "1.63.0",
 		"publint": "0.3.24",
 		"size-limit": "14.0.0",
