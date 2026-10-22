@@ -636,7 +636,7 @@ export const ProtocolMarkNull = meta.story({
 		// The markless tab is inactive, where a dense tab shows only its mark: it keeps its name.
 		modalHost(canvasElement).view = viewFor({
 			protocols: PROTOCOL_WITHOUT_MARK,
-			protocol: "walletconnect",
+			protocol: "bch-wc2",
 		});
 		const tab = await waitFor(() => {
 			const found = shadow.querySelector<HTMLElement>(

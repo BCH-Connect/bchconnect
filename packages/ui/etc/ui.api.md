@@ -210,7 +210,7 @@ export interface ModalView {
 export type Network = "mainnet" | "chipnet" | "regtest";
 
 // @beta
-export type ProtocolId = "wizardconnect" | "walletconnect" | "cashconnect";
+export type ProtocolId = "wizardconnect" | "bch-wc2" | "cashconnect";
 
 // @beta
 export interface ProtocolMark {

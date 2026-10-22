@@ -224,7 +224,7 @@ export const Wallets = meta.story({
 });
 
 export const WalletConnect = meta.story({
-	args: { view: viewFor({ protocol: "walletconnect" }) },
+	args: { view: viewFor({ protocol: "bch-wc2" }) },
 	play: async ({ canvasElement }) => {
 		await settle();
 		const modal = modalHost(canvasElement);
