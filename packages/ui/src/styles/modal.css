@@ -225,11 +225,14 @@
 	pointer-events: none;
 }
 
+/* Three rows shared by both columns: the instructions on one line, the list starting at the
+   tile's top edge, and both footers on one bottom line. */
 .split {
 	display: grid;
 	grid-template-columns: 1fr var(--code-size);
-	gap: var(--bchc-space-10);
-	align-items: start;
+	grid-template-rows: var(--footer-size) auto var(--footer-size);
+	column-gap: var(--bchc-space-10);
+	row-gap: var(--bchc-space-4);
 	min-height: 0;
 }
 
@@ -250,167 +253,10 @@
 	display: none;
 }
 
-.left {
-	/* Outgoing (removed) rows position against this box. */
-	position: relative;
-	display: flex;
-	flex-direction: column;
-	gap: var(--bchc-space-3);
-	min-width: 0;
-	min-height: 0;
-	/* The code column alone sets the row height; this column stretches to it and the list scrolls. */
-	contain: size;
-	align-self: stretch;
-}
-
-.field {
-	display: flex;
-	align-items: center;
-	gap: var(--bchc-space-3);
-	min-height: 30px;
-}
-
 .label {
 	font-size: var(--bchc-text-sm);
 	font-weight: var(--bchc-weight-medium);
 	color: var(--bchc-text-muted);
-}
-
-.select-wrap {
-	position: relative;
-	display: inline-flex;
-	align-items: center;
-}
-
-/* The pill's look, shared by the dropdown trigger (a `button.select`, see below) and the
-   single-protocol static label (a plain `span.select`, with no hover/active state or chevron). */
-.select {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--bchc-space-2);
-	height: 30px;
-	padding-inline: var(--bchc-space-3) 10px;
-	border: 0;
-	border-radius: var(--bchc-radius-pill);
-	background: var(--bchc-text);
-	color: var(--bchc-surface);
-	font-family: inherit;
-	font-size: var(--bchc-text-xs);
-	font-weight: var(--bchc-weight-semibold);
-	line-height: 1;
-	white-space: nowrap;
-}
-
-button.select {
-	cursor: pointer;
-	transition:
-		background var(--bchc-duration-fast) var(--bchc-ease-out),
-		transform var(--bchc-duration-fast) var(--bchc-ease-spring);
-}
-
-button.select:hover,
-button.select[aria-expanded="true"] {
-	background: var(--bchc-text-muted);
-}
-
-button.select:active {
-	transform: scale(0.97);
-}
-
-.select svg {
-	flex: none;
-	transition: transform var(--bchc-duration-base) var(--bchc-ease-spring);
-}
-
-.menu {
-	position: absolute;
-	top: calc(100% + var(--bchc-space-1));
-	inset-inline-start: 0;
-	z-index: 2;
-	min-width: 208px;
-	margin: 0;
-	padding: var(--bchc-space-1);
-	display: grid;
-	gap: 2px;
-	list-style: none;
-	background: var(--bchc-surface);
-	border-radius: var(--bchc-radius-control);
-	box-shadow:
-		0 1px 2px var(--bchc-shadow-tight),
-		0 12px 32px var(--bchc-shadow-soft),
-		inset 0 0 0 1px var(--bchc-border-subtle);
-	transform-origin: 12px 0;
-}
-
-.option {
-	display: flex;
-	align-items: center;
-	gap: var(--bchc-space-2);
-	min-height: 36px;
-	padding: 0 var(--bchc-space-2);
-	border-radius: var(--bchc-radius-media);
-	color: var(--bchc-text);
-	font-size: var(--bchc-text-sm);
-	font-weight: var(--bchc-weight-semibold);
-	cursor: pointer;
-	transition:
-		background var(--bchc-duration-fast) var(--bchc-ease-out),
-		color var(--bchc-duration-fast) var(--bchc-ease-out);
-}
-
-.option:hover {
-	background: var(--bchc-surface-hover);
-}
-
-.option:focus-visible {
-	background: var(--bchc-surface-hover);
-	outline: 2px solid var(--bchc-focus);
-	outline-offset: -2px;
-}
-
-.option:active {
-	background: var(--bchc-surface-active);
-}
-
-.option[aria-selected="true"],
-.option[aria-selected="true"]:hover,
-.option[aria-selected="true"]:focus-visible {
-	background: var(--bchc-accent-subtle);
-	color: var(--bchc-accent-text);
-}
-
-.option[aria-selected="true"]:active {
-	background: var(--bchc-accent-subtle-active);
-}
-
-.option-mark {
-	width: 18px;
-	height: 18px;
-	flex: none;
-	border-radius: 4px;
-	object-fit: contain;
-}
-
-.option-name {
-	flex: 1;
-	min-width: 0;
-}
-
-/* Only the chosen row shows its check; the others keep the space. */
-.option-check {
-	display: grid;
-	place-items: center;
-	width: 14px;
-	opacity: 0;
-	transform: scale(0.6);
-	transition:
-		opacity var(--bchc-duration-fast) var(--bchc-ease-out),
-		transform var(--bchc-duration-base) var(--bchc-ease-spring);
-}
-
-.option[aria-selected="true"] .option-check {
-	opacity: 1;
-	transform: none;
 }
 
 .wallets {
@@ -429,7 +275,76 @@ button.select:active {
 	scrollbar-color: var(--bchc-border) transparent;
 }
 
+.cell-control {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+}
+
+/* The tile alone sets the middle row's height; the list fills it and scrolls. */
+.cell-list {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	contain: size;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.wallet-row {
+	position: relative;
+	display: flex;
+}
+
+/* The selected state is a tint layered under the content and over the hover fill,
+   spreading from the logo or mark. */
+.wallet,
+.tab {
+	--tint: light-dark(
+		color-mix(in oklab, var(--bchc-accent) 12%, transparent),
+		color-mix(in oklab, var(--bchc-accent) 16%, transparent)
+	);
+}
+
+.wallet::before,
+.tab::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: inherit;
+	background: var(--tint);
+	opacity: 0;
+	clip-path: circle(0 at var(--spread-x) 50%);
+	transition:
+		opacity var(--bchc-duration-fast) var(--bchc-ease-out),
+		clip-path 0s linear var(--bchc-duration-fast);
+}
+
+.wallet[aria-checked="true"]::before,
+.tab[aria-selected="true"]::before {
+	opacity: 1;
+	clip-path: circle(150% at var(--spread-x) 50%);
+	transition:
+		opacity 0s,
+		clip-path calc(var(--bchc-duration-base) * 1.1) var(--bchc-ease-out);
+}
+
 .wallet {
+	--spread-x: 28px;
+	position: relative;
+	isolation: isolate;
+	flex: 1;
+	min-width: 0;
 	display: flex;
 	align-items: center;
 	gap: var(--bchc-space-3);
@@ -443,7 +358,6 @@ button.select:active {
 	font-size: var(--bchc-text-md);
 	font-weight: var(--bchc-weight-semibold);
 	text-align: start;
-	text-decoration: none;
 	cursor: pointer;
 	transition:
 		background var(--bchc-duration-fast) var(--bchc-ease-out),
@@ -452,6 +366,14 @@ button.select:active {
 
 .wallet:hover {
 	background: var(--bchc-surface-raised);
+}
+
+.wallet[aria-checked="true"]:hover {
+	background: transparent;
+}
+
+.wallet-row.has-open .wallet {
+	padding-inline-end: 96px;
 }
 
 .wallet:active {
@@ -472,8 +394,8 @@ button.select:active {
 	object-fit: cover;
 }
 
-.wallet:hover img,
-.wallet:hover .logo-fallback {
+.wallet:not([aria-checked="true"]):hover img,
+.wallet:not([aria-checked="true"]):hover .logo-fallback {
 	transform: scale(1.06) translateX(1px);
 }
 
@@ -491,43 +413,17 @@ button.select:active {
 	height: 55%;
 }
 
-.go {
-	margin-inline-start: auto;
-	display: grid;
-	place-items: center;
-	color: var(--bchc-text-muted);
-	opacity: 0;
-	transform: translateX(-6px);
-	transition:
-		opacity var(--bchc-duration-fast) var(--bchc-ease-out),
-		transform var(--bchc-duration-base) var(--bchc-ease-settle);
-}
-
-.wallet:hover .go,
-.wallet:focus-visible .go {
-	opacity: 1;
-	transform: none;
-}
-
-.wallet[aria-disabled="true"] {
-	color: var(--bchc-text-muted);
-	cursor: default;
-}
-
-.wallet[aria-disabled="true"]:hover {
-	background: transparent;
-}
-
-.wallet[aria-disabled="true"]:hover img,
-.wallet[aria-disabled="true"]:hover .logo-fallback {
-	transform: none;
-}
-
 .section-label {
 	margin: var(--bchc-space-2) 0 0;
 	font-size: var(--bchc-text-sm);
 	font-weight: var(--bchc-weight-medium);
 	color: var(--bchc-text-muted);
+}
+
+/* After `.section-label`, so its margin gives way in the grid cell. */
+.cell-label {
+	margin: 0;
+	align-self: center;
 }
 
 .wallet-name {
@@ -576,12 +472,246 @@ button.select:active {
 	opacity: 0.7;
 }
 
-.right {
-	display: flex;
-	flex-direction: column;
+.cell-prompt {
+	align-self: center;
+}
+
+.cell-prompt .get-one {
+	margin: 0;
+}
+
+/* The selected row's desktop link, a pill one tint step deeper; it appears just after the
+   tint and leaves with it. */
+.open {
+	--open-fill: light-dark(
+		color-mix(in oklab, var(--bchc-accent) 16%, transparent),
+		color-mix(in oklab, var(--bchc-accent) 20%, transparent)
+	);
+	position: absolute;
+	inset-block: 0;
+	inset-inline-end: var(--bchc-space-3);
+	z-index: 1;
+	margin-block: auto;
+	height: 32px;
+	padding-inline: 14px 12px;
+	border-radius: var(--bchc-radius-pill);
+	display: inline-flex;
 	align-items: center;
-	gap: var(--bchc-space-4);
+	gap: 6px;
+	background: var(--open-fill);
+	color: var(--bchc-text);
+	font-size: var(--bchc-text-sm);
+	font-weight: var(--bchc-weight-bold);
+	letter-spacing: 0.01em;
+	text-decoration: none;
+	white-space: nowrap;
+	visibility: hidden;
+	opacity: 0;
+	transform: scale(0.92);
+	transition:
+		opacity var(--bchc-duration-fast) var(--bchc-ease-out),
+		transform var(--bchc-duration-fast) var(--bchc-ease-out),
+		background var(--bchc-duration-fast) var(--bchc-ease-out),
+		visibility 0s linear var(--bchc-duration-fast);
+}
+
+.open.is-shown {
+	visibility: visible;
+	opacity: 1;
+	transform: none;
+	transition:
+		opacity var(--bchc-duration-base) var(--bchc-ease-out) 120ms,
+		transform var(--bchc-duration-base) var(--bchc-ease-spring) 120ms,
+		background var(--bchc-duration-fast) var(--bchc-ease-out),
+		visibility 0s;
+}
+
+.open:hover {
+	--open-fill: light-dark(
+		color-mix(in oklab, var(--bchc-accent) 24%, transparent),
+		color-mix(in oklab, var(--bchc-accent) 28%, transparent)
+	);
+}
+
+.open.is-shown:active {
+	transform: scale(0.95);
+	transition-delay: 0s;
+}
+
+.open.is-shown[aria-disabled="true"] {
+	opacity: 0.45;
+	pointer-events: none;
+}
+
+.open-text {
+	unicode-bidi: plaintext;
+}
+
+/* Lowered a pixel: next to mostly lowercase text, the box centre reads high. */
+.open-arrow {
+	flex: none;
+	margin-block-start: 1px;
+	color: var(--bchc-accent-text);
+	transition: transform var(--bchc-duration-base) var(--bchc-ease-spring);
+}
+
+.open:hover .open-arrow {
+	transform: translate(1.5px, -1.5px);
+}
+
+.session.is-tabs {
+	flex: 1;
 	min-width: 0;
+}
+
+.tabs {
+	display: grid;
+	grid-template-columns: repeat(var(--count), minmax(0, 1fr));
+	gap: 2px;
+	height: var(--footer-size);
+}
+
+/* Past two tabs only the active one shows its name, which three full names would overflow;
+   the name column animates open and closed. */
+.tabs.is-dense {
+	display: flex;
+	gap: var(--bchc-space-1);
+}
+
+.tab {
+	--spread-x: 18px;
+	position: relative;
+	isolation: isolate;
+	min-width: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	padding: 0 var(--bchc-space-2);
+	border: 0;
+	border-radius: var(--bchc-radius-pill);
+	background: transparent;
+	color: var(--bchc-text-muted);
+	font-family: inherit;
+	font-size: var(--bchc-text-xs);
+	font-weight: var(--bchc-weight-semibold);
+	line-height: 1;
+	white-space: nowrap;
+	cursor: pointer;
+	transition:
+		background var(--bchc-duration-fast) var(--bchc-ease-out),
+		color var(--bchc-duration-base) var(--bchc-ease-out),
+		transform var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+.tabs.is-dense .tab {
+	flex: none;
+	gap: 0;
+	padding: 0 10px;
+}
+
+.tab:not([aria-selected="true"]):hover {
+	color: var(--bchc-text);
+	background: color-mix(in oklab, var(--bchc-text) 5%, transparent);
+}
+
+.tab:active {
+	transform: scale(0.97);
+}
+
+/* Text colour, not accent: the tint carries the accent. */
+.tab[aria-selected="true"] {
+	color: var(--bchc-text);
+	cursor: default;
+}
+
+.tab:focus-visible {
+	outline-offset: -2px;
+}
+
+/* Own colours, slightly receded, so dark marks stay visible on a dark surface. */
+.tab-mark {
+	width: 16px;
+	height: 16px;
+	flex: none;
+	border-radius: 4px;
+	object-fit: contain;
+	opacity: 0.78;
+	transition: opacity var(--bchc-duration-base) var(--bchc-ease-out);
+}
+
+.session-value .tab-mark,
+.tab:hover .tab-mark,
+.tab[aria-selected="true"] .tab-mark {
+	opacity: 1;
+}
+
+/* The name sits in a grid column that animates between 0fr and 1fr. */
+.tab-name {
+	display: grid;
+	grid-template-columns: 1fr;
+	min-width: 0;
+	transition:
+		grid-template-columns var(--bchc-duration-base) var(--bchc-ease-settle),
+		margin var(--bchc-duration-base) var(--bchc-ease-settle);
+}
+
+.tabs.is-dense .tab-name {
+	margin-inline-start: 6px;
+}
+
+/* Clipped, not ellipsised: while the column opens the name is revealed, never dotted.
+   Each name keeps its own direction, so an RTL page doesn't move its letters. */
+.tab-name-inner {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: clip;
+	white-space: nowrap;
+	unicode-bidi: plaintext;
+	transition: opacity var(--bchc-duration-fast) var(--bchc-ease-out);
+}
+
+.tabs.is-dense .tab:not([aria-selected="true"]) .tab-name {
+	grid-template-columns: 0fr;
+	margin-inline-start: 0;
+}
+
+.tabs.is-dense .tab:not([aria-selected="true"]) .tab-name-inner {
+	opacity: 0;
+	transition-duration: calc(var(--bchc-duration-fast) * 0.6);
+}
+
+/* A tab without a mark would show nothing, so it keeps its name. */
+.tabs.is-dense .tab.no-mark .tab-name {
+	margin-inline-start: 0;
+}
+
+.tabs.is-dense .tab.no-mark:not([aria-selected="true"]) .tab-name {
+	grid-template-columns: 1fr;
+}
+
+.tabs.is-dense .tab.no-mark:not([aria-selected="true"]) .tab-name-inner {
+	opacity: 1;
+}
+
+/* One session type: an informational label where the tabs would be. */
+.session.is-info {
+	display: flex;
+	align-items: center;
+	gap: var(--bchc-space-3);
+	min-width: 0;
+	min-height: var(--footer-size);
+}
+
+.session-value {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	color: var(--bchc-text);
+	font-size: var(--bchc-text-xs);
+	font-weight: var(--bchc-weight-semibold);
+	white-space: nowrap;
 }
 
 .tile {
@@ -976,6 +1106,31 @@ button.select:active {
 	flex: none;
 }
 
+/* The selected wallet in the scan caption: its mark and name, like a session-type mark. Only
+   this part swaps when another wallet is selected. */
+.caption-wallet {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	vertical-align: bottom;
+	margin-inline-start: 2px;
+	color: var(--bchc-text);
+	font-weight: var(--bchc-weight-semibold);
+}
+
+/* Also on the fallback tile, which carries the same class. */
+.caption-mark {
+	width: 16px;
+	height: 16px;
+	flex: none;
+	border-radius: 4px;
+	object-fit: contain;
+}
+
+.caption-name {
+	unicode-bidi: plaintext;
+}
+
 /* Each text takes its direction from its own content, so copy keeps its punctuation in place under any page direction. */
 .caption-text {
 	min-width: 0;
@@ -1110,11 +1265,10 @@ button.select:active {
 
 /* Forced colours drop author backgrounds, so state is shown with outlines. */
 @media (forced-colors: active) {
-	.option:hover,
-	.option:focus-visible,
-	.option[aria-selected="true"] {
-		outline: 1px solid Highlight;
-		outline-offset: -1px;
+	.wallet[aria-checked="true"],
+	.tab[aria-selected="true"] {
+		outline: 2px solid Highlight;
+		outline-offset: -2px;
 	}
 
 	.wallet:hover,
@@ -1359,15 +1513,6 @@ button.select:active {
 	transform: translateX(-1px);
 }
 
-/* No `button.` prefix needed: the static single-protocol span never has an svg child to match. */
-.select:hover svg {
-	transform: translateY(1px);
-}
-
-.select[aria-expanded="true"] svg {
-	transform: rotate(180deg);
-}
-
 .retry:hover svg {
 	transform: rotate(-360deg);
 }
@@ -1459,18 +1604,17 @@ button.select:active {
    ever sits ahead of a lower-specificity rule above (noDescendingSpecificity).
    `.is-rtl` is set from script: `:dir()` doesn't reliably see directionality
    inherited from outside the shadow tree, but the `direction` property does
-   (see `modal.ts`). `transform-origin` has no logical form, so the menu's is
-   mirrored to its own inline-start corner. "Back" is relative to reading
-   order, so it mirrors; "go to wallet" (`.go`, an external-link arrow) and
-   the directory's own link icon do not: both keep their fixed northeast/exit
-   meaning, matching the convention every major platform uses for that glyph.
-   The icon on `.go` never mirrors; only the side it slides in from does. */
-.overlay.is-rtl .menu {
-	transform-origin: calc(100% - 12px) 0;
+   (see `modal.ts`). The tints spread from the logo or mark, so their origin
+   moves to the inline start. "Back" is relative to reading order, so it
+   mirrors; the desktop link's arrow and the directory's link icon do not:
+   both keep their fixed northeast/exit meaning, matching the convention
+   every major platform uses for that glyph. */
+.overlay.is-rtl .wallet {
+	--spread-x: calc(100% - 28px);
 }
 
-.overlay.is-rtl .go {
-	transform: translateX(6px);
+.overlay.is-rtl .tab {
+	--spread-x: calc(100% - 18px);
 }
 
 .overlay.is-rtl .back svg {
@@ -1481,8 +1625,8 @@ button.select:active {
 	transform: scaleX(-1) translateX(-1px);
 }
 
-.overlay.is-rtl .wallet:hover img,
-.overlay.is-rtl .wallet:hover .logo-fallback {
+.overlay.is-rtl .wallet:not([aria-checked="true"]):hover img,
+.overlay.is-rtl .wallet:not([aria-checked="true"]):hover .logo-fallback {
 	transform: scale(1.06) translateX(-1px);
 }
 

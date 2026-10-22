@@ -232,17 +232,11 @@ export const WalletConnect = meta.story({
 		const onProtocol = fn<(event: Event) => void>();
 		modal.addEventListener("bchc-protocol", onProtocol);
 
-		const trigger = shadow.querySelector<HTMLButtonElement>(
-			'[aria-haspopup="listbox"]',
+		const tab = shadow.querySelector<HTMLElement>(
+			'.tab[data-protocol="cashconnect"]',
 		);
-		if (trigger === null) throw new Error("session type trigger missing");
-		await userEvent.click(trigger);
-
-		const option = shadow.querySelector<HTMLElement>(
-			'[role="option"][data-protocol="cashconnect"]',
-		);
-		if (option === null) throw new Error("cashconnect option missing");
-		await userEvent.click(option);
+		if (tab === null) throw new Error("cashconnect tab missing");
+		await userEvent.click(tab);
 
 		await waitFor(() => expect(onProtocol).toHaveBeenCalledTimes(1));
 		expect(detailOf<{ protocol: string }>(onProtocol)).toEqual({
@@ -522,35 +516,13 @@ export const FocusRestoredAfterViewCleared = meta.story({
 	},
 });
 
-// Escape with the session-type menu open closes only the menu; a second
-// Escape then plays the exit and closes the modal, with exactly one
-// `bchc-close` (SPEC §8.7).
-export const EscapeClosesMenuThenModal = meta.story({
+// Escape plays the exit and closes the modal, with exactly one `bchc-close` (SPEC §8.7).
+export const EscapeClosesModal = meta.story({
 	play: async ({ canvasElement }) => {
 		await waitForAnimations();
 		const modal = modalHost(canvasElement);
-		const shadow = modalShadow(canvasElement);
-		const trigger = shadow.querySelector<HTMLButtonElement>(
-			'[aria-haspopup="listbox"]',
-		);
-		if (trigger === null) throw new Error("session type trigger missing");
-		await userEvent.click(trigger);
-		await waitFor(() =>
-			expect(trigger.getAttribute("aria-expanded")).toBe("true"),
-		);
-
 		const onClose = fn<(event: Event) => void>();
 		modal.addEventListener("bchc-close", onClose);
-
-		await userEvent.keyboard("{Escape}");
-		await waitFor(() =>
-			expect(trigger.getAttribute("aria-expanded")).toBe("false"),
-		);
-		// The menu's own close animation must settle (`#closeMenu`) before a
-		// second Escape can tell it's closed and move on to the modal.
-		const menu = shadow.querySelector<HTMLElement>(".menu");
-		await waitFor(() => expect(menu?.hidden).toBe(true));
-		expect(onClose).not.toHaveBeenCalled();
 
 		await userEvent.keyboard("{Escape}");
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
@@ -564,9 +536,8 @@ export const EscapeClosesMenuThenModal = meta.story({
 
 // A synthetic `cancel`, standing in for the dialog's own close-watcher
 // signal (independent of the Escape keypress that normally triggers it):
-// the menu closes first, a second one plays the exit, and each is prevented
-// so the native close watcher never runs ahead of our own handling.
-export const CancelClosesMenuThenModal = meta.story({
+// it is prevented, so the native close watcher never runs ahead of the exit.
+export const CancelPlaysExit = meta.story({
 	play: async ({ canvasElement }) => {
 		await waitForAnimations();
 		const modal = modalHost(canvasElement);
@@ -574,31 +545,13 @@ export const CancelClosesMenuThenModal = meta.story({
 		const dialog = shadow.querySelector(".overlay");
 		if (!(dialog instanceof HTMLDialogElement))
 			throw new Error("dialog missing");
-		const trigger = shadow.querySelector<HTMLButtonElement>(
-			'[aria-haspopup="listbox"]',
-		);
-		if (trigger === null) throw new Error("session type trigger missing");
-		await userEvent.click(trigger);
-		await waitFor(() =>
-			expect(trigger.getAttribute("aria-expanded")).toBe("true"),
-		);
 
 		const onClose = fn<(event: Event) => void>();
 		modal.addEventListener("bchc-close", onClose);
 
-		const firstCancel = new Event("cancel", { cancelable: true });
-		dialog.dispatchEvent(firstCancel);
-		expect(firstCancel.defaultPrevented).toBe(true);
-		await waitFor(() =>
-			expect(trigger.getAttribute("aria-expanded")).toBe("false"),
-		);
-		const menu = shadow.querySelector<HTMLElement>(".menu");
-		await waitFor(() => expect(menu?.hidden).toBe(true));
-		expect(onClose).not.toHaveBeenCalled();
-
-		const secondCancel = new Event("cancel", { cancelable: true });
-		dialog.dispatchEvent(secondCancel);
-		expect(secondCancel.defaultPrevented).toBe(true);
+		const cancel = new Event("cancel", { cancelable: true });
+		dialog.dispatchEvent(cancel);
+		expect(cancel.defaultPrevented).toBe(true);
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
 			timeout: 5000,
 		});

@@ -75,10 +75,13 @@ export interface BchcMessages {
     readonly networkMismatchDetail: string;
     readonly networkMismatchTitle: string;
     readonly noWallet: string;
+    readonly open: string;
     readonly openInWallet: string;
+    readonly openWalletLabel: (wallet: string) => string;
     readonly rejectedDetail: string;
     readonly rejectedTitle: string;
     readonly scan: string;
+    readonly scanWith: (wallet: string) => string;
     readonly sessionType: string;
     readonly timeoutDetail: string;
     readonly timeoutTitle: string;
@@ -124,6 +127,9 @@ export interface BchcModalEvents {
     "bchc-retry": CustomEvent<void>;
     "bchc-screen": CustomEvent<{
         screen: ModalScreen;
+    }>;
+    "bchc-wallet": CustomEvent<{
+        wallet: string;
     }>;
 }
 
@@ -196,6 +202,7 @@ export interface ModalView {
     readonly protocol: ProtocolId;
     readonly protocols: readonly ProtocolOption[];
     readonly screen: ModalScreen;
+    readonly wallet: string | null;
     readonly wallets: readonly WalletOption[];
 }
 
@@ -241,10 +248,12 @@ export interface WalletOption {
     readonly id: string;
     readonly logo: string | null;
     readonly name: string;
+    readonly protocols: readonly ProtocolId[];
 }
 
 // @beta
 export interface WalletSupport {
+    readonly href: string | null;
     readonly id: string;
     readonly logo: string;
     readonly name: string;

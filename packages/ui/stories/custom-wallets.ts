@@ -2,7 +2,18 @@
 // a dapp builds these lists itself, so the component has to render whatever
 // shape, script, length, or broken reference lands in them.
 
-import type { WalletDirectoryEntry, WalletOption } from "../src/state.ts";
+import type {
+	ProtocolId,
+	WalletDirectoryEntry,
+	WalletOption,
+} from "../src/state.ts";
+
+/** Every shipped session type, so a custom wallet never narrows the tabs unless a story means it to. */
+const ALL_PROTOCOLS: readonly ProtocolId[] = [
+	"wizardconnect",
+	"walletconnect",
+	"cashconnect",
+];
 
 /** A tiny inline logo: a consumer never has to host an image file to brand a wallet row. */
 export const SVG_LOGO =
@@ -25,6 +36,7 @@ export function manyWallets(count: number): WalletOption[] {
 		id: `wallet-${index}`,
 		name: `Wallet ${index + 1}`,
 		logo: SVG_LOGO,
+		protocols: ALL_PROTOCOLS,
 		href: `https://example.com/wallet-${index}`,
 	}));
 }
@@ -43,6 +55,7 @@ export const LONG_NAME_WALLET: WalletOption = {
 	id: "long-name",
 	name: LONG_NAME,
 	logo: SVG_LOGO,
+	protocols: ALL_PROTOCOLS,
 	href: "https://example.com/long",
 };
 
@@ -93,24 +106,28 @@ export const SCRIPT_WALLETS: readonly WalletOption[] = [
 		id: "cjk",
 		name: CJK_NAME,
 		logo: SVG_LOGO,
+		protocols: ALL_PROTOCOLS,
 		href: "https://example.com/cjk",
 	},
 	{
 		id: "emoji",
 		name: EMOJI_NAME,
 		logo: SVG_LOGO,
+		protocols: ALL_PROTOCOLS,
 		href: "https://example.com/emoji",
 	},
 	{
 		id: "arabic",
 		name: ARABIC_NAME,
 		logo: SVG_LOGO,
+		protocols: ALL_PROTOCOLS,
 		href: "https://example.com/arabic",
 	},
 	{
 		id: "hebrew",
 		name: HEBREW_NAME,
 		logo: SVG_LOGO,
+		protocols: ALL_PROTOCOLS,
 		href: "https://example.com/hebrew",
 	},
 ];
@@ -127,6 +144,7 @@ export const HTML_LIKE_WALLET: WalletOption = {
 	id: "html-like",
 	name: HTML_LIKE_NAME,
 	logo: SVG_LOGO,
+	protocols: ALL_PROTOCOLS,
 	href: "https://example.com/html-like",
 };
 
@@ -141,6 +159,7 @@ export const BROKEN_LOGO_WALLET: WalletOption = {
 	id: "broken-logo",
 	name: "Broken Logo Wallet",
 	logo: BROKEN_LOGO,
+	protocols: ALL_PROTOCOLS,
 	href: "https://example.com/broken-logo",
 };
 
@@ -149,6 +168,7 @@ export const NULL_LOGO_WALLET: WalletOption = {
 	id: "null-logo",
 	name: "No Logo Wallet",
 	logo: null,
+	protocols: ALL_PROTOCOLS,
 	href: "https://example.com/null-logo",
 };
 
@@ -164,14 +184,16 @@ export const SVG_LOGO_WALLET: WalletOption = {
 	id: "svg-logo",
 	name: "SVG Logo Wallet",
 	logo: SVG_LOGO,
+	protocols: ALL_PROTOCOLS,
 	href: "https://example.com/svg-logo",
 };
 
-/** No link on this platform: the modal shows the row disabled, per `WalletOption.href`'s contract. */
+/** No desktop link: the row selects but has no Open action, per `WalletOption.href`'s contract. */
 export const HREF_NULL_WALLET: WalletOption = {
 	id: "no-link",
 	name: "No Link Wallet",
 	logo: SVG_LOGO,
+	protocols: ALL_PROTOCOLS,
 	href: null,
 };
 

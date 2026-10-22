@@ -57,15 +57,36 @@ export function copyFace(
 		: html`${icon("link")}${messages.copyLink}`;
 }
 
-/** The caption's contents. @internal */
-export function caption(messages: BchcMessages, kind: CaptionKind): unknown {
+/** The selected wallet as the scan caption names it: its name, and its mark and name as rendered. @internal */
+export interface CaptionWallet {
+	readonly name: string;
+	readonly template: TemplateResult;
+}
+
+// `scanWith` is called with this in place of the name, so the wallet's mark lands
+// wherever the language puts the name. Private use: no catalogue would type it.
+const WALLET_MARKER = "\u{E000}";
+
+function scanWith(messages: BchcMessages, wallet: CaptionWallet): unknown {
+	const parts = messages.scanWith(WALLET_MARKER).split(WALLET_MARKER);
+	// A wording that drops or repeats the name gets plain text instead.
+	if (parts.length !== 2) return messages.scanWith(wallet.name);
+	return html`${parts[0]}${wallet.template}${parts[1]}`;
+}
+
+/** The caption's contents; `wallet` is `null` on the drawer, which names none. @internal */
+export function caption(
+	messages: BchcMessages,
+	kind: CaptionKind,
+	wallet: CaptionWallet | null,
+): unknown {
 	switch (kind) {
 		case "initiating":
 			return html`<span class="dots"><i></i><i></i><i></i></span><span class="caption-text">${messages.initiating}</span>`;
 		case "hint":
 			return html`${icon("info")}<span class="caption-text">${messages.linkFailed}</span>`;
 		case "scan":
-			return html`${icon("scanLine")}<span class="caption-text">${messages.scan}</span>`;
+			return html`${icon("scanLine")}<span class="caption-text">${wallet === null ? messages.scan : scanWith(messages, wallet)}</span>`;
 		default:
 			return nothing;
 	}
