@@ -159,6 +159,59 @@ export interface ConnectOptions {
 }
 
 /**
+ * What a {@link ConnectUi} receives for one `connect()` call it handles.
+ *
+ * @public
+ */
+export interface ConnectUiContext {
+	/** Registered protocols the UI may offer, in registration order, without those whose setup failed. */
+	readonly protocols: readonly string[];
+	/** The protocol the caller passed, the only one the UI may connect over; `null` when the user chooses. */
+	readonly protocol: string | null;
+	/** The dapp's network. */
+	readonly network: Network;
+	/** Aborts when the caller aborts or the client is disposed. */
+	readonly signal: AbortSignal;
+	/**
+	 * Starts one attempt over `protocol`. The caller's `connect()` options are
+	 * the defaults; `opts` overrides them. Abort the current attempt and let it
+	 * settle before starting the next.
+	 */
+	connect(
+		protocol: string,
+		opts?: ConnectOptions,
+	): Promise<Session<ProtocolDefinition>>;
+}
+
+/**
+ * A connection UI the client hands every `connect()` that renders no pairing
+ * of its own. The UI chooses the protocol and wallet, shows the pairing, and
+ * retries; the client runs each attempt.
+ *
+ * @example
+ * ```ts
+ * const ui: ConnectUi = {
+ *   connect(context) {
+ *     return context.connect(context.protocol ?? "wizardconnect", {
+ *       signal: context.signal,
+ *       onPairing: (pairing) => render(pairing),
+ *     });
+ *   },
+ * };
+ * const client = createClient({ connectors, network, appMetadata, ui });
+ * ```
+ *
+ * @public
+ */
+export interface ConnectUi {
+	/**
+	 * Handles one `connect()` call. Resolves with the connected session;
+	 * rejects `ABORTED` when the user closes the UI or `context.signal` aborts.
+	 */
+	connect(context: ConnectUiContext): Promise<Session<ProtocolDefinition>>;
+}
+
+/**
  * The client surface with no protocol type parameter. Every `Client<P>`
  * satisfies it.
  *
@@ -186,9 +239,13 @@ export interface ClientLifecycle {
 	 * answering.
 	 */
 	dispose(): Promise<void>;
-	/** Establishes a session over the given protocol, e.g. `"wizardconnect"`. */
+	/**
+	 * Establishes a session over the given protocol, e.g. `"wizardconnect"`.
+	 * With a configured `ui` and no `onPairing`, the UI handles the call; the
+	 * protocol may then be omitted to let the user choose.
+	 */
 	connect(
-		protocol: string,
+		protocol?: string,
 		opts?: ConnectOptions,
 	): Promise<Session<ProtocolDefinition>>;
 	/** Ends a session; the current one when omitted. */
@@ -240,9 +297,13 @@ export interface Client<P extends ProtocolDefinition = ProtocolDefinition>
 	/** The current session, derived from the store. */
 	readonly current: SessionOf<P> | null;
 
-	/** Establishes a session over the given protocol, e.g. `"wizardconnect"`. */
-	connect<K extends P["id"]>(
-		protocol: K,
+	/**
+	 * Establishes a session over the given protocol, e.g. `"wizardconnect"`.
+	 * With a configured `ui` and no `onPairing`, the UI handles the call; the
+	 * protocol may then be omitted to let the user choose.
+	 */
+	connect<K extends P["id"] = P["id"]>(
+		protocol?: K,
 		opts?: ConnectOptions,
 	): Promise<SessionOf<Extract<P, { id: K }>>>;
 	/** Ends a session; the current one when `"session"` param is omitted. */
@@ -330,6 +391,8 @@ export interface ClientConfig<Connectors extends readonly Connector[]> {
 	initialState?: ClientSnapshot;
 	/** Logger threaded through the client and connectors. */
 	logger?: Logger;
+	/** Connection UI that handles `connect()` calls rendering no pairing of their own. */
+	ui?: ConnectUi;
 	/** Fallback timeouts in milliseconds. Reads default to 30 000; the others to none. */
 	defaultTimeoutMs?: {
 		read?: number;

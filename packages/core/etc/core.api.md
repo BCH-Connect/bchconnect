@@ -66,7 +66,7 @@ export interface Client<P extends ProtocolDefinition = ProtocolDefinition> exten
     readonly "~protocols"?: P;
     can<S extends SessionOf<P>>(session: S, name: ProtocolFor<P, S>["capability"]): boolean;
     capability<S extends SessionOf<P>, N extends keyof CapabilityRegistry>(session: S, name: N): CapabilityFor<ProtocolFor<P, S>, N>;
-    connect<K extends P["id"]>(protocol: K, opts?: ConnectOptions): Promise<SessionOf<Extract<P, {
+    connect<K extends P["id"] = P["id"]>(protocol?: K, opts?: ConnectOptions): Promise<SessionOf<Extract<P, {
         id: K;
     }>>>;
     readonly current: SessionOf<P> | null;
@@ -96,11 +96,12 @@ export interface ClientConfig<Connectors extends readonly Connector[]> {
     network: Network;
     ssr?: boolean;
     storage?: KeyValueStore;
+    ui?: ConnectUi;
 }
 
 // @public
 export interface ClientLifecycle {
-    connect(protocol: string, opts?: ConnectOptions): Promise<Session<ProtocolDefinition>>;
+    connect(protocol?: string, opts?: ConnectOptions): Promise<Session<ProtocolDefinition>>;
     readonly current: Session<ProtocolDefinition> | null;
     disconnect(session?: Session<ProtocolDefinition>): Promise<void>;
     dispose(): Promise<void>;
@@ -197,6 +198,20 @@ export interface ConnectorContext {
 
 // @public
 export type ConnectorEventName = "session:connected" | "session:changed" | "session:disconnected";
+
+// @public
+export interface ConnectUi {
+    connect(context: ConnectUiContext): Promise<Session<ProtocolDefinition>>;
+}
+
+// @public
+export interface ConnectUiContext {
+    connect(protocol: string, opts?: ConnectOptions): Promise<Session<ProtocolDefinition>>;
+    readonly network: Network;
+    readonly protocol: string | null;
+    readonly protocols: readonly string[];
+    readonly signal: AbortSignal;
+}
 
 // @public
 export interface ContractArtifact {

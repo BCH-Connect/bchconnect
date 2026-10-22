@@ -49,6 +49,8 @@ export type {
 	ClientStore,
 	ConnectOptions,
 	ConnectorEventName,
+	ConnectUi,
+	ConnectUiContext,
 	LifecycleEvents,
 	ProtocolFor,
 	ProtocolOf,
