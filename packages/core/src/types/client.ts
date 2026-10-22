@@ -137,6 +137,20 @@ export type ConnectorEventName =
 	| "session:disconnected";
 
 /**
+ * Identity of the wallet the user selected in a UI.
+ *
+ * @public
+ */
+export interface WalletSelection {
+	/** Wallet id, e.g. `"cashonize"`. */
+	id?: string;
+	/** Display name. */
+	name?: string;
+	/** Logo URL. */
+	icon?: string;
+}
+
+/**
  * Options for `connect()`.
  *
  * @public
@@ -154,8 +168,12 @@ export interface ConnectOptions {
 	 * session becomes current.
 	 */
 	mode?: "replace" | "add";
-	/** Wallet the user selected, used where the protocol supplies no identity. */
-	wallet?: { id?: string; name?: string; icon?: string };
+	/**
+	 * Wallet the user selected, used where the protocol supplies no identity.
+	 * A function is called when the session is established, so a selection
+	 * made after the call started still names it.
+	 */
+	wallet?: WalletSelection | (() => WalletSelection | undefined);
 }
 
 /**

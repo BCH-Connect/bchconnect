@@ -57,6 +57,7 @@ export type {
 	Register,
 	RegisteredClient,
 	RegisteredSession,
+	WalletSelection,
 } from "./types/client.js";
 export type {
 	AppMetadata,

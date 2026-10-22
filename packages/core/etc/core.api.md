@@ -161,11 +161,7 @@ export interface ConnectOptions {
     onPairing?: (pairing: Pairing) => void;
     signal?: AbortSignal;
     timeoutMs?: number;
-    wallet?: {
-        id?: string;
-        name?: string;
-        icon?: string;
-    };
+    wallet?: WalletSelection | (() => WalletSelection | undefined);
 }
 
 // @public
@@ -539,6 +535,13 @@ export interface WalletIdentity {
     id?: string;
     name?: string;
     source: "protocol" | "selection";
+}
+
+// @public
+export interface WalletSelection {
+    icon?: string;
+    id?: string;
+    name?: string;
 }
 
 // (No @packageDocumentation comment for this package)
