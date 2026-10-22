@@ -78,7 +78,7 @@ export const BCHC_WALLETS: readonly WalletSupport[] = [
 		id: "selene",
 		name: "Selene",
 		logo: LOGO_SELENE,
-		protocols: ["walletconnect"],
+		protocols: ["wizardconnect", "walletconnect"],
 		href: null,
 	},
 	{
