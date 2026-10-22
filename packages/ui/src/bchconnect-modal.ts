@@ -48,6 +48,7 @@ function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
 			latest = view;
 			closing = false;
 			mounted = import("./define.ts").then(({ defineElements }) => {
+				if (closing) return;
 				defineElements();
 				const element = document.createElement("bchc-modal");
 				if (options.messages !== undefined) {
@@ -75,6 +76,8 @@ function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
 				modal = element;
 				document.body.append(element);
 			});
+			// Without its code there is no modal to close, so the call ends here.
+			mounted.catch(() => actions.dismiss());
 		},
 		update(view) {
 			latest = view;

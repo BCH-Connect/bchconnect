@@ -226,6 +226,7 @@ export class BchcModal extends LitElement {
 	#copyResetTimer: ReturnType<typeof setTimeout> | null = null;
 	#deepLinkTimer: ReturnType<typeof setTimeout> | null = null;
 	#closing = false;
+	#closed: Promise<void> | null = null;
 	#entered = false;
 	#appearances = 0;
 	// Set in `willUpdate` when the next body rebuild crossfades; played around the commit in `update`.
@@ -304,10 +305,21 @@ export class BchcModal extends LitElement {
 
 	// `dragged`: the sheet already left under its own release animation
 	// (`settled` resolves once it ends); no CSS exit animation runs for it.
-	async #close(dragged: boolean, settled?: Promise<void>): Promise<void> {
+	// A close already playing is returned, so every caller waits for the same exit.
+	#close(dragged: boolean, settled?: Promise<void>): Promise<void> {
+		if (this.#closing) return this.#closed ?? Promise.resolve();
 		const overlay = this.#overlay.value;
-		if (overlay === undefined || this.#closing) return;
+		if (overlay === undefined) return Promise.resolve();
 		this.#closing = true;
+		this.#closed = this.#playClose(overlay, dragged, settled);
+		return this.#closed;
+	}
+
+	async #playClose(
+		overlay: HTMLDialogElement,
+		dragged: boolean,
+		settled?: Promise<void>,
+	): Promise<void> {
 		// A programmatic close can land mid-drag or mid-settle: freeze it
 		// inline first, so the CSS exit starts from exactly where it is.
 		if (!dragged) this.#drag?.commit();
@@ -466,6 +478,7 @@ export class BchcModal extends LitElement {
 		}
 		this._copied = false;
 		this.#closing = false;
+		this.#closed = null;
 		this.#entered = false;
 		this.#crossfade = null;
 		this._appearance = null;
