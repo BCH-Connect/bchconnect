@@ -93,6 +93,8 @@ export function createConnectRouter(
 			open = false;
 			signals.release();
 		});
+		// withTimeout never reads it when the signal is already aborted.
+		handled.catch(() => {});
 
 		try {
 			return await withTimeout(() => handled, { signal: signals.signal });

@@ -405,10 +405,12 @@ describe("connect through a ui", () => {
 					context.signal.addEventListener("abort", () => {
 						reject(context.signal.reason);
 						setTimeout(() => {
-							late = context.connect("demo", {
-								signal: new AbortController().signal,
-								onPairing() {},
-							});
+							late = context
+								.connect("demo", {
+									signal: new AbortController().signal,
+									onPairing() {},
+								})
+								.catch((error: unknown) => error);
 						});
 					});
 				});
@@ -422,7 +424,7 @@ describe("connect through a ui", () => {
 
 		await expect(call).rejects.toMatchObject({ code: "ABORTED" });
 		await settle();
-		await expect(late).rejects.toEqual(
+		await expect(late).resolves.toEqual(
 			configError("The connect() the ui was handling has ended"),
 		);
 		expect(client.sessions.size).toBe(0);
