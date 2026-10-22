@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"strict": true,
+		"exactOptionalPropertyTypes": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"verbatimModuleSyntax": true,
+		"module": "nodenext",
+		"target": "es2023",
+		"lib": ["ES2023", "DOM"],
+		"types": [],
+		"skipLibCheck": false,
+		"noEmit": true
+	},
+	"files": ["index.ts", "index.cts"]
+}
