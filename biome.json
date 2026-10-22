@@ -54,7 +54,7 @@
 			}
 		},
 		{
-			"includes": ["packages/core/test/**"],
+			"includes": ["packages/core/test/**", "packages/core/consumer/**"],
 			"linter": {
 				"rules": {
 					"style": {

@@ -80,6 +80,8 @@ jobs:
             [ "$(jq -r '.exports["."].require // empty' "${dir}package.json")" ] || profile=(--profile esm-only)
             pnpm exec attw "$tgz" "${profile[@]}"
           done
+      - name: consumer project
+        run: packages/core/consumer/check.sh
       - name: size-limit
         run: |
           for dir in packages/*/; do
