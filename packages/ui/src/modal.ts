@@ -118,6 +118,10 @@ function offeredProtocols(
 	);
 }
 
+function linkOf(view: ModalView): string | null {
+	return view.phase.kind === "awaiting-approval" ? view.phase.link : null;
+}
+
 // `{link}` takes the live connection link, so the wallet opens with it filled in.
 // "" until there is one: the action shows but can't be used.
 function desktopLink(wallet: WalletOption, view: ModalView): string | null {
@@ -525,6 +529,14 @@ export class BchcModal extends LitElement {
 		// patches the body in place while the code rewrites.
 		const key = `${view.screen}:${sheet}`;
 		this._bodyView = view;
+		// The hint is about the link it watched: another link, or none, drops it.
+		if (linkOf(view) !== (previous === null ? null : linkOf(previous))) {
+			this._linkFailed = false;
+			if (this.#deepLinkTimer !== null) {
+				clearTimeout(this.#deepLinkTimer);
+				this.#deepLinkTimer = null;
+			}
+		}
 		if (key === previousKey) return;
 		this._bodyKey = key;
 		this._linkFailed = false;
