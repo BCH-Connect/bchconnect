@@ -25,14 +25,18 @@ export {
 	TimeoutError,
 	TransportError,
 } from "./errors.js";
+export { signMessage } from "./helpers/sign-message.js";
+export { signTransaction } from "./helpers/sign-transaction.js";
 export { cookieToInitialState } from "./snapshot.js";
 export { cookieStorage } from "./storage/cookie.js";
 export { localStorage } from "./storage/local-storage.js";
 export { memory } from "./storage/memory.js";
 export type {
+	CapabilityMap,
 	CapabilityRegistry,
 	LibauthSigning,
 	MessageSigning,
+	SessionClient,
 } from "./types/capabilities.js";
 export type {
 	CapabilityFor,

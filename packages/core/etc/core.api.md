@@ -47,6 +47,9 @@ export type BchConnectErrorCode = "REJECTED" | "ABORTED" | "TIMEOUT" | "CAPABILI
 export type CapabilityFor<P extends ProtocolDefinition, N extends keyof CapabilityRegistry> = N extends P["capability"] ? CapabilityRegistry[N] | null : null;
 
 // @public
+export type CapabilityMap<P extends ProtocolDefinition> = { readonly [N in P["capability"] & keyof CapabilityRegistry]?: CapabilityRegistry[N]; };
+
+// @public
 export class CapabilityMissingError extends BchConnectError {
     readonly code = "CAPABILITY_MISSING";
     override readonly name = "CapabilityMissingError";
@@ -166,6 +169,7 @@ export interface ConnectOptions {
 
 // @public
 export interface Connector<P extends ProtocolDefinition = ProtocolDefinition> {
+    capabilities?(session: Session<P>, client: SessionClient<P>): CapabilityMap<P>;
     capabilitiesOf(session: Session<P>): ReadonlySet<P["capability"]>;
     connect(opts: {
         signal?: AbortSignal;
@@ -250,7 +254,7 @@ export interface KeyValueStore {
 
 // @public
 export interface LibauthSigning {
-    signTransaction(req: SignTransactionRequest): Promise<SignTransactionResponse>;
+    signTransaction(req: SignTransactionRequest, opts?: RequestOptions): Promise<SignTransactionResponse>;
 }
 
 // @public
@@ -299,7 +303,7 @@ export function memory(): KeyValueStore;
 
 // @public
 export interface MessageSigning {
-    signMessage(req: SignMessageRequest): Promise<SignMessageResponse>;
+    signMessage(req: SignMessageRequest, opts?: RequestOptions): Promise<SignMessageResponse>;
 }
 
 // @public
@@ -413,6 +417,11 @@ export interface Session<P extends ProtocolDefinition = ProtocolDefinition> {
 }
 
 // @public
+export interface SessionClient<P extends ProtocolDefinition> {
+    request<M extends MethodName<P>>(method: M, params: MethodParams<P, M>, opts?: RequestOptions): Promise<MethodResult<P, M>>;
+}
+
+// @public
 export class SessionMissingError extends BchConnectError {
     readonly code = "SESSION_MISSING";
     override readonly name = "SessionMissingError";
@@ -428,6 +437,9 @@ export interface SessionStatus {
 }
 
 // @public
+export function signMessage<P extends ProtocolDefinition>(client: Client<P>, session: SessionOf<P>, req: SignMessageRequest, opts?: RequestOptions): Promise<SignMessageResponse>;
+
+// @public
 export interface SignMessageRequest {
     readonly message: string;
     readonly userPrompt?: string;
@@ -435,6 +447,9 @@ export interface SignMessageRequest {
 
 // @public
 export type SignMessageResponse = string;
+
+// @public
+export function signTransaction<P extends ProtocolDefinition>(client: Client<P>, session: SessionOf<P>, req: SignTransactionRequest, opts?: RequestOptions): Promise<SignTransactionResponse>;
 
 // @public
 export interface SignTransactionRequest {
