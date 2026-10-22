@@ -14,6 +14,13 @@
 		"limit": "19.5 kB"
 	},
 	{
+		"name": "Headless modal (with the default data)",
+		"path": "dist/headless.js",
+		"import": "{ headlessModal }",
+		"gzip": true,
+		"limit": "21 kB"
+	},
+	{
 		"name": "Theme constants only",
 		"path": "dist/index.js",
 		"import": "{ BCHC_ACCENTS, BCHC_NEUTRALS, BCHC_RADII, BCHC_FONTS, BCHC_BLURS }",
