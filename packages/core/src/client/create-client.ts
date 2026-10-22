@@ -9,6 +9,7 @@ import type {
 	ProtocolOf,
 } from "../types/client.js";
 import type { Connector, RequestOptions, Session } from "../types/protocol.js";
+import { createCapabilities } from "./capabilities.js";
 import { createLifecycle } from "./lifecycle.js";
 import { createLifetime } from "./lifetime.js";
 import { createRequests } from "./requests.js";
@@ -29,12 +30,11 @@ interface ClientImpl extends ClientLifecycle {
 		event: string,
 		listener: (payload: unknown) => void,
 	): () => void;
-	capability(session: Session, name: keyof CapabilityRegistry): unknown;
+	capability<N extends keyof CapabilityRegistry>(
+		session: Session,
+		name: N,
+	): CapabilityRegistry[N] | null;
 	can(session: Session, name: string): boolean;
-}
-
-function notImplemented(method: string): ConfigError {
-	return new ConfigError(`${method}() is not implemented yet`);
 }
 
 // thorough runtime validation for non-typescript consumers
@@ -107,6 +107,7 @@ export function createClient<const Connectors extends readonly Connector[]>(
 	const lifetime = createLifetime();
 	const sessions = createSessions(runtime, lifetime);
 	const requests = createRequests(runtime, lifetime);
+	const capabilities = createCapabilities(runtime, requests);
 	const lifecycle = createLifecycle(
 		runtime,
 		lifetime,
@@ -184,13 +185,13 @@ export function createClient<const Connectors extends readonly Connector[]>(
 			assertUsable("subscribe");
 			return requests.subscribe(session, event, listener);
 		},
-		capability() {
+		capability(session, name) {
 			assertUsable("capability");
-			throw notImplemented("capability");
+			return capabilities.capability(session, name);
 		},
-		can() {
+		can(session, name) {
 			assertUsable("can");
-			throw notImplemented("can");
+			return capabilities.can(session, name);
 		},
 	};
 

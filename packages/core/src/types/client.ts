@@ -278,13 +278,25 @@ export interface Client<P extends ProtocolDefinition = ProtocolDefinition>
 		listener: (payload: EventPayload<ProtocolFor<P, S>, E>) => void,
 	): () => void;
 
-	/** The interface for a registered capability, or `null` when absent. */
+	/**
+	 * The session's interface for a registered capability, or `null` when the
+	 * session lacks it or its connector supplies none. Calls through the
+	 * interface go through `request()`. Throws `SESSION_MISSING` when the
+	 * session is no longer connected.
+	 */
 	capability<S extends SessionOf<P>, N extends keyof CapabilityRegistry>(
 		session: S,
 		name: N,
 	): CapabilityFor<ProtocolFor<P, S>, N>;
 
-	/** Whether the session has a capability, by name. */
+	/**
+	 * Whether the session has a capability, by name, registered or not. On a
+	 * session whose protocol is not narrowed it accepts the name of any
+	 * protocol's capability, and answers `false` for names its own protocol
+	 * never has.
+	 *
+	 * @throws `SESSION_MISSING` when the session is no longer connected.
+	 */
 	can<S extends SessionOf<P>>(
 		session: S,
 		name: ProtocolFor<P, S>["capability"],

@@ -404,19 +404,6 @@ describe("createClient", () => {
 			expect(client.protocols).toEqual(["demo"]);
 		});
 	});
-
-	describe("members that are not implemented yet", () => {
-		const session = demoSession();
-
-		it.each<[string, (client: DemoClient) => unknown]>([
-			["capability", (client) => client.capability(session, "message-signing")],
-			["can", (client) => client.can(session, "message-signing")],
-		])("should throw CONFIG from %s()", (method, call) => {
-			expect(() => call(createDemoClient())).toThrow(
-				configError(`${method}() is not implemented yet`),
-			);
-		});
-	});
 });
 
 describe("default storage", () => {

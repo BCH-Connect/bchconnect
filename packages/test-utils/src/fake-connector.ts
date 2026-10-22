@@ -1,5 +1,6 @@
 import {
 	AbortedError,
+	type CapabilityMap,
 	type Connector,
 	type ConnectorContext,
 	type EventName,
@@ -14,6 +15,7 @@ import {
 	type RequestOptions,
 	RequestRejectedError,
 	type Session,
+	type SessionClient,
 } from "@bchconnect/core";
 
 /**
@@ -107,6 +109,14 @@ export interface FakeConnectorScript<P extends ProtocolDefinition> {
 		| readonly P["capability"][]
 		| ((session: Session<P>) => readonly P["capability"][]);
 	/**
+	 * Builds the capability interfaces of one session, over the client bound
+	 * to it. Without it the connector supplies none.
+	 */
+	readonly interfaces?: (
+		session: Session<P>,
+		client: SessionClient<P>,
+	) => CapabilityMap<P>;
+	/**
 	 * Whether `connect()` writes a marker to its storage namespace and
 	 * `disconnect()` removes it. On by default; `setup()` never writes.
 	 */
@@ -156,6 +166,7 @@ export type FakeLogEntry<P extends ProtocolDefinition> =
 			readonly sessionId: string;
 			readonly event: EventName<P>;
 	  }
+	| { readonly kind: "capabilities"; readonly sessionId: string }
 	| { readonly kind: "dispose" };
 
 /**
@@ -252,6 +263,7 @@ export function createFakeConnector<P extends ProtocolDefinition>(
 	const pending: FakePendingRequest<P>[] = [];
 	const listeners = new Map<string, Set<(payload: never) => void>>();
 	const persist = script.persist ?? true;
+	const { interfaces } = script;
 	let context: ConnectorContext | undefined;
 
 	const nextSession = (): Session<P> => {
@@ -313,6 +325,14 @@ export function createFakeConnector<P extends ProtocolDefinition>(
 		protocol: script.protocol,
 		// Spread, not assigned: `methods: undefined` is not an absent map.
 		...(script.metadata === undefined ? {} : { methods: script.metadata }),
+		...(interfaces === undefined
+			? {}
+			: {
+					capabilities(session: Session<P>, client: SessionClient<P>) {
+						log.push({ kind: "capabilities", sessionId: session.id });
+						return interfaces(session, client);
+					},
+				}),
 		calls,
 		log,
 		pending,

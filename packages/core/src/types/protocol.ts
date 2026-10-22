@@ -1,3 +1,4 @@
+import type { CapabilityMap, SessionClient } from "./capabilities.js";
 import type { ConnectorEventName, LifecycleEvents } from "./client.js";
 
 /**
@@ -332,6 +333,16 @@ export interface Connector<P extends ProtocolDefinition = ProtocolDefinition> {
 
 	/** The capabilities this session actually has. */
 	capabilitiesOf(session: Session<P>): ReadonlySet<P["capability"]>;
+
+	/**
+	 * Builds the interfaces of this session's registered capabilities. Every
+	 * wallet call goes through `client.request()`, bound to the session, so it
+	 * keeps the client's deadlines, cancellation and events.
+	 */
+	capabilities?(
+		session: Session<P>,
+		client: SessionClient<P>,
+	): CapabilityMap<P>;
 
 	/**
 	 * Releases resources held by this connector without disconnecting

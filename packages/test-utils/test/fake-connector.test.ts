@@ -1,8 +1,13 @@
-import type { Pairing } from "@bchconnect/core";
+import type {
+	Pairing,
+	SessionClient,
+	SignTransactionRequest,
+} from "@bchconnect/core";
 import { describe, expect, it, vi } from "vitest";
 import {
 	createFakeConnector,
 	type DemoProtocol,
+	demoCapabilities,
 	demoMetadata,
 	demoSession,
 } from "../src/index.js";
@@ -542,6 +547,78 @@ describe("createFakeConnector", () => {
 				"message-signing",
 			]);
 			expect([...connector.capabilitiesOf(other)]).toEqual([]);
+		});
+	});
+
+	describe("capabilities", () => {
+		it("should be absent when no interfaces are scripted", () => {
+			const connector = createFakeConnector<DemoProtocol>({ protocol: "demo" });
+
+			expect(Object.hasOwn(connector, "capabilities")).toBe(false);
+		});
+
+		it("should build the scripted interfaces and record the call", () => {
+			const interfaces = vi.fn(demoCapabilities);
+			const client: SessionClient<DemoProtocol> = { request: vi.fn() };
+			const connector = createFakeConnector<DemoProtocol>({
+				protocol: "demo",
+				interfaces,
+			});
+
+			const built = connector.capabilities?.(session, client);
+
+			expect(interfaces).toHaveBeenCalledExactlyOnceWith(session, client);
+			expect(Object.keys(built ?? {})).toEqual([
+				"libauth-signing",
+				"message-signing",
+			]);
+			expect(connector.log).toEqual([
+				{ kind: "capabilities", sessionId: session.id },
+			]);
+		});
+	});
+
+	describe("demoCapabilities", () => {
+		const transaction: SignTransactionRequest = {
+			transaction: "0200",
+			sourceOutputs: [],
+		};
+
+		it("should sign a transaction through sign_transaction", async () => {
+			const response = { signedTransaction: "02", signedTransactionHash: "ab" };
+			const request = vi
+				.fn<SessionClient<DemoProtocol>["request"]>()
+				.mockResolvedValue(response);
+			const opts = { timeoutMs: 1_000 };
+
+			const result = await demoCapabilities(session, { request })[
+				"libauth-signing"
+			]?.signTransaction(transaction, opts);
+
+			expect(result).toBe(response);
+			expect(request).toHaveBeenCalledExactlyOnceWith(
+				"sign_transaction",
+				{ transaction },
+				opts,
+			);
+		});
+
+		it("should sign a message through sign_message", async () => {
+			const request = vi
+				.fn<SessionClient<DemoProtocol>["request"]>()
+				.mockResolvedValue("signature");
+			const message = { message: "hello" };
+
+			const result = await demoCapabilities(session, { request })[
+				"message-signing"
+			]?.signMessage(message);
+
+			expect(result).toBe("signature");
+			expect(request).toHaveBeenCalledExactlyOnceWith(
+				"sign_message",
+				message,
+				undefined,
+			);
 		});
 	});
 
