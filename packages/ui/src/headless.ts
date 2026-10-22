@@ -203,10 +203,12 @@ function run(
 
 		async function succeed(session: Session) {
 			done = true;
+			// A listed wallet is shown with its bundled logo, not the one on the wire.
+			const listed = wallets.find((entry) => entry.id === session.wallet.id);
 			const phase: ConnectPhase = {
 				kind: "connected",
-				walletName: session.wallet.name ?? null,
-				walletLogo: session.wallet.icon ?? null,
+				walletName: session.wallet.name ?? listed?.name ?? null,
+				walletLogo: listed?.logo ?? session.wallet.icon ?? null,
 			};
 			update({ phase });
 			try {
