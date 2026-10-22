@@ -109,7 +109,7 @@ function selectionOf(wallet: WalletOption): WalletSelection {
 
 interface Attempt {
 	readonly controller: AbortController;
-	readonly settled: Promise<void>;
+	settled: Promise<void>;
 }
 
 function run(
@@ -158,17 +158,19 @@ function run(
 			return wallet === undefined ? undefined : selectionOf(wallet);
 		}
 
-		async function begin(protocol: ProtocolId) {
+		// Each start bumps this, so a start superseded while it waited is skipped.
+		let wanted = 0;
+
+		async function begin(protocol: ProtocolId, generation: number) {
 			const previous = attempt;
 			previous?.controller.abort();
 			await previous?.settled;
-			if (done) return;
+			if (done || generation !== wanted) return;
 
 			const controller = new AbortController();
-			const isCurrent = () => attempt?.controller === controller && !done;
-			if (view.protocol !== protocol || view.phase.kind !== "initiating") {
-				update({ protocol, phase: { kind: "initiating" } });
-			}
+			const current: Attempt = { controller, settled: Promise.resolve() };
+			attempt = current;
+			const isCurrent = () => attempt === current && !done;
 			const connecting = context.connect(protocol, {
 				signal: controller.signal,
 				onPairing(pairing: Pairing) {
@@ -178,13 +180,10 @@ function run(
 				},
 				wallet: selected,
 			});
-			attempt = {
-				controller,
-				settled: connecting.then(
-					() => {},
-					() => {},
-				),
-			};
+			current.settled = connecting.then(
+				() => {},
+				() => {},
+			);
 			connecting.then(
 				(session) => {
 					if (isCurrent()) void succeed(session);
@@ -197,8 +196,14 @@ function run(
 			);
 		}
 
+		// The view switches at once; the attempt follows once the previous one settles.
 		function start(protocol: ProtocolId) {
-			queue = queue.then(() => begin(protocol));
+			wanted += 1;
+			const generation = wanted;
+			if (view.protocol !== protocol || view.phase.kind !== "initiating") {
+				update({ protocol, phase: { kind: "initiating" } });
+			}
+			queue = queue.then(() => begin(protocol, generation));
 		}
 
 		async function succeed(session: Session) {
@@ -211,22 +216,16 @@ function run(
 				walletLogo: listed?.logo ?? session.wallet.icon ?? null,
 			};
 			update({ phase });
-			try {
-				await renderer.close();
-			} finally {
-				resolve(session);
-			}
+			await renderer.close().catch(() => {});
+			resolve(session);
 		}
 
 		async function end(reason: unknown) {
 			if (done) return;
 			done = true;
 			attempt?.controller.abort();
-			try {
-				await renderer.close();
-			} finally {
-				reject(reason);
-			}
+			await renderer.close().catch(() => {});
+			reject(reason);
 		}
 
 		const actions: ModalActions = {

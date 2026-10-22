@@ -23,7 +23,11 @@ interface ScriptedAttempt {
 }
 
 // A client context whose attempts settle when the test says so.
-function scriptedContext(overrides: Partial<ConnectUiContext> = {}) {
+// `slowAbort` keeps an aborted attempt pending for a while, as a relay does.
+function scriptedContext(
+	overrides: Partial<ConnectUiContext> = {},
+	{ slowAbort = false } = {},
+) {
 	const attempts: ScriptedAttempt[] = [];
 	const controller = new AbortController();
 	const context: ConnectUiContext = {
@@ -34,9 +38,11 @@ function scriptedContext(overrides: Partial<ConnectUiContext> = {}) {
 		connect(protocol, opts = {}) {
 			return new Promise((resolve, reject) => {
 				attempts.push({ protocol, opts, resolve, reject });
-				opts.signal?.addEventListener("abort", () =>
-					reject(new AbortedError("Aborted by the modal")),
-				);
+				opts.signal?.addEventListener("abort", () => {
+					const error = new AbortedError("Aborted by the modal");
+					if (slowAbort) setTimeout(() => reject(error), 20);
+					else reject(error);
+				});
 			});
 		},
 		...overrides,
@@ -406,5 +412,99 @@ describe("headlessModal", () => {
 
 		expect(attempts).toHaveLength(1);
 		expect(modal.calls).toHaveLength(seen);
+	});
+
+	it("should stay pending until the renderer has closed", async () => {
+		const { context, attempts } = scriptedContext();
+		let closed: () => void = () => {};
+		let resolved = false;
+		const renderer: ModalRenderer = {
+			open() {},
+			update() {},
+			close: () =>
+				new Promise<void>((resolve) => {
+					closed = resolve;
+				}),
+		};
+
+		const call = headlessModal(renderer).connect(context);
+		void call.then(() => {
+			resolved = true;
+		});
+		await settle();
+		attempts[0]?.resolve(walletSession({ source: "protocol" }));
+		await settle();
+
+		expect(resolved).toBe(false);
+		closed();
+		await call;
+		expect(resolved).toBe(true);
+	});
+
+	it("should start one attempt when a wallet pick reports its fallback protocol too", async () => {
+		const { context, attempts } = scriptedContext();
+		const modal = scriptedRenderer();
+
+		void headlessModal(modal.renderer, {
+			protocols: ["cashconnect", "bch-wc2"],
+		}).connect(context);
+		await settle();
+		// The shipped modal reports both, in this order, for one click.
+		modal.actions().selectWallet("paytaca");
+		modal.actions().selectProtocol("bch-wc2");
+		await settle();
+
+		expect(attempts.map((attempt) => attempt.protocol)).toEqual([
+			"cashconnect",
+			"bch-wc2",
+		]);
+	});
+
+	it("should check a wallet picked during a switch against the protocol switched to", async () => {
+		const { context, attempts } = scriptedContext({}, { slowAbort: true });
+		const modal = scriptedRenderer();
+
+		void headlessModal(modal.renderer, {
+			protocols: ["bch-wc2", "cashconnect", "wizardconnect"],
+		}).connect(context);
+		await settle();
+		modal.actions().selectProtocol("cashconnect");
+		modal.actions().selectWallet("selene");
+		await new Promise((resolve) => setTimeout(resolve, 60));
+
+		expect(modal.last()).toMatchObject({
+			wallet: "selene",
+			protocol: "bch-wc2",
+		});
+		expect(attempts.map((attempt) => attempt.protocol)).toEqual([
+			"bch-wc2",
+			"bch-wc2",
+		]);
+	});
+
+	it("should show the switched protocol at once, before the previous attempt settles", async () => {
+		const { context } = scriptedContext({}, { slowAbort: true });
+		const modal = scriptedRenderer();
+
+		void headlessModal(modal.renderer).connect(context);
+		await settle();
+		modal.actions().selectProtocol("cashconnect");
+
+		expect(modal.last()).toMatchObject({
+			protocol: "cashconnect",
+			phase: { kind: "initiating" },
+		});
+	});
+
+	it("should abort the attempt when the client aborts the call", async () => {
+		const { context, attempts, abort } = scriptedContext();
+		const modal = scriptedRenderer();
+
+		const call = headlessModal(modal.renderer).connect(context);
+		await settle();
+		abort();
+
+		await expect(call).rejects.toMatchObject({ code: "ABORTED" });
+		expect(attempts[0]?.opts.signal?.aborted).toBe(true);
 	});
 });

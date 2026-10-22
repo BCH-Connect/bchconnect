@@ -1,5 +1,5 @@
-// The out-of-the-box path (SPEC §8.9): a client with `ui: bchconnectModal()`
-// connects with `client.connect()` alone, against a scripted connector.
+// The out-of-the-box path: a client with `ui: bchconnectModal()` connects with
+// `client.connect()` alone, against a scripted connector.
 
 import {
 	type Connector,
@@ -89,6 +89,12 @@ export const OutOfTheBox = meta.story({
 			).toBe(false),
 		);
 
+		const order: string[] = [];
+		mounted("bchc-modal").addEventListener("bchc-close", () =>
+			order.push("modal closed"),
+		);
+		void call.then(() => order.push("connect resolved"));
+
 		approve({
 			id: "story",
 			protocol: "wizardconnect",
@@ -98,6 +104,8 @@ export const OutOfTheBox = meta.story({
 		});
 
 		await expect(call).resolves.toMatchObject({ id: "story" });
+		// The exit plays in full before the call resolves.
+		expect(order).toEqual(["modal closed", "connect resolved"]);
 		expect(document.body.querySelector("bchc-modal")).toBeNull();
 		const toast = mounted("bchc-toast");
 		await waitFor(() =>
