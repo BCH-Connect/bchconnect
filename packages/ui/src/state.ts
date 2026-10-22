@@ -19,7 +19,7 @@ export const NETWORK_LABEL: Readonly<Record<Network, string>> = {
  *
  * @beta
  */
-export type ProtocolId = "wizardconnect" | "walletconnect" | "cashconnect";
+export type ProtocolId = "wizardconnect" | "bch-wc2" | "cashconnect";
 
 /**
  * How a protocol's mark fills its bounds: `tile` is already a plate;
