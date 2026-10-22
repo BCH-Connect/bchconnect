@@ -61,6 +61,8 @@ export default defineConfig({
 				],
 				test: {
 					name: "storybook",
+					// A file's first story pays WebKit's cold start on CI (8.7 s measured), over the 15 s default under load.
+					testTimeout: 30_000,
 					browser: {
 						enabled: true,
 						headless: true,
