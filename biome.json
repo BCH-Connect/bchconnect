@@ -82,6 +82,31 @@
 			}
 		},
 		{
+			"includes": [
+				"packages/ui/src/**",
+				"packages/react/src/**",
+				"packages/vue/src/**",
+				"packages/svelte/src/**"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"paths": {
+									"@bchconnect/core": {
+										"importNames": ["Client", "createClient"],
+										"message": "Use ClientLifecycle or the Register-derived types instead; Client<P> is invariant in P and would tie this package to one protocol set."
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		{
 			"includes": ["packages/test-utils/**"],
 			"linter": {
 				"rules": {
