@@ -3,7 +3,6 @@
 // public types (`ModalView`, `WalletOption`, `WalletDirectoryEntry`,
 // `ProtocolOption`).
 
-import { waitForAnimations } from "storybook/preview-api";
 import { expect, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { BCHC_PROTOCOLS } from "../src/defaults.ts";
@@ -39,6 +38,7 @@ import {
 	modalRender,
 	modalShadow,
 } from "./modal.ts";
+import { settle } from "./settle.ts";
 import { THEME_ARG_TYPES } from "./theme.ts";
 
 const WIZARDCONNECT = BCHC_PROTOCOLS.find(
@@ -53,7 +53,7 @@ const meta = preview.type<{ args: ModalStoryArgs }>().meta({
 	args: { view: viewFor() },
 	render: modalRender,
 	play: async () => {
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -63,7 +63,7 @@ export const ManyWallets = meta.story({
 	args: { view: viewFor({ wallets: manyWallets(40) }) },
 	globals: { viewport: { value: "desktop" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const rows = shadow.querySelectorAll<HTMLButtonElement>(".wallet");
 		expect(rows).toHaveLength(40);
@@ -93,7 +93,7 @@ export const ManyWallets = meta.story({
 		expect(tileBox.top).toBeGreaterThanOrEqual(cardBox.top - 1);
 		expect(tileBox.bottom).toBeLessThanOrEqual(cardBox.bottom + 1);
 		expect(body.scrollTop).toBe(0);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -103,7 +103,7 @@ export const ManyWalletsShortDesktop = meta.story({
 	args: { view: viewFor({ wallets: manyWallets(40) }) },
 	globals: { viewport: { value: "desktopShort" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const wallets = shadow.querySelector(".wallets");
 		const card = shadow.querySelector(".card");
@@ -120,7 +120,7 @@ export const ManyWalletsShortDesktop = meta.story({
 		const tileBox = tile.getBoundingClientRect();
 		expect(tileBox.top).toBeGreaterThanOrEqual(cardBox.top - 1);
 		expect(tileBox.bottom).toBeLessThanOrEqual(cardBox.bottom + 1);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -132,7 +132,7 @@ export const ManyDirectory = meta.story({
 	play: async ({ canvasElement }) => {
 		// The entrance plays `.overlay.is-entering .body { overflow: clip }`
 		// so incoming rows don't scroll before they settle; wait it out first.
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const rows = shadow.querySelectorAll<HTMLAnchorElement>(".directory-row");
 		expect(rows).toHaveLength(40);
@@ -154,7 +154,7 @@ export const ManyDirectory = meta.story({
 		const lastBox = last.getBoundingClientRect();
 		expect(lastBox.top).toBeGreaterThanOrEqual(directoryBox.top - 1);
 		expect(lastBox.bottom).toBeLessThanOrEqual(directoryBox.bottom + 1);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -171,11 +171,11 @@ async function expectWalletsCappedToConnect(
 	if (!(card instanceof HTMLElement)) throw new Error("card missing");
 
 	modal.view = { ...view, screen: "connect" };
-	await waitForAnimations();
+	await settle();
 	const connectHeight = card.getBoundingClientRect().height;
 
 	modal.view = view;
-	await waitForAnimations();
+	await settle();
 
 	const sectionLabel = shadow.querySelector(".section-label");
 	const directory = shadow.querySelector(".directory");
@@ -207,9 +207,9 @@ export const ManyDirectoryWide = meta.story({
 	args: { view: viewFor({ screen: "wallets", directory: manyDirectory(40) }) },
 	globals: { viewport: { value: "desktop" } },
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		await expectWalletsCappedToConnect(canvasElement, args.view);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -217,9 +217,9 @@ export const ManyDirectoryWideShort = meta.story({
 	args: { view: viewFor({ screen: "wallets", directory: manyDirectory(40) }) },
 	globals: { viewport: { value: "desktopShort" } },
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		await expectWalletsCappedToConnect(canvasElement, args.view);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -244,7 +244,7 @@ export const LongWalletName = meta.story({
 			shortRow.getBoundingClientRect().height,
 			0,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -271,7 +271,7 @@ export const LongDirectoryName = meta.story({
 			shortRow.getBoundingClientRect().height,
 			0,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -291,7 +291,7 @@ export const LongDirectoryLinkLabel = meta.story({
 		expect(button.textContent).toContain(
 			LONG_LINK_LABEL_DIRECTORY_ENTRY.link?.label,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -315,7 +315,7 @@ export const DirectoryLinkFallback = meta.story({
 			BCHC_MESSAGES_EN.getWallet(NO_LABEL_DIRECTORY_ENTRY.name),
 		);
 		expect(labeled.textContent).toContain(LABELED_DIRECTORY_ENTRY.link?.label);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -334,7 +334,7 @@ export const NoLinkDirectoryEntry = meta.story({
 		expect(row.querySelector(".directory-links")).toBeNull();
 		expect(row.tagName).toBe("DIV");
 		expect(getComputedStyle(row).cursor).not.toBe("pointer");
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -351,7 +351,7 @@ export const InternationalWalletNames = meta.story({
 			expect.any(String),
 			expect.any(String),
 		]);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -364,7 +364,7 @@ export const InternationalDirectoryNames = meta.story({
 		);
 		expect(names).toHaveLength(SCRIPT_DIRECTORY.length);
 		expect(names[0]).toBe(CJK_NAME);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -381,7 +381,7 @@ export const HtmlLikeWalletName = meta.story({
 		expect(name.textContent).toBe(HTML_LIKE_NAME);
 		expect(name.children).toHaveLength(0);
 		expect(name.querySelector("img")).toBeNull();
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -400,7 +400,7 @@ export const HtmlLikeDirectoryLinkLabel = meta.story({
 		if (button === null) throw new Error("directory link button missing");
 		expect(button.textContent).toContain(HTML_LIKE_NAME);
 		expect(button.querySelector("img")).toBeNull();
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -442,7 +442,7 @@ export const BrokenLogo = meta.story({
 		expect(row.querySelector(".wallet-name")?.textContent).toBe(
 			BROKEN_LOGO_WALLET.name,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -477,7 +477,7 @@ export const NullLogo = meta.story({
 			sibling.getBoundingClientRect().height,
 			0,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -514,7 +514,7 @@ export const NullDirectoryLogo = meta.story({
 			sibling.getBoundingClientRect().height,
 			0,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -527,7 +527,7 @@ export const SvgLogo = meta.story({
 		);
 		if (img === null) throw new Error("logo img missing");
 		await waitFor(() => expect(img.naturalWidth).toBeGreaterThan(0));
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -540,7 +540,7 @@ export const HrefNullWallet = meta.story({
 		// Still selectable, and selected as the only wallet; it just has nothing to open.
 		expect(row.getAttribute("aria-checked")).toBe("true");
 		expect(row.parentElement?.querySelector(".open")).toBeNull();
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -558,7 +558,7 @@ export const HrefEmptyDirectoryEntry = meta.story({
 		if (row === null) throw new Error("directory row missing");
 		expect(row.tagName).toBe("DIV");
 		expect(row.querySelector(".directory-links")).toBeNull();
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -568,7 +568,7 @@ export const ZeroWallets = meta.story({
 		const shadow = modalShadow(canvasElement);
 		expect(shadow.querySelectorAll(".wallet")).toHaveLength(0);
 		expect(shadow.querySelector('[data-act="wallets"]')).not.toBeNull();
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -577,7 +577,7 @@ export const SingleWallet = meta.story({
 	play: async ({ canvasElement }) => {
 		const shadow = modalShadow(canvasElement);
 		expect(shadow.querySelectorAll(".wallet")).toHaveLength(1);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -586,7 +586,7 @@ export const EmptyDirectory = meta.story({
 	play: async ({ canvasElement }) => {
 		const shadow = modalShadow(canvasElement);
 		expect(shadow.querySelectorAll(".directory-row")).toHaveLength(0);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -597,7 +597,7 @@ export const SingleProtocol = meta.story({
 		view: viewFor({ protocols: [WIZARDCONNECT] }),
 	},
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		expect(shadow.querySelector('[role="tablist"]')).toBeNull();
@@ -621,7 +621,7 @@ export const SingleProtocol = meta.story({
 		});
 		expect(tabs[0]?.getAttribute("aria-selected")).toBe("true");
 		expect(shadow.querySelector(".session.is-info")).toBeNull();
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -646,7 +646,7 @@ export const ProtocolMarkNull = meta.story({
 				throw new Error("markless tab missing");
 			return found;
 		});
-		await waitForAnimations();
+		await settle();
 		expect(tab.querySelector("img")).toBeNull();
 		const name = tab.querySelector(".tab-name-inner");
 		if (!(name instanceof HTMLElement)) throw new Error("tab name missing");

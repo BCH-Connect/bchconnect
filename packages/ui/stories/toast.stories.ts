@@ -1,6 +1,5 @@
 import { html, nothing } from "lit";
 import { action } from "storybook/actions";
-import { waitForAnimations } from "storybook/preview-api";
 import { expect, fn, userEvent, waitFor } from "storybook/test";
 import preview, {
 	resolveMessages,
@@ -10,6 +9,7 @@ import { BCHC_MESSAGES_ES } from "../src/locales/es.ts";
 import type { BchcMessages } from "../src/messages.ts";
 import type { ToastView } from "../src/toast.ts";
 import { CONNECTED_WALLET } from "./fixtures.ts";
+import { settle } from "./settle.ts";
 import { THEME_ARG_TYPES, type ThemeArgs } from "./theme.ts";
 
 // The toast has no backdrop, so no blur.
@@ -61,7 +61,7 @@ const meta = preview.type<{ args: ToastStoryArgs }>().meta({
 	// Fallback for stories with no play of their own: axe (which runs after
 	// play) must only see the settled entrance, never a mid-fade frame.
 	play: async () => {
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -69,7 +69,7 @@ export const Connected = meta.story({});
 
 export const Dismiss = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const toast = toastHost(canvasElement);
 		const shadow = toastShadow(canvasElement);
 		const onDismiss = fn<(event: Event) => void>();
@@ -82,7 +82,7 @@ export const Dismiss = meta.story({
 		await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1), {
 			timeout: 5000,
 		});
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -91,7 +91,7 @@ export const Dismiss = meta.story({
 export const ConnectedRtl = meta.story({
 	globals: { direction: "rtl" },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = toastShadow(canvasElement);
 		const mark = shadow.querySelector(".done-mark");
 		const title = shadow.querySelector(".done-title");
@@ -100,7 +100,7 @@ export const ConnectedRtl = meta.story({
 		expect(mark.getBoundingClientRect().left).toBeGreaterThan(
 			title.getBoundingClientRect().left,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -123,7 +123,7 @@ export const MessagesOverride = meta.story({
 		},
 	},
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = toastShadow(canvasElement);
 		const heading = shadow.querySelector(".done-title");
 		expect(heading?.textContent).toBe(
@@ -139,7 +139,7 @@ export const MessagesOverride = meta.story({
 export const ConnectedEs = meta.story({
 	args: { messages: BCHC_MESSAGES_ES },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = toastShadow(canvasElement);
 		const heading = shadow.querySelector(".done-title");
 		expect(heading?.textContent).toBe(
@@ -160,7 +160,7 @@ export const AutoDismiss = meta.story({
 		await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1), {
 			timeout: 6000,
 		});
-		await waitForAnimations();
+		await settle();
 	},
 });
 

@@ -2,7 +2,6 @@
 // mirrored icons, inline-start/end layout, scroll regions and tabs. Each
 // play asserts a fact that would fail if a physical `left`/`right` crept back in.
 
-import { waitForAnimations } from "storybook/preview-api";
 import { expect, userEvent, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { BCHC_PROTOCOLS } from "../src/defaults.ts";
@@ -23,6 +22,7 @@ import {
 	modalRender,
 	modalShadow,
 } from "./modal.ts";
+import { settle } from "./settle.ts";
 import { THEME_ARG_TYPES } from "./theme.ts";
 
 const WIZARDCONNECT = BCHC_PROTOCOLS.find(
@@ -37,7 +37,7 @@ const meta = preview.type<{ args: ModalStoryArgs }>().meta({
 	args: { view: viewFor() },
 	render: modalRender,
 	play: async () => {
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -60,7 +60,7 @@ export const ScanRtl = meta.story({
 		expect(tile.getBoundingClientRect().left).toBeLessThan(
 			list.getBoundingClientRect().left,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -78,7 +78,7 @@ export const DeclinedRtl = meta.story({
 		expect(icon.getBoundingClientRect().left).toBeGreaterThan(
 			box.left + box.width / 2,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -109,7 +109,7 @@ export const WalletsRtl = meta.story({
 		expect(logo.getBoundingClientRect().left).toBeGreaterThan(
 			name.getBoundingClientRect().left,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -117,7 +117,7 @@ export const ManyWalletsRtl = meta.story({
 	args: { view: viewFor({ wallets: manyWallets(40) }) },
 	globals: { viewport: { value: "desktop" }, direction: "rtl" },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const rows = shadow.querySelectorAll<HTMLButtonElement>(".wallet");
 		expect(rows).toHaveLength(40);
@@ -153,14 +153,14 @@ export const ManyWalletsRtl = meta.story({
 		expect(logo.getBoundingClientRect().left).toBeGreaterThan(
 			open.getBoundingClientRect().left,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const ScanPhoneRtl = meta.story({
 	globals: { viewport: { value: "phone" }, direction: "rtl" },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const card = shadow.querySelector(".card");
 		if (!(card instanceof HTMLElement)) throw new Error("card missing");
@@ -189,7 +189,7 @@ export const WalletsPhoneRtl = meta.story({
 	args: { view: viewFor({ screen: "wallets" }) },
 	globals: { viewport: { value: "phone" }, direction: "rtl" },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		expect(shadow.querySelector(".overlay")).toHaveClass("is-sheet");
 		const rows = shadow.querySelectorAll<HTMLElement>(".directory-row");
@@ -210,7 +210,7 @@ export const SingleProtocolRtl = meta.story({
 	args: { view: viewFor({ protocols: [WIZARDCONNECT] }) },
 	globals: { direction: "rtl" },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		expect(shadow.querySelector('[role="tablist"]')).toBeNull();
@@ -226,7 +226,7 @@ export const SingleProtocolRtl = meta.story({
 		const [first, second] = tabs;
 		if (first === undefined || second === undefined)
 			throw new Error("tabs missing");
-		await waitForAnimations();
+		await settle();
 		expect(first.getBoundingClientRect().left).toBeGreaterThan(
 			second.getBoundingClientRect().left,
 		);
@@ -234,7 +234,7 @@ export const SingleProtocolRtl = meta.story({
 		first.focus();
 		await userEvent.keyboard("{ArrowLeft}");
 		expect(shadow.activeElement).toBe(second);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -253,7 +253,7 @@ export const NullLogoRtl = meta.story({
 		expect(fallback.getBoundingClientRect().left).toBeGreaterThan(
 			name.getBoundingClientRect().left,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -268,7 +268,7 @@ export const InternationalWalletNamesRtl = meta.story({
 			(el) => el.textContent,
 		);
 		expect(names).toEqual([CJK_NAME, EMOJI_NAME, ARABIC_NAME, HEBREW_NAME]);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -293,6 +293,6 @@ export const ScanRtlTranslated = meta.story({
 		expect(getComputedStyle(overlay).direction).toBe("rtl");
 		const title = shadow.querySelector(".title");
 		expect(title?.textContent).toBe(ARABIC_NAME);
-		await waitForAnimations();
+		await settle();
 	},
 });

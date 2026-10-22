@@ -1,11 +1,11 @@
 // Extreme theme combinations: axe must stay clean and nothing may spill out
 // of the card at any corner of the theme surface, not just the defaults.
 
-import { waitForAnimations } from "storybook/preview-api";
 import { expect } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { viewFor } from "./fixtures.ts";
 import { type ModalStoryArgs, modalRender, modalShadow } from "./modal.ts";
+import { settle } from "./settle.ts";
 import { THEME_ARG_TYPES } from "./theme.ts";
 
 const meta = preview.type<{ args: ModalStoryArgs }>().meta({
@@ -19,7 +19,7 @@ const meta = preview.type<{ args: ModalStoryArgs }>().meta({
 		if (card instanceof HTMLElement) {
 			expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth);
 		}
-		await waitForAnimations();
+		await settle();
 	},
 });
 

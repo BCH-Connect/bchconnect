@@ -1,7 +1,6 @@
 // Wallet-first selection (SPEC §8.1): a wallet is always selected, it narrows the
 // session-type tabs, names itself in the scan caption and carries its desktop link.
 
-import { waitForAnimations } from "storybook/preview-api";
 import { expect, fn, userEvent, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { BCHC_PROTOCOLS } from "../src/defaults.ts";
@@ -15,6 +14,7 @@ import {
 	modalRender,
 	modalShadow,
 } from "./modal.ts";
+import { settle } from "./settle.ts";
 import { THEME_ARG_TYPES } from "./theme.ts";
 
 const meta = preview.type<{ args: ModalStoryArgs }>().meta({
@@ -23,7 +23,7 @@ const meta = preview.type<{ args: ModalStoryArgs }>().meta({
 	args: { view: viewFor() },
 	render: modalRender,
 	play: async () => {
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -75,7 +75,7 @@ export const DefaultSelection = meta.story({
 		}),
 	},
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const checked = [...shadow.querySelectorAll("[data-wallet]")].map(
 			(wallet) => [
@@ -104,7 +104,7 @@ export const DefaultSelection = meta.story({
 export const UnknownWallet = meta.story({
 	args: { view: viewFor({ wallet: "not-listed" }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		expect(row(shadow, "cashonize").getAttribute("aria-checked")).toBe("true");
 	},
@@ -114,7 +114,7 @@ export const UnknownWallet = meta.story({
 export const TabsFollowWallet = meta.story({
 	args: { view: viewFor({ wallet: "paytaca" }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		expect(tabIds(shadow)).toEqual(["wizardconnect", "walletconnect"]);
 		expect(shadow.querySelector(".tabs")).not.toHaveClass("is-dense");
@@ -131,7 +131,7 @@ export const TabsFollowWallet = meta.story({
 				"cashconnect",
 			]),
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -139,7 +139,7 @@ export const TabsFollowWallet = meta.story({
 // and only the wallet's mark and name swap in the caption.
 export const SelectWallet = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const order = recordSelection(modal);
@@ -150,13 +150,12 @@ export const SelectWallet = meta.story({
 			expect(row(shadow, "paytaca").getAttribute("aria-checked")).toBe("true"),
 		);
 		expect(row(shadow, "cashonize").getAttribute("aria-checked")).toBe("false");
-		await waitFor(() =>
-			expect(captionText(shadow)).toBe(BCHC_MESSAGES_EN.scanWith("Paytaca")),
-		);
+		await settle();
+		expect(captionText(shadow)).toBe(BCHC_MESSAGES_EN.scanWith("Paytaca"));
 		// Selecting the selected wallet again asks for nothing.
 		await userEvent.click(row(shadow, "paytaca"));
 		expect(order).toEqual(["wallet:paytaca"]);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -167,7 +166,7 @@ const REVERSED: readonly ProtocolOption[] = [...BCHC_PROTOCOLS].reverse();
 export const SelectWalletFallsBack = meta.story({
 	args: { view: viewFor({ protocols: REVERSED, protocol: "cashconnect" }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const order = recordSelection(modal);
@@ -182,7 +181,7 @@ export const SelectWalletFallsBack = meta.story({
 			).toBe("walletconnect"),
 		);
 		expect(tabIds(shadow)).toEqual(["walletconnect", "wizardconnect"]);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -190,7 +189,7 @@ export const SelectWalletFallsBack = meta.story({
 // selects, since a selection can switch protocol and restart the attempt.
 export const KeyboardSelection = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const order = recordSelection(modal);
@@ -204,7 +203,7 @@ export const KeyboardSelection = meta.story({
 		expect(order).toEqual([]);
 		await userEvent.keyboard(" ");
 		expect(order).toEqual(["wallet:optn"]);
-		await waitForAnimations();
+		await settle();
 
 		const active = shadow.querySelector<HTMLElement>(
 			'.tab[aria-selected="true"]',
@@ -217,14 +216,14 @@ export const KeyboardSelection = meta.story({
 		expect(order).toHaveLength(1);
 		await userEvent.keyboard("{Enter}");
 		expect(order).toEqual(["wallet:optn", "protocol:walletconnect"]);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 // Cashonize's desktop link carries the live connection link; OPTN has none.
 export const DesktopLink = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const open = shadow.querySelector<HTMLAnchorElement>(".open.is-shown");
 		if (open === null) throw new Error("Open action missing");
@@ -250,7 +249,7 @@ export const DesktopLink = meta.story({
 		expect(open.hasAttribute("href")).toBe(false);
 		expect(open.getAttribute("aria-hidden")).toBe("true");
 		expect(open.getAttribute("tabindex")).toBe("-1");
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -263,7 +262,7 @@ export const DesktopLinkWaits = meta.story({
 		}),
 	},
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const open = shadow.querySelector<HTMLAnchorElement>(".open.is-shown");
 		if (open === null) throw new Error("Open action missing");
@@ -278,7 +277,7 @@ export const ScanWithNameFirst = meta.story({
 		messages: { scanWith: (wallet: string) => `${wallet} to scan` },
 	},
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const text = shadow.querySelector(".caption-text");
 		expect(text?.firstElementChild).toHaveClass("caption-wallet");
@@ -290,7 +289,7 @@ export const ScanWithNameFirst = meta.story({
 export const ScanWithoutName = meta.story({
 	args: { messages: { scanWith: () => "Scan to connect" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		expect(shadow.querySelector(".caption-wallet")).toBeNull();
 		expect(captionText(shadow)).toBe("Scan to connect");
@@ -302,7 +301,7 @@ export const PhoneNamesNoWallet = meta.story({
 	args: { view: viewFor({ wallet: "selene" }) },
 	globals: { viewport: { value: "phone" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		expect(shadow.querySelector(".overlay")).toHaveClass("is-sheet");
 		expect(shadow.querySelector(".caption-wallet")).toBeNull();
@@ -318,7 +317,7 @@ export const PhoneNamesNoWallet = meta.story({
 // A tab switch from the story harness: the tabs and the code follow, the rows stay put.
 export const SwitchProtocol = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const onProtocol = fn<(event: Event) => void>();
@@ -337,7 +336,7 @@ export const SwitchProtocol = meta.story({
 		// Patched in place, not rebuilt: the same row node, still selected.
 		expect(row(shadow, "cashonize")).toBe(before);
 		expect(before.getAttribute("aria-checked")).toBe("true");
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -351,7 +350,7 @@ export const TabKeepsDefaultWallet = meta.story({
 		}),
 	},
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const order = recordSelection(modal);
@@ -364,7 +363,7 @@ export const TabKeepsDefaultWallet = meta.story({
 		await waitFor(() => expect(tab.getAttribute("aria-selected")).toBe("true"));
 		expect(row(shadow, "optn").getAttribute("aria-checked")).toBe("true");
 		expect(row(shadow, "paytaca").getAttribute("aria-checked")).toBe("false");
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -379,7 +378,7 @@ export const UnsafeDesktopLink = meta.story({
 		}),
 	},
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		expect(shadow.querySelector(".open")).toBeNull();
 	},
@@ -388,7 +387,7 @@ export const UnsafeDesktopLink = meta.story({
 // The radio group also follows the horizontal arrows, and Home goes back to the first.
 export const KeyboardSelectionHorizontal = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const order = recordSelection(modal);
@@ -401,7 +400,7 @@ export const KeyboardSelectionHorizontal = meta.story({
 		expect(shadow.querySelectorAll('[data-wallet][tabindex="0"]')).toHaveLength(
 			1,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -410,7 +409,7 @@ export const KeyboardSelectionHorizontal = meta.story({
 export const KeyboardPassesWithoutSwitching = meta.story({
 	args: { view: viewFor({ protocol: "cashconnect" }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const order = recordSelection(modal);
@@ -428,6 +427,6 @@ export const KeyboardPassesWithoutSwitching = meta.story({
 				.querySelector('.tab[aria-selected="true"]')
 				?.getAttribute("data-protocol"),
 		).toBe("cashconnect");
-		await waitForAnimations();
+		await settle();
 	},
 });
