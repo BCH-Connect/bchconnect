@@ -8,14 +8,24 @@ import {
 	nothing,
 	type PropertyDeclarations,
 	type PropertyValues,
-	svg,
 	type TemplateResult,
 } from "lit";
 import { classMap } from "lit/directives/class-map.js";
 import { keyed } from "lit/directives/keyed.js";
+import { live } from "lit/directives/live.js";
 import { createRef, ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
 import { type CodeRenderer, renderCode } from "./code.ts";
+import { directoryScreen } from "./directory.ts";
+import {
+	type CaptionKind,
+	type CaptionWallet,
+	caption,
+	captionKind,
+	copyFace,
+	type MessageTextKey,
+	statusFace,
+} from "./faces.ts";
 import { safeHref } from "./html.ts";
 import { icon } from "./icons.ts";
 import { type BchcMessages, mergeMessages } from "./messages.ts";
@@ -23,15 +33,13 @@ import {
 	animationsFinished,
 	crossfade,
 	enter,
-	flipRows,
 	morphHeight,
 	namedAnimationsFinished,
-	type RowSnapshot,
 	retext,
 	slideSheet,
-	snapshotRows,
 	tempoOf,
 } from "./motion.ts";
+import { lockPageScroll, unlockPageScroll } from "./page-scroll.ts";
 import { type DraggableSheet, draggableSheet } from "./sheet.ts";
 import {
 	type FailureReason,
@@ -39,6 +47,8 @@ import {
 	type ModalView,
 	NETWORK_LABEL,
 	type ProtocolId,
+	type ProtocolOption,
+	type WalletOption,
 } from "./state.ts";
 import modal from "./styles/modal.css" with { type: "css" };
 import theme from "./styles/theme.generated.css" with { type: "css" };
@@ -50,6 +60,12 @@ import tokens from "./styles/tokens.css" with { type: "css" };
  * @beta
  */
 export interface BchcModalEvents {
+	/**
+	 * Fired when the visitor selects a wallet, and before `bchc-protocol` when a
+	 * tab change pins the default wallet. When the selected wallet lacks the
+	 * current session type, `bchc-protocol` follows with the first one it speaks.
+	 */
+	"bchc-wallet": CustomEvent<{ wallet: string }>;
 	/** Fired when the visitor picks a different session type. */
 	"bchc-protocol": CustomEvent<{ protocol: ProtocolId }>;
 	/** Fired when the visitor moves between the connect and wallets screens. */
@@ -71,129 +87,45 @@ const COPIED_FOR = 1800;
 const EXIT_ANIMATIONS = new Set(["lift", "sink", "sheet-out", "scrim-out"]);
 const NO_BROKEN_LOGOS: ReadonlySet<string> = new Set();
 
-// Shared by every modal, so overlapping ones can't restore each other's lock: the first lock
-// saves the page's own inline values and the last unlock restores them.
-let pageScrollLocks = 0;
-let savedOverflow = "";
-let savedScrollbarGutter = "";
-
-function lockPageScroll(): void {
-	pageScrollLocks += 1;
-	if (pageScrollLocks > 1) return;
-	const root = document.documentElement;
-	savedOverflow = root.style.overflow;
-	savedScrollbarGutter = root.style.scrollbarGutter;
-	// Measured before hiding overflow, which would itself remove the scrollbar.
-	const hasScrollbar = innerWidth - root.clientWidth > 0;
-	root.style.overflow = "hidden";
-	if (hasScrollbar) root.style.scrollbarGutter = "stable";
-}
-
-function unlockPageScroll(): void {
-	pageScrollLocks -= 1;
-	if (pageScrollLocks > 0) return;
-	const root = document.documentElement;
-	root.style.overflow = savedOverflow;
-	root.style.scrollbarGutter = savedScrollbarGutter;
-}
-
-type CaptionKind = "initiating" | "hint" | "scan" | "none";
-
-// The catalogue's copy keys: `lang` is a tag, and the function keys need a value.
-type MessageTextKey = Exclude<
-	{
-		[K in keyof BchcMessages]: BchcMessages[K] extends string ? K : never;
-	}[keyof BchcMessages],
-	"lang"
->;
-
-// Exhaustive on FailureReason, so a new reason fails typecheck here first.
-const FAILURE_MESSAGE_KEYS: Readonly<
-	Record<
-		FailureReason,
-		{ readonly title: MessageTextKey; readonly detail: MessageTextKey }
-	>
-> = {
-	rejected: { title: "rejectedTitle", detail: "rejectedDetail" },
-	timeout: { title: "timeoutTitle", detail: "timeoutDetail" },
-	aborted: { title: "abortedTitle", detail: "abortedDetail" },
-	transport: { title: "transportTitle", detail: "transportDetail" },
-	"network-mismatch": {
-		title: "networkMismatchTitle",
-		detail: "networkMismatchDetail",
-	},
-	unsupported: { title: "unsupportedTitle", detail: "unsupportedDetail" },
-};
-
-// How the next body rebuild moves: measured in `willUpdate`, played around the commit in `update`.
-type BodyMotion =
-	| { readonly kind: "crossfade"; readonly sheet: boolean }
-	| {
-			readonly kind: "flip";
-			readonly sheet: boolean;
-			readonly rows: Map<string, RowSnapshot>;
-	  };
+// Shorter shaft and a heavier, rounder stroke than the icon set's arrow, to sit with bold text.
+const OPEN_ARROW = html`<svg class="open-arrow" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 8.5 3.5"/><path d="M4.75 3.5H8.5v3.75"/></svg>`;
 
 const TITLE_KEYS: Readonly<Record<ModalScreen, MessageTextKey>> = {
 	connect: "connectTitle",
 	wallets: "getWalletTitle",
 };
 
-function captionKind(view: ModalView, linkFailed: boolean): CaptionKind {
-	switch (view.phase.kind) {
-		case "initiating":
-			return "initiating";
-		case "awaiting-approval":
-			return linkFailed ? "hint" : "scan";
-		default:
-			return "none";
-	}
+/** The view's wallet, or the default: the first listed that speaks the protocol. */
+function selectedWallet(view: ModalView): WalletOption | undefined {
+	return (
+		view.wallets.find((entry) => entry.id === view.wallet) ??
+		view.wallets.find((entry) => entry.protocols.includes(view.protocol)) ??
+		view.wallets[0]
+	);
 }
 
-function copyFace(messages: BchcMessages, copied: boolean): TemplateResult {
-	return copied
-		? html`${icon("check")}${messages.linkCopied}`
-		: html`${icon("link")}${messages.copyLink}`;
+// The drawer lists no wallets, so it offers every session type. The current one
+// always stays, so the code is never left without the tab that names it.
+function offeredProtocols(
+	view: ModalView,
+	sheet: boolean,
+): readonly ProtocolOption[] {
+	const wallet = sheet ? undefined : selectedWallet(view);
+	if (wallet === undefined) return view.protocols;
+	return view.protocols.filter(
+		(entry) =>
+			entry.id === view.protocol || wallet.protocols.includes(entry.id),
+	);
 }
 
-function caption(messages: BchcMessages, kind: CaptionKind): unknown {
-	switch (kind) {
-		case "initiating":
-			return html`<span class="dots"><i></i><i></i><i></i></span><span class="caption-text">${messages.initiating}</span>`;
-		case "hint":
-			return html`${icon("info")}<span class="caption-text">${messages.linkFailed}</span>`;
-		case "scan":
-			return html`${icon("scanLine")}<span class="caption-text">${messages.scan}</span>`;
-		default:
-			return nothing;
-	}
-}
-
-const RING_DOTS = 14;
-
-/** Each dot carries its index (`--i`) so the stylesheet can animate them in order. */
-const RING = html`<svg class="ring" width="96" height="96" viewBox="0 0 96 96" fill="currentColor" aria-hidden="true">${Array.from(
-	{ length: RING_DOTS },
-	(_, index) => {
-		const angle = (index / RING_DOTS) * Math.PI * 2 - Math.PI / 2;
-		const x = (48 + Math.cos(angle) * 41).toFixed(2);
-		const y = (48 + Math.sin(angle) * 41).toFixed(2);
-		return svg`<circle cx=${x} cy=${y} r="3.6" style="--i:${index}"/>`;
-	},
-)}</svg>`;
-
-function statusFace(
-	messages: BchcMessages,
-	reason: FailureReason | null,
-): unknown {
-	if (reason === null) return nothing;
-	const keys = FAILURE_MESSAGE_KEYS[reason];
-	return html`
-		<span class="status-mark">${RING}${icon("x", 34)}</span>
-		<strong class="status-title">${messages[keys.title]}</strong>
-		<p class="status-detail">${messages[keys.detail]}</p>
-		<button class="button primary pill retry" type="button" data-act="retry">${icon("rotateCcw", 15)}${messages.tryAgain}</button>
-	`;
+// `{link}` takes the live connection link, so the wallet opens with it filled in.
+// "" until there is one: the action shows but can't be used.
+function desktopLink(wallet: WalletOption, view: ModalView): string | null {
+	if (wallet.href === null) return null;
+	if (!wallet.href.includes("{link}")) return safeHref(wallet.href);
+	if (view.phase.kind !== "awaiting-approval") return "";
+	const link = encodeURIComponent(view.phase.link);
+	return safeHref(wallet.href.replaceAll("{link}", () => link));
 }
 
 // Injected by register.ts instead of importing code.ts directly, so
@@ -217,6 +149,7 @@ export function useCodeRenderer(renderer: CodeRenderer): void {
  * @attr {BchcBlur} data-bchc-blur - Backdrop blur behind the modal.
  * @attr {BchcMode} data-bchc-mode - Color scheme; `auto` follows `prefers-color-scheme`.
  *
+ * @fires {CustomEvent<{ wallet: string }>} bchc-wallet - Fired when the visitor selects a wallet, and before `bchc-protocol` when a tab change pins the default wallet; `bchc-protocol` follows when the selected wallet lacks the current session type.
  * @fires {CustomEvent<{ protocol: ProtocolId }>} bchc-protocol - Fired when the visitor picks a different session type.
  * @fires {CustomEvent<{ screen: ModalScreen }>} bchc-screen - Fired when the visitor moves between the connect and wallets screens.
  * @fires {CustomEvent<void>} bchc-close - Fired once the exit has played. Remove the element on it, or set `view` to `null` before showing it again.
@@ -229,6 +162,7 @@ export function useCodeRenderer(renderer: CodeRenderer): void {
  * defineElements();
  * const modal = document.createElement("bchc-modal") as BchcModal;
  * modal.view = view;
+ * modal.addEventListener("bchc-wallet", (event) => { ... });
  * modal.addEventListener("bchc-protocol", (event) => { ... });
  * modal.addEventListener("bchc-close", () => modal.remove());
  * document.body.append(modal);
@@ -248,6 +182,7 @@ export class BchcModal extends LitElement {
 		_rtl: { state: true },
 		_title: { state: true },
 		_caption: { state: true },
+		_captionWallet: { state: true },
 		_status: { state: true },
 		_copied: { state: true },
 		_linkFailed: { state: true },
@@ -280,6 +215,8 @@ export class BchcModal extends LitElement {
 	// What the title, caption and status show; `retext` moves them to the view's values after a fade.
 	declare private _title: string;
 	declare private _caption: CaptionKind;
+	// The wallet the scan caption names, by id; `null` names none.
+	declare private _captionWallet: string | null;
 	declare private _status: FailureReason | null;
 	declare private _copied: boolean;
 	declare private _linkFailed: boolean;
@@ -291,7 +228,10 @@ export class BchcModal extends LitElement {
 	#closing = false;
 	#entered = false;
 	#appearances = 0;
-	#motion: BodyMotion | null = null;
+	// Set in `willUpdate` when the next body rebuild crossfades; played around the commit in `update`.
+	#crossfade: { readonly sheet: boolean } | null = null;
+	// Counts wallet-only caption swaps; see `#retextBody`.
+	#walletSwaps = 0;
 	// Set only while this shell holds the page scroll lock, so unlocking twice is a no-op.
 	#scrollLocked = false;
 	readonly #overlay = createRef<HTMLDialogElement>();
@@ -319,6 +259,7 @@ export class BchcModal extends LitElement {
 		this._rtl = false;
 		this._title = "";
 		this._caption = "none";
+		this._captionWallet = null;
 		this._status = null;
 		this._copied = false;
 		this._linkFailed = false;
@@ -393,28 +334,19 @@ export class BchcModal extends LitElement {
 		this.requestUpdate();
 	};
 
-	// The menu closes first; with no menu open this plays the exit before the
-	// dialog closes. Shared by Escape and the dialog's own `cancel`.
-	#requestClose(): void {
-		if (this.#menuOpen()) {
-			this.#closeMenu();
-			return;
-		}
-		void this.close();
-	}
-
+	// Plays the exit before the dialog closes. Shared by Escape and the dialog's own `cancel`.
 	readonly #onKey = (event: KeyboardEvent): void => {
 		if (event.key !== "Escape" || event.defaultPrevented) return;
 		// Also keeps the dialog's close watcher from firing `cancel` for this same keypress
 		event.preventDefault();
-		this.#requestClose();
+		void this.close();
 	};
 
 	// Catches a close request with no keydown of its own, e.g. a mobile back gesture
 	readonly #onCancel = (event: Event): void => {
 		if (event.defaultPrevented || !event.cancelable) return;
 		event.preventDefault();
-		this.#requestClose();
+		void this.close();
 	};
 
 	readonly #onDialogClose = (event: Event): void => {
@@ -452,22 +384,18 @@ export class BchcModal extends LitElement {
 			void this.close();
 			return;
 		}
-		const option = target.closest(".option");
-		if (option !== null) {
-			this.#choose(option);
+		const tab = target.closest(".tab");
+		if (tab !== null) {
+			this.#selectProtocol(tab);
+			return;
+		}
+		const row = target.closest("[data-wallet]");
+		if (row !== null) {
+			this.#selectWallet(row);
 			return;
 		}
 		const actionTarget = target.closest("[data-act]");
 		const action = actionTarget?.getAttribute("data-act");
-		if (action === "menu") {
-			if (this.#menuOpen()) this.#closeMenu();
-			else this.#openMenu();
-			return;
-		}
-		if (this.#menuOpen()) {
-			this.#closeMenu(false);
-			return;
-		}
 		if (action === "retry") this.#emit("bchc-retry");
 		if (action === "copy") void this.#copyLink();
 		if (action === "back") this.#emit("bchc-screen", { screen: "connect" });
@@ -482,35 +410,43 @@ export class BchcModal extends LitElement {
 		}
 	}
 
-	// Escape closes the menu here; the modal's own listener handles the rest.
+	// Roving focus for the wallet radiogroup and the tablist. Manual activation for both:
+	// arrows only move focus, since a selection can switch protocol and restart the attempt.
 	#onOverlayKeydown(event: KeyboardEvent): void {
-		if (!this.#menuOpen()) {
-			const target = event.target;
-			if (
-				(event.key === "ArrowDown" || event.key === "ArrowUp") &&
-				target instanceof Element &&
-				target.closest(".select") !== null
-			) {
-				event.preventDefault();
-				this.#openMenu();
-			}
+		const target = event.target;
+		if (!(target instanceof Element)) return;
+		const radio = target.closest("[data-wallet]");
+		const tab = target.closest(".tab");
+		const item = radio ?? tab;
+		const group = item?.parentElement?.closest(".wallets, .tabs");
+		if (item === null || group === null || group === undefined) return;
+		if (event.key === "Enter" || event.key === " ") {
+			event.preventDefault();
+			if (tab !== null) this.#selectProtocol(tab);
+			else this.#selectWallet(item);
 			return;
 		}
-		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-			event.preventDefault();
-			this.#stepMenu(event.key === "ArrowDown" ? 1 : -1);
-		} else if (event.key === "Home" || event.key === "End") {
-			event.preventDefault();
-			this.#focusMenuEdge(event.key === "Home" ? "first" : "last");
-		} else if (event.key === "Enter" || event.key === " ") {
-			const target = event.target;
-			if (target instanceof Element && target.closest(".option") !== null) {
-				event.preventDefault();
-				this.#choose(target.closest(".option") as Element);
-			}
-		} else if (event.key === "Tab") {
-			this.#closeMenu(false);
-		}
+		const items = [
+			...group.querySelectorAll<HTMLElement>(
+				radio !== null ? "[data-wallet]" : ".tab",
+			),
+		];
+		const at = items.indexOf(item as HTMLElement);
+		const forward = this._rtl ? "ArrowLeft" : "ArrowRight";
+		const back = this._rtl ? "ArrowRight" : "ArrowLeft";
+		let next: number;
+		if (event.key === forward || (radio !== null && event.key === "ArrowDown"))
+			next = (at + 1) % items.length;
+		else if (event.key === back || (radio !== null && event.key === "ArrowUp"))
+			next = (at - 1 + items.length) % items.length;
+		else if (event.key === "Home") next = 0;
+		else if (event.key === "End") next = items.length - 1;
+		else return;
+		event.preventDefault();
+		const nextItem = items[next];
+		if (nextItem === undefined) return;
+		for (const entry of items) entry.tabIndex = entry === nextItem ? 0 : -1;
+		nextItem.focus({ preventScroll: true });
 	}
 
 	// Drops the shell; the next update removes it from the shadow root.
@@ -531,7 +467,7 @@ export class BchcModal extends LitElement {
 		this._copied = false;
 		this.#closing = false;
 		this.#entered = false;
-		this.#motion = null;
+		this.#crossfade = null;
 		this._appearance = null;
 		this._bodyView = null;
 		this._bodyKey = null;
@@ -585,44 +521,28 @@ export class BchcModal extends LitElement {
 		const previous = this._bodyView;
 		const previousKey = this._bodyKey;
 		const sheet = this._sheet;
-		const single = view.protocols.length === 1;
-		const key = `${view.screen}:${sheet}:${view.protocol}:${single}`;
+		// Wallets don't follow the protocol, so a protocol switch or a selection
+		// patches the body in place while the code rewrites.
+		const key = `${view.screen}:${sheet}`;
 		this._bodyView = view;
 		if (key === previousKey) return;
 		this._bodyKey = key;
 		this._linkFailed = false;
 		this._caption = captionKind(view, false);
+		this._captionWallet = this.#captionWalletOf(view);
 		this._status = view.phase.kind === "failed" ? view.phase.reason : null;
-		this.#motion = null;
+		this.#crossfade = null;
 
 		// The first body of a shell, or one rebuilt for a sheet/split switch, appears without motion.
 		if (previous === null || previousKey === null || previousSheet !== sheet)
 			return;
-
-		const protocolSwitch =
-			previous.screen === "connect" &&
-			view.screen === "connect" &&
-			previous.protocol !== view.protocol;
-		if (!protocolSwitch) {
-			this.#motion = { kind: "crossfade", sheet };
-			return;
-		}
-		// Scoped to the column, not just the list, so the link travels with the rows.
-		const column = this.#body.value?.querySelector(".left");
-		this.#motion = {
-			kind: "flip",
-			sheet,
-			rows:
-				column instanceof HTMLElement
-					? snapshotRows(column, "[data-id]")
-					: new Map<string, RowSnapshot>(),
-		};
+		this.#crossfade = { sheet };
 	}
 
 	/** Lit hook committing the template; a body rebuild is committed inside its motion. @internal */
 	protected override update(changed: PropertyValues<this>): void {
-		const motion = this.#motion;
-		this.#motion = null;
+		const motion = this.#crossfade;
+		this.#crossfade = null;
 		const card = this.#card.value;
 		const body = this.#body.value;
 		if (motion === null || card === undefined || body === undefined) {
@@ -630,17 +550,6 @@ export class BchcModal extends LitElement {
 			return;
 		}
 		const resize = motion.sheet ? slideSheet : morphHeight;
-		// A protocol change FLIPs the wallet rows while the code rewrites;
-		// every other change crossfades one screen for another.
-		if (motion.kind === "flip") {
-			resize(card, () => {
-				super.update(changed);
-				const next = body.querySelector(".left");
-				if (next instanceof HTMLElement)
-					flipRows(next, "[data-id]", motion.rows);
-			});
-			return;
-		}
 		// Direction 0: the card's width never changes, so nothing should slide sideways.
 		resize(card, () => crossfade(body, () => super.update(changed), 0));
 	}
@@ -740,7 +649,7 @@ export class BchcModal extends LitElement {
 				enter(
 					// .tile excluded: its own write-in animation is its entrance.
 					overlay.querySelectorAll(
-						".head, .left > *, .single > :not(.tile), .right > .footer",
+						".head, .split > :not(.cell-tile), .single > :not(.tile)",
 					),
 					tempoOf(card),
 				);
@@ -756,16 +665,39 @@ export class BchcModal extends LitElement {
 	// A swap from a body that was rebuilt meanwhile is dropped; the new body already shows the view.
 	#retextBody(body: HTMLElement, view: ModalView): void {
 		const nextCaption = captionKind(view, this._linkFailed);
+		const nextWallet = this.#captionWalletOf(view);
 		const captionElement = body.querySelector(".caption");
+		// Another wallet on the same scan caption: only its mark and name swap.
+		const walletElement = body.querySelector(".caption-wallet");
 		if (
-			captionElement instanceof HTMLElement &&
-			nextCaption !== this._caption
+			walletElement instanceof HTMLElement &&
+			nextCaption === "scan" &&
+			this._caption === "scan" &&
+			nextWallet !== null &&
+			nextWallet !== this._captionWallet
 		) {
-			retext(captionElement, nextCaption, () => {
-				if (!captionElement.isConnected) return;
-				this._caption = nextCaption;
+			retext(walletElement, nextWallet, () => {
+				if (!walletElement.isConnected) return;
+				this._captionWallet = nextWallet;
 				return this.updateComplete;
 			});
+			this.#walletSwaps += 1;
+		} else if (
+			captionElement instanceof HTMLElement &&
+			(nextCaption !== this._caption ||
+				(nextCaption === "scan" && nextWallet !== this._captionWallet))
+		) {
+			// The count keeps a whole-caption swap from matching a key it saw before a wallet-only swap.
+			retext(
+				captionElement,
+				`${nextCaption}|${nextWallet}|${this.#walletSwaps}`,
+				() => {
+					if (!captionElement.isConnected) return;
+					this._caption = nextCaption;
+					this._captionWallet = nextWallet;
+					return this.updateComplete;
+				},
+			);
 		}
 		// The failure face stays in place after a retry, so it is only ever swapped for another.
 		const reason = view.phase.kind === "failed" ? view.phase.reason : null;
@@ -789,136 +721,89 @@ export class BchcModal extends LitElement {
 		return keyed(
 			this._bodyKey,
 			view.screen === "wallets"
-				? this.#walletsScreen(view)
+				? directoryScreen(view.directory, this.#messages, (logo, size, extra) =>
+						this.#logo(logo, size, extra),
+					)
 				: this.#connectScreen(view, this._sheet),
 		);
 	}
 
-	// A native <select> opens an unstyleable platform menu, so this pops a styled listbox.
+	// One tab per offered session type; with one, nothing to choose, so an informational label.
 	#sessionType(view: ModalView): TemplateResult {
-		const current = view.protocols.find((entry) => entry.id === view.protocol);
+		const protocols = offeredProtocols(view, this._sheet);
 		const sessionType = this.#messages.sessionType;
-		// A single session type has nothing to choose, so it shows as the same pill, without the chevron or any interactive state.
-		if (view.protocols.length === 1) {
+		const mark = (entry: ProtocolOption): unknown =>
+			entry.mark === null
+				? nothing
+				: html`<img class="tab-mark" src=${entry.mark.src} alt="" width="16" height="16" />`;
+		const only = protocols.length === 1 ? protocols[0] : undefined;
+		if (only !== undefined) {
 			return html`
-				<div class="field">
+				<div class="session is-info">
 					<span class="label" id="session-type">${sessionType}</span>
-					<span class="select" aria-labelledby="session-type">${current?.name ?? ""}</span>
+					<span class="session-value" aria-labelledby="session-type">${mark(only)}<span>${only.name}</span></span>
 				</div>
 			`;
 		}
-		// `aria-expanded` and the menu's `hidden` are static: the menu methods own them.
+		// Past two, only the active tab spells its name (see the stylesheet).
 		return html`
-			<div class="field">
-				<span class="label" id="session-type">${sessionType}</span>
-				<div class="select-wrap">
-					<button class="select" type="button" data-act="menu" aria-haspopup="listbox" aria-expanded="false" aria-controls="session-menu" aria-labelledby="session-type select-value">
-						<span id="select-value">${current?.name ?? ""}</span>
-						${icon("chevronDown", 12)}
-					</button>
-					<ul class="menu" id="session-menu" role="listbox" aria-labelledby="session-type" hidden>
-						${view.protocols.map(
-							(entry) => html`
-							<li class="option" role="option" tabindex="-1" data-protocol=${entry.id} aria-selected=${String(entry.id === view.protocol)}>
-								${entry.mark === null ? html`<span class="option-mark"></span>` : html`<img class="option-mark" src=${entry.mark.src} alt="" width="18" height="18" />`}
-								<span class="option-name">${entry.name}</span>
-								<span class="option-check">${icon("check", 14)}</span>
-							</li>`,
-						)}
-					</ul>
+			<div class="session is-tabs">
+				<span class="visually-hidden" id="session-type">${sessionType}</span>
+				<div class="tabs ${classMap({ "is-dense": protocols.length > 2 })}" role="tablist" aria-labelledby="session-type" style="--count:${protocols.length}">
+					${repeat(
+						protocols,
+						(entry) => entry.id,
+						(entry) => {
+							const active = entry.id === view.protocol;
+							return html`
+						<button class=${classMap({ tab: true, "no-mark": entry.mark === null })} type="button" role="tab" id="tab-${entry.id}" data-protocol=${entry.id} aria-selected=${String(active)} aria-controls="code-tile" .tabIndex=${live(active ? 0 : -1)} title=${entry.name}>
+							${mark(entry)}
+							<span class="tab-name"><span class="tab-name-inner">${entry.name}</span></span>
+						</button>`;
+						},
+					)}
 				</div>
 			</div>
 		`;
 	}
 
-	#menu(): HTMLElement | null {
-		const menu = this.#overlay.value?.querySelector(".menu");
-		return menu instanceof HTMLElement ? menu : null;
-	}
-
-	#menuOpen(): boolean {
-		const menu = this.#menu();
-		return menu !== null && !menu.hidden;
-	}
-
-	#openMenu(): void {
-		const menu = this.#menu();
-		const trigger = this.#overlay.value?.querySelector(".select");
-		if (menu === null || !(trigger instanceof HTMLElement) || !menu.hidden)
+	// The default wallet follows the protocol, so it is pinned first; the selection
+	// changes only when the visitor picks a wallet.
+	#selectProtocol(tab: Element): void {
+		const view = this.view;
+		const protocol = tab.getAttribute("data-protocol");
+		if (view === null || protocol === null || protocol === view.protocol)
 			return;
-		menu.hidden = false;
-		trigger.setAttribute("aria-expanded", "true");
-		const tempo = tempoOf(menu);
-		menu.animate(
-			[
-				{ opacity: 0, transform: "translateY(-6px) scale(0.94)" },
-				{ opacity: 1, transform: "none" },
-			],
-			{ duration: tempo.base * 0.8, easing: tempo.enter },
-		);
-		const chosen = menu.querySelector('[aria-selected="true"]');
-		if (chosen instanceof HTMLElement) chosen.focus({ preventScroll: true });
-	}
-
-	#closeMenu(refocus = true): void {
-		const menu = this.#menu();
-		const trigger = this.#overlay.value?.querySelector(".select");
-		if (menu === null || menu.hidden) return;
-		if (trigger instanceof HTMLElement) {
-			trigger.setAttribute("aria-expanded", "false");
-			if (refocus) trigger.focus({ preventScroll: true });
-		}
-		const tempo = tempoOf(menu);
-		const exiting = menu.animate(
-			[
-				{ opacity: 1, transform: "none" },
-				{ opacity: 0, transform: "translateY(-4px) scale(0.97)" },
-			],
-			{ duration: tempo.fast, easing: tempo.out, fill: "forwards" },
-		);
-		exiting.finished
-			.catch(() => undefined)
-			.finally(() => {
-				menu.hidden = true;
-				// Forward fill pins opacity; cancel or it stays hidden next open.
-				exiting.cancel();
-			});
-	}
-
-	#stepMenu(step: 1 | -1): void {
-		const menu = this.#menu();
-		if (menu === null) return;
-		const options = [...menu.querySelectorAll<HTMLElement>(".option")];
-		if (options.length === 0) return;
-		const active = this.shadowRoot?.activeElement;
-		const at = active instanceof HTMLElement ? options.indexOf(active) : -1;
-		const next =
-			at === -1
-				? options.findIndex(
-						(option) => option.getAttribute("aria-selected") === "true",
-					)
-				: (at + step + options.length) % options.length;
-		options[Math.max(next, 0)]?.focus({ preventScroll: true });
-	}
-
-	#focusMenuEdge(edge: "first" | "last"): void {
-		const menu = this.#menu();
-		if (menu === null) return;
-		const options = menu.querySelectorAll<HTMLElement>(".option");
-		const target = edge === "first" ? options[0] : options[options.length - 1];
-		target?.focus({ preventScroll: true });
-	}
-
-	#choose(option: Element): void {
-		const protocol = option.getAttribute("data-protocol");
-		this.#closeMenu();
-		if (protocol === null || protocol === this.view?.protocol) return;
+		const pinned = view.wallets.some((entry) => entry.id === view.wallet);
+		const wallet = selectedWallet(view);
+		if (!pinned && wallet !== undefined && !this._sheet)
+			this.#emit("bchc-wallet", { wallet: wallet.id });
 		this.#emit("bchc-protocol", { protocol: protocol as ProtocolId });
 	}
 
+	// Order is contract: the wallet first, then the protocol it falls back to.
+	#selectWallet(row: Element): void {
+		const view = this.view;
+		const id = row.getAttribute("data-wallet");
+		if (view === null || id === null || id === selectedWallet(view)?.id) return;
+		const wallet = view.wallets.find((entry) => entry.id === id);
+		if (wallet === undefined) return;
+		this.#emit("bchc-wallet", { wallet: id });
+		if (wallet.protocols.includes(view.protocol)) return;
+		const fallback = view.protocols.find((entry) =>
+			wallet.protocols.includes(entry.id),
+		);
+		if (fallback !== undefined)
+			this.#emit("bchc-protocol", { protocol: fallback.id });
+	}
+
+	// The drawer lists no wallets, so its caption never names one.
+	#captionWalletOf(view: ModalView): string | null {
+		return this._sheet ? null : (selectedWallet(view)?.id ?? null);
+	}
+
 	#walletPrompt(): TemplateResult {
-		// data-id lets it FLIP with the rows instead of jumping to its new place.
-		return html`<p class="get-one" data-id="get-one"><button type="button" data-act="wallets">${this.#messages.noWallet}</button></p>`;
+		return html`<p class="get-one"><button type="button" data-act="wallets">${this.#messages.noWallet}</button></p>`;
 	}
 
 	// `null`, empty, whitespace-only or failed renders the generic wallet tile in place of an `<img>`.
@@ -946,18 +831,33 @@ export class BchcModal extends LitElement {
 	}
 
 	// The component-owned code host goes where the slot was, so the drawing survives rebuilds.
-	#code(view: ModalView): TemplateResult {
-		const failed = view.phase.kind === "failed";
-		const messages = this.#messages;
+	#tile(view: ModalView): TemplateResult {
+		const tabbed = offeredProtocols(view, this._sheet).length > 1;
 		return html`
-			<div class="tile ${classMap({ "is-initiating": view.phase.kind === "initiating", "is-failed": failed })}">
+			<div class="tile ${classMap({ "is-initiating": view.phase.kind === "initiating", "is-failed": view.phase.kind === "failed" })}" id="code-tile" role=${tabbed ? "tabpanel" : nothing} aria-labelledby=${tabbed ? `tab-${view.protocol}` : nothing}>
 				<span class="probe" aria-hidden="true"></span>
 				<span class="skeleton" aria-hidden="true"></span>
 				${codeRenderer === null ? html`<div class="code"></div>` : this.#codeHost}
-				<div class="status" role="status">${statusFace(messages, this._status)}</div>
+				<div class="status" role="status">${statusFace(this.#messages, this._status)}</div>
 			</div>
-			<div class="footer ${classMap({ "is-void": failed })}">
-				<p class="caption">${caption(messages, this._caption)}</p>
+		`;
+	}
+
+	#footer(view: ModalView): TemplateResult {
+		const messages = this.#messages;
+		const named = view.wallets.find(
+			(entry) => entry.id === this._captionWallet,
+		);
+		const wallet: CaptionWallet | null =
+			named === undefined
+				? null
+				: {
+						name: named.name,
+						template: html`<span class="caption-wallet">${this.#logo(named.logo, 16, "caption-mark")}<span class="caption-name">${named.name}</span></span>`,
+					};
+		return html`
+			<div class=${classMap({ footer: true, "is-void": view.phase.kind === "failed" })}>
+				<p class="caption">${caption(messages, this._caption, wallet)}</p>
 				<button class="button pill ${classMap({ "is-copied": this._copied })}" type="button" data-act="copy" .disabled=${view.phase.kind !== "awaiting-approval"}>${copyFace(messages, this._copied)}</button>
 			</div>
 		`;
@@ -976,7 +876,8 @@ export class BchcModal extends LitElement {
 			return html`
 				<div class="single">
 					${this.#sessionType(view)}
-					${this.#code(view)}
+					${this.#tile(view)}
+					${this.#footer(view)}
 					<div class="primary-slot ${classMap({ "is-failed": failed })}">
 						<a class="button primary block" data-act="open" href=${link ?? nothing} aria-disabled=${link === null ? "true" : nothing}>${messages.openInWallet}</a>
 						<button class="button primary block retry" type="button" data-act="retry">${icon("rotateCcw", 15)}${messages.tryAgain}</button>
@@ -986,63 +887,42 @@ export class BchcModal extends LitElement {
 			`;
 		}
 
+		const selectedId = selectedWallet(view)?.id;
 		// `repeat` keeps each row's node with its wallet, so a loaded or failed logo stays with it.
 		return html`
 			<div class="split">
-				<div class="left">
-					${this.#sessionType(view)}
-					<p class="section-label">${messages.walletsHeading}</p>
-					<div class="wallets">
+				<p class="cell-label section-label" id="wallets-heading">${messages.walletsHeading}</p>
+				<div class="cell-control">${this.#sessionType(view)}</div>
+				<div class="cell-list">
+					<div class="wallets" role="radiogroup" aria-labelledby="wallets-heading">
 						${repeat(
 							view.wallets,
 							(wallet) => wallet.id,
 							(wallet) => {
-								const href =
-									wallet.href === null ? null : safeHref(wallet.href);
+								const selected = wallet.id === selectedId;
+								// Rendered on every row with a desktop link and shown on the selected one,
+								// so it leaves with the tint instead of vanishing. Hidden ones carry no live link.
+								const desktop = desktopLink(wallet, view);
+								const href = desktop === null ? null : selected ? desktop : "";
 								return html`
-							<a class="wallet" data-id=${wallet.id} href=${href ?? nothing} aria-disabled=${href === null ? "true" : nothing}>
-								${this.#logo(wallet.logo, 32, "")}
-								<span class="wallet-name" title=${wallet.name}>${wallet.name}</span>
-								${href === null ? nothing : html`<span class="go">${icon("arrowUpRight", 14)}</span>`}
-							</a>`;
+							<div class="wallet-row ${classMap({ "has-open": href !== null && selected })}">
+								<button class="wallet" type="button" role="radio" aria-checked=${String(selected)} data-wallet=${wallet.id} .tabIndex=${live(selected ? 0 : -1)}>
+									${this.#logo(wallet.logo, 32, "")}
+									<span class="wallet-name" title=${wallet.name}>${wallet.name}</span>
+								</button>
+								${
+									href === null
+										? nothing
+										: html`<a class="open ${classMap({ "is-shown": selected })}" tabindex=${selected ? nothing : -1} aria-hidden=${selected ? nothing : "true"} href=${href === "" ? nothing : href} role=${href === "" ? "link" : nothing} aria-disabled=${href === "" ? "true" : nothing} target="_blank" rel="noreferrer" aria-label=${messages.openWalletLabel(wallet.name)}><span class="open-text">${messages.open}</span>${OPEN_ARROW}</a>`
+								}
+							</div>`;
 							},
 						)}
 					</div>
-					${this.#walletPrompt()}
 				</div>
-				<div class="right">
-					${this.#code(view)}
-				</div>
-			</div>
-		`;
-	}
-
-	#walletsScreen(view: ModalView): TemplateResult {
-		const messages = this.#messages;
-		return html`
-			<div class="single">
-				<p class="section-label">${messages.directoryHeading}</p>
-				<div class="directory">
-					${view.directory.map((entry) => {
-						const href = entry.link === null ? null : safeHref(entry.link.href);
-						const logo = this.#logo(entry.logo, 36, "directory-logo");
-						const name = html`<span class="wallet-name" title=${entry.name}>${entry.name}</span>`;
-						if (href === null)
-							return html`
-						<div class="directory-row">
-							${logo}
-							${name}
-						</div>`;
-						return html`
-						<a class="directory-row" href=${href} target="_blank" rel="noreferrer">
-							${logo}
-							${name}
-							<span class="directory-links">
-								<span class="button pill">${entry.link?.label ?? messages.getWallet(entry.name)}${icon("arrowUpRight", 14)}</span>
-							</span>
-						</a>`;
-					})}
-				</div>
+				<div class="cell-tile">${this.#tile(view)}</div>
+				<div class="cell-prompt">${this.#walletPrompt()}</div>
+				${this.#footer(view)}
 			</div>
 		`;
 	}

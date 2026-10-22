@@ -14,10 +14,15 @@ export interface BchcMessages {
 	readonly connectTitle: string;
 	/** Dialog title on the "Get a wallet" screen. */
 	readonly getWalletTitle: string;
-	/** Label above the session-type control. */
+	/** Accessible name of the session-type tabs, and the label beside a single session type. */
 	readonly sessionType: string;
-	/** Caption shown while awaiting the wallet's scan. */
+	/** Caption shown while awaiting the scan when no wallet is named, as on the drawer layout. */
 	readonly scan: string;
+	/**
+	 * Caption shown while awaiting the scan on the split layout, naming the selected
+	 * wallet. Include `wallet` exactly once for its mark to show beside it.
+	 */
+	readonly scanWith: (wallet: string) => string;
 	/** Caption shown while the connection link is still being fetched. */
 	readonly initiating: string;
 	/** Hint shown once a deep link appears not to have opened anything. */
@@ -32,6 +37,10 @@ export interface BchcMessages {
 	readonly openInWallet: string;
 	/** Section label above the wallet list on the split layout. */
 	readonly walletsHeading: string;
+	/** Label of the selected wallet's desktop link. */
+	readonly open: string;
+	/** Accessible name of the selected wallet's desktop link. */
+	readonly openWalletLabel: (wallet: string) => string;
 	/** Link to the wallet directory, shown under the wallet list. */
 	readonly noWallet: string;
 	/** Section label on the "Get a wallet" screen. */
@@ -88,13 +97,16 @@ export const BCHC_MESSAGES_EN: BchcMessages = {
 	getWalletTitle: "Get a wallet",
 	sessionType: "Session type",
 	scan: "Scan with your wallet",
+	scanWith: (wallet) => `Scan with ${wallet}`,
 	initiating: "Getting your connection link",
 	linkFailed: "Didn't open? Copy the link.",
 	copyLink: "Copy link",
 	linkCopied: "Link copied",
 	copyLinkLabel: "Copy connection link",
 	openInWallet: "Open in your wallet",
-	walletsHeading: "Open in your wallet",
+	walletsHeading: "Choose your wallet",
+	open: "Open",
+	openWalletLabel: (wallet) => `Open ${wallet}`,
 	noWallet: "Don't have a wallet?",
 	directoryHeading: "Bitcoin Cash wallets that work here",
 	getWallet: (name) => `Get ${name}`,

@@ -1,4 +1,3 @@
-import { waitForAnimations } from "storybook/preview-api";
 import { expect } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { BCHC_MESSAGES_ES } from "../src/locales/es.ts";
@@ -10,6 +9,7 @@ import {
 	modalRender,
 	modalShadow,
 } from "./modal.ts";
+import { settle } from "./settle.ts";
 import { THEME_ARG_TYPES } from "./theme.ts";
 
 const meta = preview.type<{ args: ModalStoryArgs }>().meta({
@@ -29,7 +29,7 @@ function expectSheet(canvasElement: HTMLElement): ShadowRoot {
 export const ScanPhone = meta.story({
 	globals: { viewport: { value: "phone" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		const open = shadow.querySelector('a[data-act="open"]');
 		if (!(open instanceof HTMLElement)) throw new Error("open link missing");
@@ -44,7 +44,7 @@ export const ScanPhone = meta.story({
 export const ScanPhoneSmallest = meta.story({
 	globals: { viewport: { value: "phoneSmallest" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		const body = shadow.querySelector(".body");
 		if (!(body instanceof HTMLElement)) throw new Error("body missing");
@@ -56,7 +56,7 @@ export const FailurePhone = meta.story({
 	args: { view: viewFor({ phase: { kind: "failed", reason: "rejected" } }) },
 	globals: { viewport: { value: "phoneSmall" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		const retry = shadow.querySelector('[data-act="retry"]');
 		if (!(retry instanceof HTMLElement))
@@ -76,7 +76,7 @@ export const FailurePhoneEs = meta.story({
 	},
 	globals: { viewport: { value: "phoneSmall" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		expectFailureCopy(canvasElement, "unsupported", BCHC_MESSAGES_ES);
 		const overlay = shadow.querySelector(".overlay");
@@ -112,7 +112,7 @@ export const WalletsPhone = meta.story({
 	args: { view: viewFor({ screen: "wallets" }) },
 	globals: { viewport: { value: "phone" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		const rows = shadow.querySelectorAll(".directory-row");
 		expect(rows.length).toBeGreaterThan(0);
@@ -128,7 +128,7 @@ export const ManyWalletsHiddenOnPhone = meta.story({
 	args: { view: viewFor({ wallets: manyWallets(40) }) },
 	globals: { viewport: { value: "phone" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		expect(shadow.querySelectorAll(".wallet")).toHaveLength(0);
 	},
@@ -142,7 +142,7 @@ export const ManyDirectoryPhoneScrolls = meta.story({
 	},
 	globals: { viewport: { value: "phoneSmallest" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		const body = shadow.querySelector(".body");
 		if (!(body instanceof HTMLElement)) throw new Error("body missing");

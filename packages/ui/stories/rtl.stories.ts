@@ -1,8 +1,7 @@
 // RTL variants of the stories a direction bug would most likely reach:
-// mirrored icons, inline-start/end layout, scroll regions and popovers. Each
+// mirrored icons, inline-start/end layout, scroll regions and tabs. Each
 // play asserts a fact that would fail if a physical `left`/`right` crept back in.
 
-import { waitForAnimations } from "storybook/preview-api";
 import { expect, userEvent, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { BCHC_PROTOCOLS } from "../src/defaults.ts";
@@ -23,6 +22,7 @@ import {
 	modalRender,
 	modalShadow,
 } from "./modal.ts";
+import { settle } from "./settle.ts";
 import { THEME_ARG_TYPES } from "./theme.ts";
 
 const WIZARDCONNECT = BCHC_PROTOCOLS.find(
@@ -37,7 +37,7 @@ const meta = preview.type<{ args: ModalStoryArgs }>().meta({
 	args: { view: viewFor() },
 	render: modalRender,
 	play: async () => {
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -48,19 +48,19 @@ export const ScanRtl = meta.story({
 	play: async ({ canvasElement }) => {
 		const shadow = modalShadow(canvasElement);
 		const card = shadow.querySelector(".card");
-		const left = shadow.querySelector(".left");
-		const right = shadow.querySelector(".right");
+		const list = shadow.querySelector(".cell-list");
+		const tile = shadow.querySelector(".cell-tile");
 		if (
 			!(card instanceof HTMLElement) ||
-			!(left instanceof HTMLElement) ||
-			!(right instanceof HTMLElement)
+			!(list instanceof HTMLElement) ||
+			!(tile instanceof HTMLElement)
 		)
-			throw new Error("card, left or right column missing");
+			throw new Error("card, wallet list or code cell missing");
 		expect(getComputedStyle(card).direction).toBe("rtl");
-		expect(right.getBoundingClientRect().left).toBeLessThan(
-			left.getBoundingClientRect().left,
+		expect(tile.getBoundingClientRect().left).toBeLessThan(
+			list.getBoundingClientRect().left,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -78,7 +78,7 @@ export const DeclinedRtl = meta.story({
 		expect(icon.getBoundingClientRect().left).toBeGreaterThan(
 			box.left + box.width / 2,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -109,7 +109,7 @@ export const WalletsRtl = meta.story({
 		expect(logo.getBoundingClientRect().left).toBeGreaterThan(
 			name.getBoundingClientRect().left,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -117,9 +117,9 @@ export const ManyWalletsRtl = meta.story({
 	args: { view: viewFor({ wallets: manyWallets(40) }) },
 	globals: { viewport: { value: "desktop" }, direction: "rtl" },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
-		const rows = shadow.querySelectorAll<HTMLAnchorElement>(".wallet");
+		const rows = shadow.querySelectorAll<HTMLButtonElement>(".wallet");
 		expect(rows).toHaveLength(40);
 		const wallets = shadow.querySelector(".wallets");
 		const card = shadow.querySelector(".card");
@@ -145,21 +145,22 @@ export const ManyWalletsRtl = meta.story({
 		const first = rows[0];
 		if (first === undefined) throw new Error("first wallet row missing");
 		const logo = first.querySelector("img, .logo-fallback");
-		const go = first.querySelector(".go");
-		if (!(logo instanceof HTMLElement) || !(go instanceof HTMLElement))
-			throw new Error("wallet logo or go icon missing");
-		// The logo sits at the row's inline-start (the right edge here); the arrow trails it.
+		// The first row is the default selection, so its Open action shows.
+		const open = first.parentElement?.querySelector(".open.is-shown");
+		if (!(logo instanceof HTMLElement) || !(open instanceof HTMLElement))
+			throw new Error("wallet logo or Open action missing");
+		// The logo sits at the row's inline-start (the right edge here); the action trails it.
 		expect(logo.getBoundingClientRect().left).toBeGreaterThan(
-			go.getBoundingClientRect().left,
+			open.getBoundingClientRect().left,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const ScanPhoneRtl = meta.story({
 	globals: { viewport: { value: "phone" }, direction: "rtl" },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const card = shadow.querySelector(".card");
 		if (!(card instanceof HTMLElement)) throw new Error("card missing");
@@ -188,7 +189,7 @@ export const WalletsPhoneRtl = meta.story({
 	args: { view: viewFor({ screen: "wallets" }) },
 	globals: { viewport: { value: "phone" }, direction: "rtl" },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		expect(shadow.querySelector(".overlay")).toHaveClass("is-sheet");
 		const rows = shadow.querySelectorAll<HTMLElement>(".directory-row");
@@ -209,36 +210,31 @@ export const SingleProtocolRtl = meta.story({
 	args: { view: viewFor({ protocols: [WIZARDCONNECT] }) },
 	globals: { direction: "rtl" },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
-		expect(shadow.querySelector("button.select")).toBeNull();
-		const label = shadow.querySelector(".select");
-		if (label === null) throw new Error("single-protocol label missing");
-		expect(label.tagName).toBe("SPAN");
+		expect(shadow.querySelector('[role="tablist"]')).toBeNull();
+		expect(shadow.querySelector(".session.is-info")).not.toBeNull();
 
-		// Gaining a second protocol turns the label into the dropdown it mirrors.
+		// Gaining protocols turns the label into tabs, which run from the right edge.
 		modal.view = viewFor();
-		const trigger = await waitFor(() => {
-			const found = shadow.querySelector<HTMLButtonElement>("button.select");
-			if (found === null) throw new Error("dropdown trigger missing");
-			return found;
+		const tabs = await waitFor(() => {
+			const found = shadow.querySelectorAll<HTMLButtonElement>(".tab");
+			if (found.length !== 3) throw new Error("tabs missing");
+			return [...found];
 		});
-		await userEvent.click(trigger);
-		const menu = await waitFor(() => {
-			const found = shadow.querySelector<HTMLElement>(".menu");
-			if (found === null || found.hidden) throw new Error("menu did not open");
-			return found;
-		});
-		// Its open animation scales from a corner; wait it out before measuring.
-		await waitForAnimations();
-		// `inset-inline-start: 0` keeps the menu flush with the trigger's start
-		// edge, which is the trigger's right edge under `direction: rtl`.
-		expect(menu.getBoundingClientRect().right).toBeCloseTo(
-			trigger.getBoundingClientRect().right,
-			0,
+		const [first, second] = tabs;
+		if (first === undefined || second === undefined)
+			throw new Error("tabs missing");
+		await settle();
+		expect(first.getBoundingClientRect().left).toBeGreaterThan(
+			second.getBoundingClientRect().left,
 		);
-		await waitForAnimations();
+		// The arrow pointing along reading order moves focus forward.
+		first.focus();
+		await userEvent.keyboard("{ArrowLeft}");
+		expect(shadow.activeElement).toBe(second);
+		await settle();
 	},
 });
 
@@ -247,9 +243,7 @@ export const NullLogoRtl = meta.story({
 	globals: { direction: "rtl" },
 	play: async ({ canvasElement }) => {
 		const shadow = modalShadow(canvasElement);
-		const row = shadow.querySelector<HTMLAnchorElement>(
-			'[data-id="null-logo"]',
-		);
+		const row = shadow.querySelector<HTMLElement>('[data-wallet="null-logo"]');
 		if (row === null) throw new Error("null-logo row missing");
 		const fallback = row.querySelector(".logo-fallback");
 		const name = row.querySelector(".wallet-name");
@@ -259,7 +253,7 @@ export const NullLogoRtl = meta.story({
 		expect(fallback.getBoundingClientRect().left).toBeGreaterThan(
 			name.getBoundingClientRect().left,
 		);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -274,7 +268,7 @@ export const InternationalWalletNamesRtl = meta.story({
 			(el) => el.textContent,
 		);
 		expect(names).toEqual([CJK_NAME, EMOJI_NAME, ARABIC_NAME, HEBREW_NAME]);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -299,6 +293,6 @@ export const ScanRtlTranslated = meta.story({
 		expect(getComputedStyle(overlay).direction).toBe("rtl");
 		const title = shadow.querySelector(".title");
 		expect(title?.textContent).toBe(ARABIC_NAME);
-		await waitForAnimations();
+		await settle();
 	},
 });

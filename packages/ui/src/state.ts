@@ -84,7 +84,8 @@ export interface WalletDirectoryEntry {
 }
 
 /**
- * A wallet listed in the modal. Choosing it opens its `href`.
+ * A wallet listed in the modal. Selecting it narrows the session-type tabs to
+ * its `protocols`; its `href`, when present, opens it on the desktop.
  *
  * @beta
  */
@@ -95,13 +96,20 @@ export interface WalletOption {
 	readonly name: string;
 	/** The wallet's logo, as a URL or data URI, or `null` to show a generic wallet mark. */
 	readonly logo: string | null;
-	/** The wallet's link, or `null` when it has none on this platform. The row is then shown disabled. */
+	/** Every session type this wallet can open a connection with. */
+	readonly protocols: readonly ProtocolId[];
+	/**
+	 * The wallet's desktop link, or `null` when it has none; the wallet is
+	 * then connected by scanning. A `{link}` in it is replaced with the live
+	 * connection link, URI-encoded.
+	 */
 	readonly href: string | null;
 }
 
 /**
- * A wallet and the session types it speaks; the caller filters by protocol
- * and builds a {@link WalletOption} from each match.
+ * A wallet, the session types it speaks and its desktop link; the caller
+ * keeps those that speak an enabled protocol and builds a
+ * {@link WalletOption} from each.
  *
  * @beta
  */
@@ -114,6 +122,8 @@ export interface WalletSupport {
 	readonly logo: string;
 	/** Every session type this wallet can open a connection with. */
 	readonly protocols: readonly ProtocolId[];
+	/** The wallet's desktop link, as in {@link WalletOption.href}, or `null` when it has none. */
+	readonly href: string | null;
 }
 
 /**
@@ -168,8 +178,16 @@ export interface ModalView {
 	readonly protocol: ProtocolId;
 	/** Every session type the visitor may choose between. */
 	readonly protocols: readonly ProtocolOption[];
-	/** Already filtered: wallets that do not support the protocol are absent. Shown on a wide viewport only. */
+	/**
+	 * Every wallet that speaks at least one of `protocols`, never filtered by
+	 * `protocol`. Shown on a wide viewport only.
+	 */
 	readonly wallets: readonly WalletOption[];
+	/**
+	 * The selected wallet's id. `null`, or an id not in `wallets`, selects the
+	 * first of `wallets` that speaks `protocol`, else the first listed.
+	 */
+	readonly wallet: string | null;
 	/** Every wallet worth installing, for the "Get a wallet" screen. */
 	readonly directory: readonly WalletDirectoryEntry[];
 	/** The network the connection would be made on. */

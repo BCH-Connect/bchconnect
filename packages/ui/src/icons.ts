@@ -7,7 +7,6 @@ import { html, type SVGTemplateResult, svg, type TemplateResult } from "lit";
 
 export type IconName =
 	| "x"
-	| "chevronDown"
 	| "chevronLeft"
 	| "check"
 	| "arrowUpRight"
@@ -19,7 +18,6 @@ export type IconName =
 
 const PATHS: Readonly<Record<IconName, SVGTemplateResult>> = {
 	x: svg`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`,
-	chevronDown: svg`<path d="m6 9 6 6 6-6"/>`,
 	chevronLeft: svg`<path d="m15 18-6-6 6-6"/>`,
 	check: svg`<path d="M20 6 9 17l-5-5"/>`,
 	arrowUpRight: svg`<path d="M7 7h10v10"/><path d="M7 17 17 7"/>`,

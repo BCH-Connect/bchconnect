@@ -1,5 +1,4 @@
 import { html } from "lit";
-import { waitForAnimations } from "storybook/preview-api";
 import { expect, fn, spyOn, userEvent, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { BCHC_DIRECTORY } from "../src/defaults.ts";
@@ -14,6 +13,7 @@ import {
 	modalRender,
 	modalShadow,
 } from "./modal.ts";
+import { settle } from "./settle.ts";
 import { THEME_ARG_TYPES } from "./theme.ts";
 
 const meta = preview.type<{ args: ModalStoryArgs }>().meta({
@@ -24,7 +24,7 @@ const meta = preview.type<{ args: ModalStoryArgs }>().meta({
 	// Fallback for stories with no play of their own: axe (which runs after
 	// play) must only see the settled entrance, never a mid-fade frame.
 	play: async () => {
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -41,14 +41,14 @@ export const Scan = meta.story({
 		expect(dialog).toBeInstanceOf(HTMLDialogElement);
 		expect(dialog instanceof HTMLDialogElement && dialog.open).toBe(true);
 		expect(dialog?.matches(":modal")).toBe(true);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const GettingLink = meta.story({
 	args: { view: viewFor({ phase: { kind: "initiating" } }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const onClose = fn<(event: Event) => void>();
 		modal.addEventListener("bchc-close", onClose);
@@ -56,14 +56,14 @@ export const GettingLink = meta.story({
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
 			timeout: 5000,
 		});
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const Declined = meta.story({
 	args: { view: viewFor({ phase: { kind: "failed", reason: "rejected" } }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		expectFailureCopy(canvasElement, "rejected");
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
@@ -73,14 +73,14 @@ export const Declined = meta.story({
 		if (retry === null) throw new Error("retry button missing");
 		await userEvent.click(retry);
 		expect(onRetry).toHaveBeenCalledTimes(1);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const TimedOut = meta.story({
 	args: { view: viewFor({ phase: { kind: "failed", reason: "timeout" } }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		expectFailureCopy(canvasElement, "timeout");
 	},
 });
@@ -88,7 +88,7 @@ export const TimedOut = meta.story({
 export const Stopped = meta.story({
 	args: { view: viewFor({ phase: { kind: "failed", reason: "aborted" } }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		expectFailureCopy(canvasElement, "aborted");
 	},
 });
@@ -96,7 +96,7 @@ export const Stopped = meta.story({
 export const Offline = meta.story({
 	args: { view: viewFor({ phase: { kind: "failed", reason: "transport" } }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		expectFailureCopy(canvasElement, "transport");
 	},
 });
@@ -106,7 +106,7 @@ export const WrongNetwork = meta.story({
 		view: viewFor({ phase: { kind: "failed", reason: "network-mismatch" } }),
 	},
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		expectFailureCopy(canvasElement, "network-mismatch");
 	},
 });
@@ -114,7 +114,7 @@ export const WrongNetwork = meta.story({
 export const Unsupported = meta.story({
 	args: { view: viewFor({ phase: { kind: "failed", reason: "unsupported" } }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		expectFailureCopy(canvasElement, "unsupported");
 	},
 });
@@ -128,7 +128,7 @@ export const UnsupportedEs = meta.story({
 	},
 	globals: { viewport: { value: "desktop" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		expectFailureCopy(canvasElement, "unsupported", BCHC_MESSAGES_ES);
 		const shadow = modalShadow(canvasElement);
 		const overlay = shadow.querySelector(".overlay");
@@ -161,7 +161,7 @@ export const UnsupportedEs = meta.story({
 		await waitFor(() =>
 			expect(shadow.querySelector(".overlay")?.getAttribute("lang")).toBe("en"),
 		);
-		await waitForAnimations();
+		await settle();
 		expect(card.getBoundingClientRect().height).toBeCloseTo(esHeight, 0);
 	},
 });
@@ -175,7 +175,7 @@ export const WalletsEs = meta.story({
 	},
 	globals: { viewport: { value: "desktop" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const heading = shadow.querySelector(".section-label");
 		expect(heading?.textContent).toBe(BCHC_MESSAGES_ES.directoryHeading);
@@ -185,14 +185,14 @@ export const WalletsEs = meta.story({
 			throw new Error("card or body missing");
 		expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth);
 		expect(body.scrollWidth).toBeLessThanOrEqual(body.clientWidth);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const Wallets = meta.story({
 	args: { view: viewFor({ screen: "wallets" }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 
@@ -219,36 +219,30 @@ export const Wallets = meta.story({
 		expect(detailOf<{ screen: string }>(onScreen)).toEqual({
 			screen: "connect",
 		});
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const WalletConnect = meta.story({
 	args: { view: viewFor({ protocol: "walletconnect" }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const onProtocol = fn<(event: Event) => void>();
 		modal.addEventListener("bchc-protocol", onProtocol);
 
-		const trigger = shadow.querySelector<HTMLButtonElement>(
-			'[aria-haspopup="listbox"]',
+		const tab = shadow.querySelector<HTMLElement>(
+			'.tab[data-protocol="cashconnect"]',
 		);
-		if (trigger === null) throw new Error("session type trigger missing");
-		await userEvent.click(trigger);
-
-		const option = shadow.querySelector<HTMLElement>(
-			'[role="option"][data-protocol="cashconnect"]',
-		);
-		if (option === null) throw new Error("cashconnect option missing");
-		await userEvent.click(option);
+		if (tab === null) throw new Error("cashconnect tab missing");
+		await userEvent.click(tab);
 
 		await waitFor(() => expect(onProtocol).toHaveBeenCalledTimes(1));
 		expect(detailOf<{ protocol: string }>(onProtocol)).toEqual({
 			protocol: "cashconnect",
 		});
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -259,7 +253,7 @@ export const CashConnect = meta.story({
 export const Chipnet = meta.story({
 	args: { view: viewFor({ network: "chipnet" }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const onScreen = fn<(event: Event) => void>();
@@ -274,14 +268,14 @@ export const Chipnet = meta.story({
 		expect(detailOf<{ screen: string }>(onScreen)).toEqual({
 			screen: "wallets",
 		});
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const Regtest = meta.story({
 	args: { view: viewFor({ network: "regtest" }) },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const onClose = fn<(event: Event) => void>();
@@ -294,7 +288,7 @@ export const Regtest = meta.story({
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
 			timeout: 5000,
 		});
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -314,7 +308,7 @@ export const ClosesOnConnect = meta.story({
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
 			timeout: 5000,
 		});
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -326,7 +320,7 @@ export const MessagesOverride = meta.story({
 		messages: { connectTitle: "Fixture title", tryAgain: "Fixture retry" },
 	},
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		const title = shadow.querySelector(".title");
 		expect(title?.textContent).toBe("Fixture title");
@@ -343,7 +337,7 @@ export const MessagesOverride = meta.story({
 // without a page reload: title, the code's accessible name, and `lang`.
 export const MessagesLiveChange = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		modal.messages = {
@@ -351,11 +345,8 @@ export const MessagesLiveChange = meta.story({
 			copyLinkLabel: "Fixture copy label",
 			lang: "qaa",
 		};
-		await waitFor(() =>
-			expect(shadow.querySelector(".title")?.textContent).toBe(
-				"Fixture connect",
-			),
-		);
+		await settle();
+		expect(shadow.querySelector(".title")?.textContent).toBe("Fixture connect");
 		const code = shadow.querySelector(".code");
 		expect(code?.getAttribute("aria-label")).toBe("Fixture copy label");
 		expect(shadow.querySelector(".overlay")?.getAttribute("lang")).toBe("qaa");
@@ -364,7 +355,7 @@ export const MessagesLiveChange = meta.story({
 
 export const MessagesSetWhileClosed = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const view = modal.view;
@@ -386,7 +377,7 @@ export const MessagesSetWhileClosed = meta.story({
 export const ReducedMotion = meta.story({
 	tags: ["motion-reduced"],
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		await waitFor(() => expect(shadow.querySelector(".card")).toBeVisible());
@@ -401,7 +392,7 @@ export const ReducedMotion = meta.story({
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
 			timeout: 5000,
 		});
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -426,7 +417,7 @@ function opener(canvasElement: HTMLElement): HTMLButtonElement {
 export const PageInert = meta.story({
 	render: withOpener,
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = modalShadow(canvasElement);
 		await waitFor(() =>
 			expect(shadow.activeElement).toBe(shadow.querySelector(".card")),
@@ -439,14 +430,14 @@ export const PageInert = meta.story({
 		// isn't something this harness can assert).
 		openerButton.focus();
 		expect(document.activeElement).not.toBe(openerButton);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const FocusRestoredAfterEscape = meta.story({
 	render: withOpener,
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const openerButton = opener(canvasElement);
@@ -467,14 +458,14 @@ export const FocusRestoredAfterEscape = meta.story({
 			timeout: 5000,
 		});
 		await waitFor(() => expect(document.activeElement).toBe(openerButton));
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const FocusRestoredAfterCloseButton = meta.story({
 	render: withOpener,
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const openerButton = opener(canvasElement);
@@ -497,14 +488,14 @@ export const FocusRestoredAfterCloseButton = meta.story({
 			timeout: 5000,
 		});
 		await waitFor(() => expect(document.activeElement).toBe(openerButton));
-		await waitForAnimations();
+		await settle();
 	},
 });
 
 export const FocusRestoredAfterViewCleared = meta.story({
 	render: withOpener,
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const openerButton = opener(canvasElement);
@@ -522,41 +513,19 @@ export const FocusRestoredAfterViewCleared = meta.story({
 	},
 });
 
-// Escape with the session-type menu open closes only the menu; a second
-// Escape then plays the exit and closes the modal, with exactly one
-// `bchc-close` (SPEC §8.7).
-export const EscapeClosesMenuThenModal = meta.story({
+// Escape plays the exit and closes the modal, with exactly one `bchc-close` (SPEC §8.7).
+export const EscapeClosesModal = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
-		const shadow = modalShadow(canvasElement);
-		const trigger = shadow.querySelector<HTMLButtonElement>(
-			'[aria-haspopup="listbox"]',
-		);
-		if (trigger === null) throw new Error("session type trigger missing");
-		await userEvent.click(trigger);
-		await waitFor(() =>
-			expect(trigger.getAttribute("aria-expanded")).toBe("true"),
-		);
-
 		const onClose = fn<(event: Event) => void>();
 		modal.addEventListener("bchc-close", onClose);
-
-		await userEvent.keyboard("{Escape}");
-		await waitFor(() =>
-			expect(trigger.getAttribute("aria-expanded")).toBe("false"),
-		);
-		// The menu's own close animation must settle (`#closeMenu`) before a
-		// second Escape can tell it's closed and move on to the modal.
-		const menu = shadow.querySelector<HTMLElement>(".menu");
-		await waitFor(() => expect(menu?.hidden).toBe(true));
-		expect(onClose).not.toHaveBeenCalled();
 
 		await userEvent.keyboard("{Escape}");
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
 			timeout: 5000,
 		});
-		await waitForAnimations();
+		await settle();
 		// Re-checked after the exit has fully settled: still exactly one.
 		expect(onClose).toHaveBeenCalledTimes(1);
 	},
@@ -564,45 +533,26 @@ export const EscapeClosesMenuThenModal = meta.story({
 
 // A synthetic `cancel`, standing in for the dialog's own close-watcher
 // signal (independent of the Escape keypress that normally triggers it):
-// the menu closes first, a second one plays the exit, and each is prevented
-// so the native close watcher never runs ahead of our own handling.
-export const CancelClosesMenuThenModal = meta.story({
+// it is prevented, so the native close watcher never runs ahead of the exit.
+export const CancelPlaysExit = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const dialog = shadow.querySelector(".overlay");
 		if (!(dialog instanceof HTMLDialogElement))
 			throw new Error("dialog missing");
-		const trigger = shadow.querySelector<HTMLButtonElement>(
-			'[aria-haspopup="listbox"]',
-		);
-		if (trigger === null) throw new Error("session type trigger missing");
-		await userEvent.click(trigger);
-		await waitFor(() =>
-			expect(trigger.getAttribute("aria-expanded")).toBe("true"),
-		);
 
 		const onClose = fn<(event: Event) => void>();
 		modal.addEventListener("bchc-close", onClose);
 
-		const firstCancel = new Event("cancel", { cancelable: true });
-		dialog.dispatchEvent(firstCancel);
-		expect(firstCancel.defaultPrevented).toBe(true);
-		await waitFor(() =>
-			expect(trigger.getAttribute("aria-expanded")).toBe("false"),
-		);
-		const menu = shadow.querySelector<HTMLElement>(".menu");
-		await waitFor(() => expect(menu?.hidden).toBe(true));
-		expect(onClose).not.toHaveBeenCalled();
-
-		const secondCancel = new Event("cancel", { cancelable: true });
-		dialog.dispatchEvent(secondCancel);
-		expect(secondCancel.defaultPrevented).toBe(true);
+		const cancel = new Event("cancel", { cancelable: true });
+		dialog.dispatchEvent(cancel);
+		expect(cancel.defaultPrevented).toBe(true);
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
 			timeout: 5000,
 		});
-		await waitForAnimations();
+		await settle();
 		expect(onClose).toHaveBeenCalledTimes(1);
 	},
 });
@@ -611,7 +561,7 @@ export const CancelClosesMenuThenModal = meta.story({
 // one `bchc-close`, the dialog hidden, and a later `close()` a no-op (SPEC §8.7).
 export const BrowserForcedClose = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const dialog = shadow.querySelector(".overlay");
@@ -625,13 +575,13 @@ export const BrowserForcedClose = meta.story({
 		expect(dialog.classList.contains("is-closing")).toBe(false);
 		dialog.close();
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
-		await waitForAnimations();
+		await settle();
 		expect(onClose).toHaveBeenCalledTimes(1);
 		expect(getComputedStyle(dialog).display).toBe("none");
 		expect(document.documentElement.style.overflow).not.toBe("hidden");
 
 		await modal.close();
-		await waitForAnimations();
+		await settle();
 		expect(onClose).toHaveBeenCalledTimes(1);
 	},
 });
@@ -639,7 +589,7 @@ export const BrowserForcedClose = meta.story({
 // A close the browser forces while the exit plays still emits once, and the pending `close()` settles.
 export const BrowserForcedCloseMidExit = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const dialog = shadow.querySelector(".overlay");
@@ -655,7 +605,7 @@ export const BrowserForcedCloseMidExit = meta.story({
 		dialog.close();
 		await closing;
 		await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
-		await waitForAnimations();
+		await settle();
 		expect(onClose).toHaveBeenCalledTimes(1);
 		expect(getComputedStyle(dialog).display).toBe("none");
 		expect(document.documentElement.style.overflow).not.toBe("hidden");
@@ -665,7 +615,7 @@ export const BrowserForcedCloseMidExit = meta.story({
 // `close()` resolves only after `bchc-close` has fired (its TSDoc contract).
 export const CloseResolvesAfterEvent = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const onClose = fn<(event: Event) => void>();
 		modal.addEventListener("bchc-close", onClose);
@@ -680,7 +630,7 @@ export const CloseResolvesAfterEvent = meta.story({
 // (SPEC §8.7).
 export const StaleShellDoesNotEmitAfterViewCleared = meta.story({
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const overlay = shadow.querySelector(".overlay");
@@ -699,7 +649,7 @@ export const StaleShellDoesNotEmitAfterViewCleared = meta.story({
 		modal.view = null;
 		await closing;
 		await staleClosed;
-		await waitForAnimations();
+		await settle();
 
 		// View stayed null, so there's no new shell to emit for either: the
 		// stale shell's own (later) close must be silently dropped.
@@ -712,7 +662,7 @@ export const StaleShellDoesNotEmitAfterViewCleared = meta.story({
 // `connected` one doesn't emit a second `bchc-close`.
 export const StaysClosedOnViewUpdateAfterClose = meta.story({
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const onClose = fn<(event: Event) => void>();
@@ -724,7 +674,7 @@ export const StaysClosedOnViewUpdateAfterClose = meta.story({
 		});
 
 		modal.view = { ...args.view, phase: { kind: "failed", reason: "timeout" } };
-		await waitForAnimations();
+		await settle();
 		modal.view = {
 			...args.view,
 			phase: {
@@ -733,7 +683,7 @@ export const StaysClosedOnViewUpdateAfterClose = meta.story({
 				walletLogo: CONNECTED_WALLET.logo,
 			},
 		};
-		await waitForAnimations();
+		await settle();
 		expect(shadow.querySelector("dialog")?.open).toBe(false);
 		expect(onClose).toHaveBeenCalledTimes(1);
 	},
@@ -743,7 +693,7 @@ export const StaysClosedOnViewUpdateAfterClose = meta.story({
 // appearance: it enters, locks the page, starts uncopied and closes again.
 export const ReopensAfterViewClearedAndReset = meta.story({
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const root = document.documentElement;
@@ -789,7 +739,7 @@ export const ReopensAfterViewClearedAndReset = meta.story({
 				?.classList.contains("is-copied"),
 		).toBe(false);
 
-		await waitForAnimations();
+		await settle();
 		await modal.close();
 		expect(onClose).toHaveBeenCalledTimes(2);
 		expect(shadow.querySelector("dialog")?.open).toBe(false);
@@ -811,7 +761,7 @@ function withTallPage(
 export const ScrollLockedWhileOpen = meta.story({
 	render: withTallPage,
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const root = document.documentElement;
@@ -827,7 +777,7 @@ export const ScrollLockedWhileOpen = meta.story({
 		);
 		expect(getComputedStyle(root).overflow).toBe("hidden");
 		expect(root.clientWidth).toBe(widthBefore);
-		await waitForAnimations();
+		await settle();
 	},
 });
 
@@ -836,7 +786,7 @@ export const ScrollLockedWhileOpen = meta.story({
 export const ScrollUnlockedAfterEscape = meta.story({
 	render: withTallPage,
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const root = document.documentElement;
@@ -860,7 +810,7 @@ export const ScrollUnlockedAfterEscape = meta.story({
 			await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1), {
 				timeout: 5000,
 			});
-			await waitForAnimations();
+			await settle();
 			expect(root.style.overflow).toBe("auto");
 			expect(root.style.scrollbarGutter).toBe("auto");
 		} finally {
@@ -875,7 +825,7 @@ export const ScrollUnlockedAfterEscape = meta.story({
 export const ScrollUnlockedWhenViewCleared = meta.story({
 	render: withTallPage,
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const root = document.documentElement;
@@ -904,7 +854,7 @@ export const ScrollUnlockedWhenViewCleared = meta.story({
 export const ScrollLockSharedByOverlappingModals = meta.story({
 	render: withTallPage,
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const root = document.documentElement;
@@ -939,7 +889,7 @@ export const ScrollLockSharedByOverlappingModals = meta.story({
 export const ScrollUnlockedWhenRemoved = meta.story({
 	render: withTallPage,
 	play: async ({ canvasElement, args }) => {
-		await waitForAnimations();
+		await settle();
 		const modal = modalHost(canvasElement);
 		const shadow = modalShadow(canvasElement);
 		const root = document.documentElement;
