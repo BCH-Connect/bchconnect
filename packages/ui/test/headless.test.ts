@@ -195,6 +195,28 @@ describe("headlessModal", () => {
 		});
 	});
 
+	it("should show a listed wallet's own logo once connected", async () => {
+		const { context, attempts } = scriptedContext();
+		const modal = scriptedRenderer();
+
+		const call = headlessModal(modal.renderer).connect(context);
+		await settle();
+		attempts[0]?.resolve(
+			walletSession({
+				id: "paytaca",
+				icon: "https://example.com/wire.png",
+				source: "protocol",
+			}),
+		);
+		await call;
+
+		expect(modal.last()?.phase).toEqual({
+			kind: "connected",
+			walletName: "Paytaca",
+			walletLogo: BCHC_WALLETS.find((entry) => entry.id === "paytaca")?.logo,
+		});
+	});
+
 	it("should show the failure by reason and start again on retry", async () => {
 		const { context, attempts } = scriptedContext();
 		const modal = scriptedRenderer();

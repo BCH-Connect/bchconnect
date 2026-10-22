@@ -45,6 +45,7 @@ describe("package entry", () => {
 			"BCHC_WALLETS",
 			"BchcModal",
 			"BchcToast",
+			"bchconnectModal",
 			"defineElements",
 			"headlessModal",
 		]);

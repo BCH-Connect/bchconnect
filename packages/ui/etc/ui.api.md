@@ -141,6 +141,15 @@ export type BchcMode = "auto" | "light" | "dark";
 export type BchcNeutral = "sage" | "slate" | "sand" | "pure";
 
 // @beta
+export function bchconnectModal(options?: BchconnectModalOptions): ConnectUi;
+
+// @beta
+export interface BchconnectModalOptions extends HeadlessModalOptions {
+    messages?: Partial<BchcMessages>;
+    toast?: boolean;
+}
+
+// @beta
 export type BchcRadius = "none" | "small" | "medium" | "large" | "full";
 
 // @beta
