@@ -27,6 +27,7 @@ export { defineElements } from "./define.ts";
 export type {
 	HeadlessModalOptions,
 	ModalActions,
+	ModalDefaults,
 	ModalRenderer,
 } from "./headless.ts";
 export { headlessModal } from "./headless.ts";

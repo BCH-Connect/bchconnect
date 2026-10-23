@@ -114,7 +114,7 @@ describe("headlessModal", () => {
 			protocol: "bch-wc2",
 			protocols: [expect.objectContaining({ id: "bch-wc2" })],
 			wallets: BCHC_WALLETS,
-			wallet: null,
+			wallet: "cashonize",
 			directory: BCHC_DIRECTORY,
 			network: "chipnet",
 			phase: { kind: "initiating" },
@@ -350,7 +350,7 @@ describe("headlessModal", () => {
 		const wallet = attempts[0]?.opts.wallet;
 		const read = () => (typeof wallet === "function" ? wallet() : wallet);
 
-		expect(read()).toBeUndefined();
+		expect(read()).toMatchObject({ id: "cashonize" });
 		modal.actions().selectWallet("optn");
 
 		expect(read()).toEqual({
@@ -358,6 +358,126 @@ describe("headlessModal", () => {
 			name: "OPTN",
 			icon: BCHC_WALLETS.find((entry) => entry.id === "optn")?.logo,
 		});
+	});
+
+	it("should open on the default wallet and the first protocol it speaks", async () => {
+		const { context, attempts } = scriptedContext();
+		const modal = scriptedRenderer();
+
+		void headlessModal(modal.renderer, {
+			protocols: ["cashconnect", "bch-wc2"],
+			defaults: { wallet: "paytaca" },
+		}).connect(context);
+		await settle();
+
+		expect(modal.views[0]).toMatchObject({
+			wallet: "paytaca",
+			protocol: "bch-wc2",
+		});
+		expect(attempts.map((attempt) => attempt.protocol)).toEqual(["bch-wc2"]);
+	});
+
+	it("should let the default protocol win over a default wallet that lacks it", async () => {
+		const { context, attempts } = scriptedContext();
+		const modal = scriptedRenderer();
+
+		void headlessModal(modal.renderer, {
+			defaults: { protocol: "cashconnect", wallet: "selene" },
+		}).connect(context);
+		await settle();
+
+		expect(modal.views[0]).toMatchObject({
+			wallet: "cashonize",
+			protocol: "cashconnect",
+		});
+		expect(attempts[0]?.protocol).toBe("cashconnect");
+	});
+
+	it("should fall back from defaults that are not enabled or not listed", async () => {
+		const { context, attempts } = scriptedContext({
+			protocols: ["wizardconnect"],
+		});
+		const modal = scriptedRenderer();
+
+		void headlessModal(modal.renderer, {
+			defaults: { protocol: "cashconnect", wallet: "unknown" },
+		}).connect(context);
+		await settle();
+
+		expect(modal.views[0]).toMatchObject({
+			wallet: "cashonize",
+			protocol: "wizardconnect",
+		});
+		expect(attempts[0]?.protocol).toBe("wizardconnect");
+	});
+
+	it("should let a locked protocol win over the defaults", async () => {
+		const { context, attempts } = scriptedContext({ protocol: "bch-wc2" });
+		const modal = scriptedRenderer();
+
+		void headlessModal(modal.renderer, {
+			defaults: { protocol: "wizardconnect", wallet: "selene" },
+		}).connect(context);
+		await settle();
+
+		expect(modal.views[0]).toMatchObject({
+			wallet: "selene",
+			protocol: "bch-wc2",
+		});
+		expect(attempts[0]?.protocol).toBe("bch-wc2");
+	});
+
+	it("should move the selection when the protocol picked is one the wallet lacks", async () => {
+		const { context } = scriptedContext();
+		const modal = scriptedRenderer();
+
+		void headlessModal(modal.renderer, {
+			defaults: { wallet: "selene" },
+		}).connect(context);
+		await settle();
+		modal.actions().selectProtocol("cashconnect");
+		await settle();
+
+		expect(modal.last()).toMatchObject({
+			wallet: "cashonize",
+			protocol: "cashconnect",
+		});
+	});
+
+	it("should keep the selection when the protocol picked is one the wallet speaks", async () => {
+		const { context } = scriptedContext();
+		const modal = scriptedRenderer();
+
+		void headlessModal(modal.renderer, {
+			defaults: { wallet: "selene" },
+		}).connect(context);
+		await settle();
+		modal.actions().selectProtocol("bch-wc2");
+		await settle();
+
+		expect(modal.last()).toMatchObject({
+			wallet: "selene",
+			protocol: "bch-wc2",
+		});
+	});
+
+	it("should not name the session after a wallet the renderer does not show", async () => {
+		const { context, attempts } = scriptedContext();
+		const modal = scriptedRenderer();
+		let shows = false;
+		const renderer: ModalRenderer = {
+			...modal.renderer,
+			showsWallets: () => shows,
+		};
+
+		void headlessModal(renderer).connect(context);
+		await settle();
+		const wallet = attempts[0]?.opts.wallet;
+		const read = () => (typeof wallet === "function" ? wallet() : wallet);
+
+		expect(read()).toBeUndefined();
+		shows = true;
+		expect(read()).toMatchObject({ id: "cashonize" });
 	});
 
 	it("should move between screens", async () => {

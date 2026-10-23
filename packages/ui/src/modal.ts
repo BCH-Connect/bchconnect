@@ -41,6 +41,7 @@ import {
 } from "./motion.ts";
 import { lockPageScroll, unlockPageScroll } from "./page-scroll.ts";
 import { type DraggableSheet, draggableSheet } from "./sheet.ts";
+import { SHEET_QUERY } from "./sheet-query.ts";
 import {
 	type FailureReason,
 	type ModalScreen,
@@ -76,8 +77,6 @@ export interface BchcModalEvents {
 	"bchc-retry": CustomEvent<void>;
 }
 
-/** Below this the modal is a drawer: the dialog needs its 760px card plus 16px overlay padding each side. */
-const SHEET_QUERY = "(max-width: 791px)";
 /** How long to wait after a deep link before assuming nothing opened (a failed handler gives no signal). */
 const DEEP_LINK_GRACE = 1500;
 const PLACEHOLDER_LINK =
