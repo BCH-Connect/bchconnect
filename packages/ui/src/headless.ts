@@ -1,6 +1,3 @@
-// The modal's connection logic, behind a renderer contract. Loads no element
-// code and no Lit, so a dapp's own modal pays only for this and the default data.
-
 import {
 	AbortedError,
 	ConfigError,
@@ -53,6 +50,23 @@ export interface ModalRenderer {
 	update(view: ModalView): void;
 	/** Plays the exit and removes the modal; resolves once it is gone. */
 	close(): Promise<void>;
+	/**
+	 * Whether the person can see the wallet list now. When `false`, the
+	 * selection is not reported as the session's wallet. Defaults to `true`.
+	 */
+	showsWallets?(): boolean;
+}
+
+/**
+ * The protocol and wallet a {@link headlessModal} opens on.
+ *
+ * @beta
+ */
+export interface ModalDefaults {
+	/** The initial protocol. Defaults to the first enabled one the default wallet speaks. */
+	protocol?: ProtocolId;
+	/** The initially selected wallet, by id. Defaults to the first listed wallet that speaks the initial protocol. */
+	wallet?: string;
 }
 
 /**
@@ -63,8 +77,13 @@ export interface ModalRenderer {
 export interface HeadlessModalOptions {
 	/** Wallets to list. Defaults to the curated wallets that speak an enabled protocol. */
 	wallets?: readonly WalletOption[];
-	/** Session type order; the first enabled one is the initial protocol. */
+	/** Session type order. */
 	protocols?: readonly ProtocolId[];
+	/**
+	 * What the modal opens on. An explicit protocol wins over a wallet that
+	 * lacks it; a default that is not enabled or not listed falls back.
+	 */
+	defaults?: ModalDefaults;
 }
 
 function reasonOf(error: unknown): FailureReason {
@@ -121,24 +140,35 @@ function run(
 		context,
 		options.protocols ?? BCHC_PROTOCOLS.map((entry) => entry.id),
 	);
-	const first = protocols[0];
-	if (first === undefined) {
-		return Promise.reject(
-			new ConfigError("No enabled protocol has a session type the modal shows"),
-		);
-	}
 	const enabled = protocols.map((entry) => entry.id);
 	const wallets = (options.wallets ?? BCHC_WALLETS).filter((wallet) =>
 		wallet.protocols.some((id) => enabled.includes(id)),
 	);
+	const preferred = wallets.find(
+		(entry) => entry.id === options.defaults?.wallet,
+	);
+	const initial =
+		enabled.find((id) => id === options.defaults?.protocol) ??
+		enabled.find((id) => preferred?.protocols.includes(id)) ??
+		enabled[0];
+	if (initial === undefined) {
+		return Promise.reject(
+			new ConfigError("No enabled protocol has a session type the modal shows"),
+		);
+	}
+	const walletFor = (protocol: ProtocolId, current?: WalletOption) =>
+		current?.protocols.includes(protocol)
+			? current.id
+			: (wallets.find((entry) => entry.protocols.includes(protocol))?.id ??
+				null);
 
 	return new Promise<Session>((resolve, reject) => {
 		let view: ModalView = {
 			screen: "connect",
-			protocol: first.id,
+			protocol: initial,
 			protocols,
 			wallets,
-			wallet: null,
+			wallet: walletFor(initial, preferred),
 			directory: BCHC_DIRECTORY,
 			network: context.network,
 			phase: { kind: "initiating" },
@@ -154,6 +184,7 @@ function run(
 		}
 
 		function selected(): WalletSelection | undefined {
+			if (renderer.showsWallets?.() === false) return undefined;
 			const wallet = wallets.find((entry) => entry.id === view.wallet);
 			return wallet === undefined ? undefined : selectionOf(wallet);
 		}
@@ -201,7 +232,12 @@ function run(
 			wanted += 1;
 			const generation = wanted;
 			if (view.protocol !== protocol || view.phase.kind !== "initiating") {
-				update({ protocol, phase: { kind: "initiating" } });
+				const current = wallets.find((entry) => entry.id === view.wallet);
+				update({
+					protocol,
+					wallet: walletFor(protocol, current),
+					phase: { kind: "initiating" },
+				});
 			}
 			queue = queue.then(() => begin(protocol, generation));
 		}
@@ -265,7 +301,7 @@ function run(
 			{ once: true },
 		);
 		renderer.open(view, actions);
-		start(first.id);
+		start(initial);
 	});
 }
 

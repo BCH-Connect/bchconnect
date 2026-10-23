@@ -9,6 +9,7 @@ import {
 } from "./headless.ts";
 import type { BchcMessages } from "./messages.ts";
 import type { BchcModal } from "./modal.ts";
+import { SHEET_QUERY } from "./sheet-query.ts";
 import type { ModalView } from "./state.ts";
 
 /**
@@ -82,6 +83,10 @@ function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
 		update(view) {
 			latest = view;
 			if (modal !== null) modal.view = view;
+		},
+		// The drawer lists no wallets, so the person never saw the selection.
+		showsWallets() {
+			return !matchMedia(SHEET_QUERY).matches;
 		},
 		async close() {
 			closing = true;

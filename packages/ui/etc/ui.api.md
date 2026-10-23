@@ -203,6 +203,7 @@ export function headlessModal(renderer: ModalRenderer, options?: HeadlessModalOp
 
 // @beta
 export interface HeadlessModalOptions {
+    defaults?: ModalDefaults;
     protocols?: readonly ProtocolId[];
     wallets?: readonly WalletOption[];
 }
@@ -220,9 +221,16 @@ export interface ModalActions {
 }
 
 // @beta
+export interface ModalDefaults {
+    protocol?: ProtocolId;
+    wallet?: string;
+}
+
+// @beta
 export interface ModalRenderer {
     close(): Promise<void>;
     open(view: ModalView, actions: ModalActions): void;
+    showsWallets?(): boolean;
     update(view: ModalView): void;
 }
 
