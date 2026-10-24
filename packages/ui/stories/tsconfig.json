@@ -12,7 +12,10 @@
 		"resolveJsonModule": true,
 		"types": ["node"],
 		// See ../tsconfig.json for why.
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"paths": {
+			"@bchconnect/core": ["../../core/src/index.ts"]
+		}
 	},
-	"include": [".", "../.storybook/*.ts", "../tools", "../src"]
+	"include": [".", "../.storybook/*.ts", "../tools", "../src", "../../core/src"]
 }
