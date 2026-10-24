@@ -188,9 +188,9 @@ export const LinkHintClearsOnNewLink = meta.story({
 			document.removeEventListener("click", stay);
 		}
 		const tab = shadow.querySelector<HTMLElement>(
-			'.tab[data-protocol="walletconnect"]',
+			'.tab[data-protocol="bch-wc2"]',
 		);
-		if (tab === null) throw new Error("walletconnect tab missing");
+		if (tab === null) throw new Error("WalletConnect tab missing");
 		await userEvent.click(tab);
 		await settle();
 		expect(caption()).toBe(BCHC_MESSAGES_EN.scan);
