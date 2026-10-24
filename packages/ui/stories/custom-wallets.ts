@@ -11,7 +11,7 @@ import type {
 /** Every shipped session type, so a custom wallet never narrows the tabs unless a story means it to. */
 const ALL_PROTOCOLS: readonly ProtocolId[] = [
 	"wizardconnect",
-	"walletconnect",
+	"bch-wc2",
 	"cashconnect",
 ];
 

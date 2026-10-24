@@ -7,6 +7,7 @@
  * dropping a public name is a decision someone makes, not a side effect.
  */
 
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 describe("package entry", () => {
@@ -44,7 +45,47 @@ describe("package entry", () => {
 			"BCHC_WALLETS",
 			"BchcModal",
 			"BchcToast",
+			"bchconnectModal",
 			"defineElements",
+			"headlessModal",
 		]);
+	});
+});
+
+// Follows relative imports from `file` and collects every bare specifier.
+async function packagesImportedBy(file: URL, seen = new Set<string>()) {
+	const packages = new Set<string>();
+	if (seen.has(file.href)) return packages;
+	seen.add(file.href);
+	const source = await readFile(file, "utf8");
+	for (const [, specifier] of source.matchAll(
+		/^(?:import|export)\b(?:[^;]*?from)?\s*"([^"]+)";/gm,
+	)) {
+		if (specifier === undefined) continue;
+		if (!specifier.startsWith(".")) {
+			packages.add(specifier);
+			continue;
+		}
+		for (const name of await packagesImportedBy(
+			new URL(specifier, file),
+			seen,
+		)) {
+			packages.add(name);
+		}
+	}
+	return packages;
+}
+
+describe("headless entry", () => {
+	it("should export only the headless modal", async () => {
+		const entry = await import("../src/headless.ts");
+		expect(Object.keys(entry)).toEqual(["headlessModal"]);
+	});
+
+	it("should load no element code, Lit or QR library", async () => {
+		const packages = await packagesImportedBy(
+			new URL("../src/headless.ts", import.meta.url),
+		);
+		expect([...packages].sort()).toEqual(["@bchconnect/core"]);
 	});
 });

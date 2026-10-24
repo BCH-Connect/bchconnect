@@ -30,7 +30,7 @@ export const BCHC_PROTOCOLS: readonly ProtocolOption[] = [
 		mark: { src: MARK_WIZARDCONNECT, shape: "glyph" },
 	},
 	{
-		id: "walletconnect",
+		id: "bch-wc2",
 		name: "WalletConnect",
 		mark: { src: MARK_WALLETCONNECT, shape: "tile" },
 	},
@@ -63,7 +63,7 @@ export const BCHC_WALLETS: readonly WalletSupport[] = [
 		id: "cashonize",
 		name: "Cashonize",
 		logo: LOGO_CASHONIZE,
-		protocols: ["wizardconnect", "walletconnect", "cashconnect"],
+		protocols: ["wizardconnect", "bch-wc2", "cashconnect"],
 		// The web app reads `uri` on its root route.
 		href: "https://cashonize.com/?uri={link}",
 	},
@@ -71,21 +71,21 @@ export const BCHC_WALLETS: readonly WalletSupport[] = [
 		id: "paytaca",
 		name: "Paytaca",
 		logo: LOGO_PAYTACA,
-		protocols: ["wizardconnect", "walletconnect"],
+		protocols: ["wizardconnect", "bch-wc2"],
 		href: null,
 	},
 	{
 		id: "selene",
 		name: "Selene",
 		logo: LOGO_SELENE,
-		protocols: ["wizardconnect", "walletconnect"],
+		protocols: ["wizardconnect", "bch-wc2"],
 		href: null,
 	},
 	{
 		id: "optn",
 		name: "OPTN",
 		logo: LOGO_OPTN,
-		protocols: ["wizardconnect", "walletconnect", "cashconnect"],
+		protocols: ["wizardconnect", "bch-wc2", "cashconnect"],
 		// optn.cash is the project's site, not the wallet.
 		href: null,
 	},

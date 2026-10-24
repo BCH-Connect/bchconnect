@@ -116,7 +116,7 @@ export const TabsFollowWallet = meta.story({
 	play: async ({ canvasElement }) => {
 		await settle();
 		const shadow = modalShadow(canvasElement);
-		expect(tabIds(shadow)).toEqual(["wizardconnect", "walletconnect"]);
+		expect(tabIds(shadow)).toEqual(["wizardconnect", "bch-wc2"]);
 		expect(shadow.querySelector(".tabs")).not.toHaveClass("is-dense");
 		const tile = shadow.querySelector(".tile");
 		expect(tile?.getAttribute("role")).toBe("tabpanel");
@@ -127,7 +127,7 @@ export const TabsFollowWallet = meta.story({
 		await waitFor(() =>
 			expect(tabIds(shadow)).toEqual([
 				"wizardconnect",
-				"walletconnect",
+				"bch-wc2",
 				"cashconnect",
 			]),
 		);
@@ -172,15 +172,15 @@ export const SelectWalletFallsBack = meta.story({
 		const order = recordSelection(modal);
 
 		await userEvent.click(row(shadow, "paytaca"));
-		expect(order).toEqual(["wallet:paytaca", "protocol:walletconnect"]);
+		expect(order).toEqual(["wallet:paytaca", "protocol:bch-wc2"]);
 		await waitFor(() =>
 			expect(
 				shadow
 					.querySelector('.tab[aria-selected="true"]')
 					?.getAttribute("data-protocol"),
-			).toBe("walletconnect"),
+			).toBe("bch-wc2"),
 		);
-		expect(tabIds(shadow)).toEqual(["walletconnect", "wizardconnect"]);
+		expect(tabIds(shadow)).toEqual(["bch-wc2", "wizardconnect"]);
 		await settle();
 	},
 });
@@ -212,10 +212,10 @@ export const KeyboardSelection = meta.story({
 		active.focus();
 		await userEvent.keyboard("{ArrowRight}");
 		const next = shadow.activeElement;
-		expect(next?.getAttribute("data-protocol")).toBe("walletconnect");
+		expect(next?.getAttribute("data-protocol")).toBe("bch-wc2");
 		expect(order).toHaveLength(1);
 		await userEvent.keyboard("{Enter}");
-		expect(order).toEqual(["wallet:optn", "protocol:walletconnect"]);
+		expect(order).toEqual(["wallet:optn", "protocol:bch-wc2"]);
 		await settle();
 	},
 });
@@ -257,7 +257,7 @@ export const DesktopLink = meta.story({
 export const DesktopLinkWaits = meta.story({
 	args: {
 		view: viewFor({
-			protocol: "walletconnect",
+			protocol: "bch-wc2",
 			phase: { kind: "initiating" },
 		}),
 	},
@@ -306,11 +306,7 @@ export const PhoneNamesNoWallet = meta.story({
 		expect(shadow.querySelector(".overlay")).toHaveClass("is-sheet");
 		expect(shadow.querySelector(".caption-wallet")).toBeNull();
 		expect(captionText(shadow)).toBe(BCHC_MESSAGES_EN.scan);
-		expect(tabIds(shadow)).toEqual([
-			"wizardconnect",
-			"walletconnect",
-			"cashconnect",
-		]);
+		expect(tabIds(shadow)).toEqual(["wizardconnect", "bch-wc2", "cashconnect"]);
 	},
 });
 
@@ -325,12 +321,12 @@ export const SwitchProtocol = meta.story({
 		const before = row(shadow, "cashonize");
 
 		const tab = shadow.querySelector<HTMLElement>(
-			'.tab[data-protocol="walletconnect"]',
+			'.tab[data-protocol="bch-wc2"]',
 		);
-		if (tab === null) throw new Error("walletconnect tab missing");
+		if (tab === null) throw new Error("WalletConnect tab missing");
 		await userEvent.click(tab);
 		expect(detailOf<{ protocol: string }>(onProtocol)).toEqual({
-			protocol: "walletconnect",
+			protocol: "bch-wc2",
 		});
 		await waitFor(() => expect(tab.getAttribute("aria-selected")).toBe("true"));
 		// Patched in place, not rebuilt: the same row node, still selected.
@@ -355,11 +351,11 @@ export const TabKeepsDefaultWallet = meta.story({
 		const shadow = modalShadow(canvasElement);
 		const order = recordSelection(modal);
 		const tab = shadow.querySelector<HTMLElement>(
-			'.tab[data-protocol="walletconnect"]',
+			'.tab[data-protocol="bch-wc2"]',
 		);
-		if (tab === null) throw new Error("walletconnect tab missing");
+		if (tab === null) throw new Error("WalletConnect tab missing");
 		await userEvent.click(tab);
-		expect(order).toEqual(["wallet:optn", "protocol:walletconnect"]);
+		expect(order).toEqual(["wallet:optn", "protocol:bch-wc2"]);
 		await waitFor(() => expect(tab.getAttribute("aria-selected")).toBe("true"));
 		expect(row(shadow, "optn").getAttribute("aria-checked")).toBe("true");
 		expect(row(shadow, "paytaca").getAttribute("aria-checked")).toBe("false");
