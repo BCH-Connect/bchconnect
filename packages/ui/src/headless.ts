@@ -19,6 +19,21 @@ import type {
 	WalletOption,
 } from "./state.ts";
 
+// Everything a renderer draws, so a custom one imports this entry alone.
+export type {
+	ConnectPhase,
+	FailureReason,
+	MarkShape,
+	ModalScreen,
+	ModalView,
+	Network,
+	ProtocolId,
+	ProtocolMark,
+	ProtocolOption,
+	WalletDirectoryEntry,
+	WalletOption,
+} from "./state.ts";
+
 /**
  * What the person did in the modal, reported by a {@link ModalRenderer}.
  *
