@@ -87,6 +87,13 @@ describe("connect", () => {
 		// @ts-expect-error - "metamask" is not registered.
 		client.connect("metamask");
 	});
+
+	it("should resolve to any registered session when the protocol is omitted", () => {
+		expectTypeOf(client.connect()).resolves.toEqualTypeOf<TestSession>();
+		expectTypeOf(
+			client.connect(undefined, { mode: "add" }),
+		).resolves.toEqualTypeOf<TestSession>();
+	});
 });
 
 describe("session accessor", () => {

@@ -10,6 +10,7 @@ import type {
 } from "../types/client.js";
 import type { Connector, RequestOptions, Session } from "../types/protocol.js";
 import { createCapabilities } from "./capabilities.js";
+import { createConnectRouter } from "./connect-ui.js";
 import { createLifecycle } from "./lifecycle.js";
 import { createLifetime } from "./lifetime.js";
 import { createRequests } from "./requests.js";
@@ -106,6 +107,7 @@ export function createClient<const Connectors extends readonly Connector[]>(
 	const runtime = createClientRuntime(config);
 	const lifetime = createLifetime();
 	const sessions = createSessions(runtime, lifetime);
+	const router = createConnectRouter(runtime, lifetime, sessions, config.ui);
 	const requests = createRequests(runtime, lifetime);
 	const capabilities = createCapabilities(runtime, requests);
 	const lifecycle = createLifecycle(
@@ -151,7 +153,7 @@ export function createClient<const Connectors extends readonly Connector[]>(
 		},
 		async connect(protocol, opts) {
 			assertUsable("connect");
-			return sessions.connect(protocol, opts);
+			return router.connect(protocol, opts);
 		},
 		async disconnect(session) {
 			assertUsable("disconnect");

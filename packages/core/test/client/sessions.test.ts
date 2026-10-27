@@ -1642,3 +1642,52 @@ describe("session", () => {
 		expect(client.session("demo")?.id).toBe("second");
 	});
 });
+
+describe("wallet selection read on establishment", () => {
+	const appMetadata = { name: "Test", url: "https://example.com" };
+
+	it("should name the session after the selection at the moment it is established", async () => {
+		let establish: (session: Session<DemoProtocol>) => void = () => {};
+		const connector = createFakeConnector<DemoProtocol>({
+			protocol: "demo",
+			connect: () =>
+				new Promise((resolve) => {
+					establish = resolve;
+				}),
+		});
+		const client = createClient({
+			connectors: [connector],
+			network: "chipnet",
+			appMetadata,
+		});
+		await client.init();
+		let selected: { id: string; name: string } | undefined;
+
+		const call = client.connect("demo", { wallet: () => selected });
+		await settle();
+		selected = { id: "optn", name: "OPTN" };
+		establish(demoSession({ id: "first", wallet: { source: "protocol" } }));
+
+		await expect(call).resolves.toMatchObject({
+			wallet: { id: "optn", name: "OPTN", source: "selection" },
+		});
+	});
+
+	it("should leave the protocol's identity when the getter returns nothing", async () => {
+		const client = createClient({
+			connectors: [
+				createFakeConnector<DemoProtocol>({
+					protocol: "demo",
+					session: demoSession({ id: "first", wallet: { source: "protocol" } }),
+				}),
+			],
+			network: "chipnet",
+			appMetadata,
+		});
+		await client.init();
+
+		const session = await client.connect("demo", { wallet: () => undefined });
+
+		expect(session.wallet).toStrictEqual({ source: "protocol" });
+	});
+});

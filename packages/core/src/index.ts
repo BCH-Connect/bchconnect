@@ -49,12 +49,15 @@ export type {
 	ClientStore,
 	ConnectOptions,
 	ConnectorEventName,
+	ConnectUi,
+	ConnectUiContext,
 	LifecycleEvents,
 	ProtocolFor,
 	ProtocolOf,
 	Register,
 	RegisteredClient,
 	RegisteredSession,
+	WalletSelection,
 } from "./types/client.js";
 export type {
 	AppMetadata,

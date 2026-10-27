@@ -1,4 +1,4 @@
-import type { ConnectOptions } from "../types/client.js";
+import type { WalletSelection } from "../types/client.js";
 import type { Session, WalletIdentity } from "../types/protocol.js";
 
 /**
@@ -22,7 +22,7 @@ import type { Session, WalletIdentity } from "../types/protocol.js";
  */
 export function mergeWalletIdentity<S extends Session>(
 	session: S,
-	selection?: ConnectOptions["wallet"],
+	selection?: WalletSelection,
 ): S {
 	const { wallet } = session;
 	const id = wallet.id ?? selection?.id;
