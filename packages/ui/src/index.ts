@@ -16,12 +16,21 @@
 import type { BchcModal, BchcModalEvents } from "./modal.ts";
 import type { BchcToast, BchcToastEvents } from "./toast.ts";
 
+export type { BchconnectModalOptions } from "./bchconnect-modal.ts";
+export { bchconnectModal } from "./bchconnect-modal.ts";
 export {
 	BCHC_DIRECTORY,
 	BCHC_PROTOCOLS,
 	BCHC_WALLETS,
 } from "./defaults.ts";
 export { defineElements } from "./define.ts";
+export type {
+	HeadlessModalOptions,
+	ModalActions,
+	ModalDefaults,
+	ModalRenderer,
+} from "./headless.ts";
+export { headlessModal } from "./headless.ts";
 export type { BchcMessages } from "./messages.ts";
 export { BCHC_MESSAGES_EN } from "./messages.ts";
 export type { BchcModalEvents } from "./modal.ts";

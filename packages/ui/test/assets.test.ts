@@ -26,7 +26,7 @@ const GENERATED = join(HERE, "..", "src", "assets.generated.ts");
 
 const PROTOCOL_IDS: readonly ProtocolId[] = [
 	"wizardconnect",
-	"walletconnect",
+	"bch-wc2",
 	"cashconnect",
 ];
 

@@ -7,11 +7,25 @@
 		"limit": "44 kB"
 	},
 	{
+		"name": "Default modal: factory plus the elements it loads on first connect",
+		"path": "dist/index.js",
+		"import": "{ bchconnectModal }",
+		"gzip": true,
+		"limit": "64 kB"
+	},
+	{
 		"name": "Default data (protocols, wallets, directory)",
 		"path": "dist/index.js",
 		"import": "{ BCHC_PROTOCOLS, BCHC_WALLETS, BCHC_DIRECTORY }",
 		"gzip": true,
 		"limit": "19.5 kB"
+	},
+	{
+		"name": "Headless modal (with the default data)",
+		"path": "dist/headless.js",
+		"import": "{ headlessModal }",
+		"gzip": true,
+		"limit": "21 kB"
 	},
 	{
 		"name": "Theme constants only",
