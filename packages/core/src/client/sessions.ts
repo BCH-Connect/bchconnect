@@ -114,7 +114,10 @@ export function createSessions(
 			return existing;
 		}
 
-		const session = mergeWalletIdentity(raw, wallet);
+		const session = mergeWalletIdentity(
+			raw,
+			typeof wallet === "function" ? wallet() : wallet,
+		);
 		const previous =
 			mode === "replace" && state.currentSessionId !== null
 				? state.sessions.get(state.currentSessionId)

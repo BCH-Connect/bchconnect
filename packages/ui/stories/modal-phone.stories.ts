@@ -1,7 +1,7 @@
-import { waitForAnimations } from "storybook/preview-api";
-import { expect } from "storybook/test";
+import { expect, userEvent, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
 import { BCHC_MESSAGES_ES } from "../src/locales/es.ts";
+import { BCHC_MESSAGES_EN } from "../src/messages.ts";
 import { manyDirectory, manyWallets } from "./custom-wallets.ts";
 import { viewFor } from "./fixtures.ts";
 import {
@@ -10,6 +10,7 @@ import {
 	modalRender,
 	modalShadow,
 } from "./modal.ts";
+import { settle } from "./settle.ts";
 import { THEME_ARG_TYPES } from "./theme.ts";
 
 const meta = preview.type<{ args: ModalStoryArgs }>().meta({
@@ -29,7 +30,7 @@ function expectSheet(canvasElement: HTMLElement): ShadowRoot {
 export const ScanPhone = meta.story({
 	globals: { viewport: { value: "phone" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		const open = shadow.querySelector('a[data-act="open"]');
 		if (!(open instanceof HTMLElement)) throw new Error("open link missing");
@@ -44,7 +45,7 @@ export const ScanPhone = meta.story({
 export const ScanPhoneSmallest = meta.story({
 	globals: { viewport: { value: "phoneSmallest" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		const body = shadow.querySelector(".body");
 		if (!(body instanceof HTMLElement)) throw new Error("body missing");
@@ -56,7 +57,7 @@ export const FailurePhone = meta.story({
 	args: { view: viewFor({ phase: { kind: "failed", reason: "rejected" } }) },
 	globals: { viewport: { value: "phoneSmall" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		const retry = shadow.querySelector('[data-act="retry"]');
 		if (!(retry instanceof HTMLElement))
@@ -76,7 +77,7 @@ export const FailurePhoneEs = meta.story({
 	},
 	globals: { viewport: { value: "phoneSmall" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		expectFailureCopy(canvasElement, "unsupported", BCHC_MESSAGES_ES);
 		const overlay = shadow.querySelector(".overlay");
@@ -112,7 +113,7 @@ export const WalletsPhone = meta.story({
 	args: { view: viewFor({ screen: "wallets" }) },
 	globals: { viewport: { value: "phone" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		const rows = shadow.querySelectorAll(".directory-row");
 		expect(rows.length).toBeGreaterThan(0);
@@ -128,7 +129,7 @@ export const ManyWalletsHiddenOnPhone = meta.story({
 	args: { view: viewFor({ wallets: manyWallets(40) }) },
 	globals: { viewport: { value: "phone" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		expect(shadow.querySelectorAll(".wallet")).toHaveLength(0);
 	},
@@ -142,7 +143,7 @@ export const ManyDirectoryPhoneScrolls = meta.story({
 	},
 	globals: { viewport: { value: "phoneSmallest" } },
 	play: async ({ canvasElement }) => {
-		await waitForAnimations();
+		await settle();
 		const shadow = expectSheet(canvasElement);
 		const body = shadow.querySelector(".body");
 		if (!(body instanceof HTMLElement)) throw new Error("body missing");
@@ -162,5 +163,36 @@ export const ManyDirectoryPhoneScrolls = meta.story({
 		const lastBox = last.getBoundingClientRect();
 		expect(lastBox.top).toBeGreaterThanOrEqual(bodyBox.top - 1);
 		expect(lastBox.bottom).toBeLessThanOrEqual(bodyBox.bottom + 1);
+	},
+});
+
+// The "didn't open" hint is about one link: a new session type's link drops it.
+export const LinkHintClearsOnNewLink = meta.story({
+	globals: { viewport: { value: "phone" } },
+	play: async ({ canvasElement }) => {
+		await settle();
+		const shadow = expectSheet(canvasElement);
+		const caption = () =>
+			shadow.querySelector(".caption-text")?.textContent?.trim();
+		// Keeps the test page from following the wallet link.
+		const stay = (event: Event) => event.preventDefault();
+		document.addEventListener("click", stay);
+		try {
+			const open = shadow.querySelector('a[data-act="open"]');
+			if (!(open instanceof HTMLElement)) throw new Error("open link missing");
+			await userEvent.click(open);
+			await waitFor(() => expect(caption()).toBe(BCHC_MESSAGES_EN.linkFailed), {
+				timeout: 5000,
+			});
+		} finally {
+			document.removeEventListener("click", stay);
+		}
+		const tab = shadow.querySelector<HTMLElement>(
+			'.tab[data-protocol="bch-wc2"]',
+		);
+		if (tab === null) throw new Error("WalletConnect tab missing");
+		await userEvent.click(tab);
+		await settle();
+		expect(caption()).toBe(BCHC_MESSAGES_EN.scan);
 	},
 });

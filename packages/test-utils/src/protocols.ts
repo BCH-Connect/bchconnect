@@ -1,7 +1,9 @@
 import type {
+	CapabilityMap,
 	MethodMetadata,
 	ProtocolDefinition,
 	Session,
+	SessionClient,
 	SignMessageRequest,
 	SignMessageResponse,
 	SignTransactionRequest,
@@ -98,6 +100,38 @@ export const demoMetadata: {
 	sign_transaction: { userInteraction: true },
 	sign_message: { userInteraction: true },
 };
+
+/**
+ * The capability interfaces of a {@link DemoProtocol} session, as its
+ * connector builds them: `sign_transaction` wraps the request, and
+ * `sign_message` takes it as is.
+ *
+ * @example
+ * ```ts
+ * const connector = createFakeConnector<DemoProtocol>({
+ * 	protocol: "demo",
+ * 	capabilities: ["libauth-signing"],
+ * 	interfaces: demoCapabilities,
+ * });
+ * ```
+ *
+ * @beta
+ */
+export function demoCapabilities(
+	_session: Session<DemoProtocol>,
+	client: SessionClient<DemoProtocol>,
+): CapabilityMap<DemoProtocol> {
+	const { request } = client;
+	return {
+		"libauth-signing": {
+			signTransaction: (transaction, opts) =>
+				request("sign_transaction", { transaction }, opts),
+		},
+		"message-signing": {
+			signMessage: (req, opts) => request("sign_message", req, opts),
+		},
+	};
+}
 
 /**
  * Handshake payload of {@link DemoAltProtocol}.

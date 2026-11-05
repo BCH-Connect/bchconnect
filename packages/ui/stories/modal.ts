@@ -6,7 +6,8 @@ import { action } from "storybook/actions";
 import { expect, type Mock } from "storybook/test";
 import { resolveMessages, resolveMode } from "../.storybook/preview.ts";
 import { BCHC_MESSAGES_EN, type BchcMessages } from "../src/messages.ts";
-import type { FailureReason, ModalView } from "../src/state.ts";
+import type { FailureReason, ModalView, ProtocolId } from "../src/state.ts";
+import { PROTOCOL_LINKS } from "./fixtures.ts";
 import type { ThemeArgs } from "./theme.ts";
 
 // Mirrors the private `FAILURE_MESSAGE_KEYS` in src/modal.ts: which catalogue
@@ -75,6 +76,28 @@ export function detailOf<T>(spy: Mock<(event: Event) => void>): T {
 	return (call[0] as CustomEvent<T>).detail;
 }
 
+// Plays the caller's part, so the selection and the session type follow the visitor;
+// a new session type gets its link at once, as WizardConnect's does.
+function follow(event: Event): void {
+	const modal = event.currentTarget as ModalElement;
+	const view = modal.view;
+	if (view === null) return;
+	if (event.type === "bchc-wallet") {
+		const { wallet } = (event as CustomEvent<{ wallet: string }>).detail;
+		modal.view = { ...view, wallet };
+		return;
+	}
+	const { protocol } = (event as CustomEvent<{ protocol: ProtocolId }>).detail;
+	modal.view = {
+		...view,
+		protocol,
+		phase: { kind: "awaiting-approval", link: PROTOCOL_LINKS[protocol] },
+	};
+}
+
+const logWallet = action("bchc-wallet");
+const logProtocol = action("bchc-protocol");
+
 /** Wires theme args and a view onto `<bchc-modal>`; every modal story shares this. */
 export const modalRender = (
 	args: ModalStoryArgs,
@@ -89,7 +112,14 @@ export const modalRender = (
 		data-bchc-mode=${resolveMode(context.globals)}
 		.view=${args.view}
 		.messages=${args.messages ?? resolveMessages(context.globals)}
-		@bchc-protocol=${action("bchc-protocol")}
+		@bchc-wallet=${(event: Event) => {
+			logWallet(event);
+			follow(event);
+		}}
+		@bchc-protocol=${(event: Event) => {
+			logProtocol(event);
+			follow(event);
+		}}
 		@bchc-screen=${action("bchc-screen")}
 		@bchc-close=${action("bchc-close")}
 		@bchc-retry=${action("bchc-retry")}

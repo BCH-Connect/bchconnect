@@ -6,6 +6,8 @@ import type {
 	ClientStatus,
 	ClientStore,
 	ConnectOptions,
+	ConnectUi,
+	ConnectUiContext,
 	LifecycleEvents,
 	ProtocolDefinition,
 	Session,
@@ -38,7 +40,7 @@ interface PropertyConnectLifecycle {
 	init(): Promise<void>;
 	dispose(): Promise<void>;
 	connect: (
-		protocol: string,
+		protocol?: string,
 		opts?: ConnectOptions,
 	) => Promise<Session<ProtocolDefinition>>;
 	disconnect(session?: Session<ProtocolDefinition>): Promise<void>;
@@ -75,6 +77,26 @@ describe("client lifecycle", () => {
 		});
 	});
 
+	it("should let lifecycle consumers connect without a protocol", () => {
+		const lifecycle: ClientLifecycle = client;
+		expectTypeOf(lifecycle.connect()).resolves.toEqualTypeOf<
+			Session<ProtocolDefinition>
+		>();
+	});
+
+	it("should type a connection UI against the lifecycle surface", () => {
+		const ui: ConnectUi = {
+			async connect(context) {
+				expectTypeOf(context).toEqualTypeOf<ConnectUiContext>();
+				expectTypeOf(context.protocols).toEqualTypeOf<readonly string[]>();
+				expectTypeOf(context.protocol).toEqualTypeOf<string | null>();
+				const signal = new AbortController().signal;
+				return context.connect("demo", { signal, onPairing() {} });
+			},
+		};
+		void ui;
+	});
+
 	it("should not accept a client as Client<ProtocolDefinition>", () => {
 		// @ts-expect-error - Client<P> is invariant in P.
 		const loose: Client<ProtocolDefinition> = wc2Client;
@@ -90,12 +112,12 @@ describe("client lifecycle method syntax", () => {
 
 	it("should accept methods and reject properties for every protocol-typed member", () => {
 		expectTypeOf(wc2Client).toExtend<{
-			connect(protocol: string): Promise<Session<ProtocolDefinition>>;
+			connect(protocol?: string): Promise<Session<ProtocolDefinition>>;
 			disconnect(session?: Session<ProtocolDefinition>): Promise<void>;
 			setCurrent(session: Session<ProtocolDefinition> | null): void;
 		}>();
 		expectTypeOf(wc2Client).not.toExtend<{
-			connect: (protocol: string) => Promise<Session<ProtocolDefinition>>;
+			connect: (protocol?: string) => Promise<Session<ProtocolDefinition>>;
 		}>();
 		expectTypeOf(wc2Client).not.toExtend<{
 			disconnect: (session?: Session<ProtocolDefinition>) => Promise<void>;

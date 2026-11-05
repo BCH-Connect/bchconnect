@@ -6,7 +6,10 @@
 		"allowImportingTsExtensions": true,
 		"types": ["node"],
 		// See ../tsconfig.json for why.
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"paths": {
+			"@bchconnect/core": ["../../core/src/index.ts"]
+		}
 	},
-	"include": [".", "../src", "palette/apcach.d.ts"]
+	"include": [".", "../src", "../../core/src", "palette/apcach.d.ts"]
 }

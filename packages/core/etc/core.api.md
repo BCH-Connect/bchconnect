@@ -47,6 +47,9 @@ export type BchConnectErrorCode = "REJECTED" | "ABORTED" | "TIMEOUT" | "CAPABILI
 export type CapabilityFor<P extends ProtocolDefinition, N extends keyof CapabilityRegistry> = N extends P["capability"] ? CapabilityRegistry[N] | null : null;
 
 // @public
+export type CapabilityMap<P extends ProtocolDefinition> = { readonly [N in P["capability"] & keyof CapabilityRegistry]?: CapabilityRegistry[N]; };
+
+// @public
 export class CapabilityMissingError extends BchConnectError {
     readonly code = "CAPABILITY_MISSING";
     override readonly name = "CapabilityMissingError";
@@ -63,7 +66,7 @@ export interface Client<P extends ProtocolDefinition = ProtocolDefinition> exten
     readonly "~protocols"?: P;
     can<S extends SessionOf<P>>(session: S, name: ProtocolFor<P, S>["capability"]): boolean;
     capability<S extends SessionOf<P>, N extends keyof CapabilityRegistry>(session: S, name: N): CapabilityFor<ProtocolFor<P, S>, N>;
-    connect<K extends P["id"]>(protocol: K, opts?: ConnectOptions): Promise<SessionOf<Extract<P, {
+    connect<K extends P["id"] = P["id"]>(protocol?: K, opts?: ConnectOptions): Promise<SessionOf<Extract<P, {
         id: K;
     }>>>;
     readonly current: SessionOf<P> | null;
@@ -93,11 +96,12 @@ export interface ClientConfig<Connectors extends readonly Connector[]> {
     network: Network;
     ssr?: boolean;
     storage?: KeyValueStore;
+    ui?: ConnectUi;
 }
 
 // @public
 export interface ClientLifecycle {
-    connect(protocol: string, opts?: ConnectOptions): Promise<Session<ProtocolDefinition>>;
+    connect(protocol?: string, opts?: ConnectOptions): Promise<Session<ProtocolDefinition>>;
     readonly current: Session<ProtocolDefinition> | null;
     disconnect(session?: Session<ProtocolDefinition>): Promise<void>;
     dispose(): Promise<void>;
@@ -157,15 +161,12 @@ export interface ConnectOptions {
     onPairing?: (pairing: Pairing) => void;
     signal?: AbortSignal;
     timeoutMs?: number;
-    wallet?: {
-        id?: string;
-        name?: string;
-        icon?: string;
-    };
+    wallet?: WalletSelection | (() => WalletSelection | undefined);
 }
 
 // @public
 export interface Connector<P extends ProtocolDefinition = ProtocolDefinition> {
+    capabilities?(session: Session<P>, client: SessionClient<P>): CapabilityMap<P>;
     capabilitiesOf(session: Session<P>): ReadonlySet<P["capability"]>;
     connect(opts: {
         signal?: AbortSignal;
@@ -193,6 +194,20 @@ export interface ConnectorContext {
 
 // @public
 export type ConnectorEventName = "session:connected" | "session:changed" | "session:disconnected";
+
+// @public
+export interface ConnectUi {
+    connect(context: ConnectUiContext): Promise<Session<ProtocolDefinition>>;
+}
+
+// @public
+export interface ConnectUiContext {
+    connect(protocol: string, opts?: ConnectOptions): Promise<Session<ProtocolDefinition>>;
+    readonly network: Network;
+    readonly protocol: string | null;
+    readonly protocols: readonly string[];
+    readonly signal: AbortSignal;
+}
 
 // @public
 export interface ContractArtifact {
@@ -250,7 +265,7 @@ export interface KeyValueStore {
 
 // @public
 export interface LibauthSigning {
-    signTransaction(req: SignTransactionRequest): Promise<SignTransactionResponse>;
+    signTransaction(req: SignTransactionRequest, opts?: RequestOptions): Promise<SignTransactionResponse>;
 }
 
 // @public
@@ -299,7 +314,7 @@ export function memory(): KeyValueStore;
 
 // @public
 export interface MessageSigning {
-    signMessage(req: SignMessageRequest): Promise<SignMessageResponse>;
+    signMessage(req: SignMessageRequest, opts?: RequestOptions): Promise<SignMessageResponse>;
 }
 
 // @public
@@ -348,6 +363,9 @@ export type Pairing = {
 } | {
     kind: "none";
 };
+
+// @public
+export function parseExtendedJson(text: string): unknown;
 
 // @public
 export interface ProtocolDefinition {
@@ -410,6 +428,11 @@ export interface Session<P extends ProtocolDefinition = ProtocolDefinition> {
 }
 
 // @public
+export interface SessionClient<P extends ProtocolDefinition> {
+    request<M extends MethodName<P>>(method: M, params: MethodParams<P, M>, opts?: RequestOptions): Promise<MethodResult<P, M>>;
+}
+
+// @public
 export class SessionMissingError extends BchConnectError {
     readonly code = "SESSION_MISSING";
     override readonly name = "SessionMissingError";
@@ -425,6 +448,9 @@ export interface SessionStatus {
 }
 
 // @public
+export function signMessage<P extends ProtocolDefinition>(client: Client<P>, session: SessionOf<P>, req: SignMessageRequest, opts?: RequestOptions): Promise<SignMessageResponse>;
+
+// @public
 export interface SignMessageRequest {
     readonly message: string;
     readonly userPrompt?: string;
@@ -432,6 +458,9 @@ export interface SignMessageRequest {
 
 // @public
 export type SignMessageResponse = string;
+
+// @public
+export function signTransaction<P extends ProtocolDefinition>(client: Client<P>, session: SessionOf<P>, req: SignTransactionRequest, opts?: RequestOptions): Promise<SignTransactionResponse>;
 
 // @public
 export interface SignTransactionRequest {
@@ -451,6 +480,9 @@ export interface SignTransactionResponse {
 export interface SourceOutput extends TransactionInput, TransactionOutput {
     readonly contract?: ContractDisplay;
 }
+
+// @public
+export function stringifyExtendedJson(value: unknown): string;
 
 // @public
 export class TimeoutError extends BchConnectError {
@@ -503,6 +535,13 @@ export interface WalletIdentity {
     id?: string;
     name?: string;
     source: "protocol" | "selection";
+}
+
+// @public
+export interface WalletSelection {
+    icon?: string;
+    id?: string;
+    name?: string;
 }
 
 // (No @packageDocumentation comment for this package)

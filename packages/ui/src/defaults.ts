@@ -30,7 +30,7 @@ export const BCHC_PROTOCOLS: readonly ProtocolOption[] = [
 		mark: { src: MARK_WIZARDCONNECT, shape: "glyph" },
 	},
 	{
-		id: "walletconnect",
+		id: "bch-wc2",
 		name: "WalletConnect",
 		mark: { src: MARK_WALLETCONNECT, shape: "tile" },
 	},
@@ -42,18 +42,17 @@ export const BCHC_PROTOCOLS: readonly ProtocolOption[] = [
 ];
 
 /**
- * The wallets BCH Connect ships logos and a support matrix for, in the order
- * the wallet list shows them.
+ * The wallets BCH Connect ships logos, a support matrix and desktop links
+ * for, in the order the wallet list shows them.
  *
  * @example
  * ```ts
+ * const enabled = view.protocols.map((protocol) => protocol.id);
  * const wallets: WalletOption[] = BCHC_WALLETS.filter((wallet) =>
- *   wallet.protocols.includes(view.protocol),
+ *   wallet.protocols.some((protocol) => enabled.includes(protocol)),
  * ).map((wallet) => ({
- *   id: wallet.id,
- *   name: wallet.name,
- *   logo: wallet.logo,
- *   href: null,
+ *   ...wallet,
+ *   protocols: wallet.protocols.filter((protocol) => enabled.includes(protocol)),
  * }));
  * ```
  *
@@ -64,25 +63,31 @@ export const BCHC_WALLETS: readonly WalletSupport[] = [
 		id: "cashonize",
 		name: "Cashonize",
 		logo: LOGO_CASHONIZE,
-		protocols: ["wizardconnect", "walletconnect", "cashconnect"],
+		protocols: ["wizardconnect", "bch-wc2", "cashconnect"],
+		// The web app reads `uri` on its root route.
+		href: "https://cashonize.com/?uri={link}",
 	},
 	{
 		id: "paytaca",
 		name: "Paytaca",
 		logo: LOGO_PAYTACA,
-		protocols: ["wizardconnect", "walletconnect"],
+		protocols: ["wizardconnect", "bch-wc2"],
+		href: null,
 	},
 	{
 		id: "selene",
 		name: "Selene",
 		logo: LOGO_SELENE,
-		protocols: ["walletconnect"],
+		protocols: ["wizardconnect", "bch-wc2"],
+		href: null,
 	},
 	{
 		id: "optn",
 		name: "OPTN",
 		logo: LOGO_OPTN,
-		protocols: ["wizardconnect", "walletconnect", "cashconnect"],
+		protocols: ["wizardconnect", "bch-wc2", "cashconnect"],
+		// optn.cash is the project's site, not the wallet.
+		href: null,
 	},
 ];
 

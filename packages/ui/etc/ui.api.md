@@ -4,6 +4,7 @@
 
 ```ts
 
+import { ConnectUi } from '@bchconnect/core';
 import { CSSResultGroup } from 'lit';
 import { LitElement } from 'lit';
 import { PropertyDeclarations } from 'lit';
@@ -75,10 +76,13 @@ export interface BchcMessages {
     readonly networkMismatchDetail: string;
     readonly networkMismatchTitle: string;
     readonly noWallet: string;
+    readonly open: string;
     readonly openInWallet: string;
+    readonly openWalletLabel: (wallet: string) => string;
     readonly rejectedDetail: string;
     readonly rejectedTitle: string;
     readonly scan: string;
+    readonly scanWith: (wallet: string) => string;
     readonly sessionType: string;
     readonly timeoutDetail: string;
     readonly timeoutTitle: string;
@@ -125,6 +129,9 @@ export interface BchcModalEvents {
     "bchc-screen": CustomEvent<{
         screen: ModalScreen;
     }>;
+    "bchc-wallet": CustomEvent<{
+        wallet: string;
+    }>;
 }
 
 // @beta
@@ -132,6 +139,15 @@ export type BchcMode = "auto" | "light" | "dark";
 
 // @beta
 export type BchcNeutral = "sage" | "slate" | "sand" | "pure";
+
+// @beta
+export function bchconnectModal(options?: BchconnectModalOptions): ConnectUi;
+
+// @beta
+export interface BchconnectModalOptions extends HeadlessModalOptions {
+    messages?: Partial<BchcMessages>;
+    toast?: boolean;
+}
 
 // @beta
 export type BchcRadius = "none" | "small" | "medium" | "large" | "full";
@@ -183,7 +199,40 @@ export function defineElements(): void;
 export type FailureReason = "rejected" | "timeout" | "aborted" | "transport" | "network-mismatch" | "unsupported";
 
 // @beta
+export function headlessModal(renderer: ModalRenderer, options?: HeadlessModalOptions): ConnectUi;
+
+// @beta
+export interface HeadlessModalOptions {
+    defaults?: ModalDefaults;
+    protocols?: readonly ProtocolId[];
+    wallets?: readonly WalletOption[];
+}
+
+// @beta
 export type MarkShape = "tile" | "glyph";
+
+// @beta
+export interface ModalActions {
+    dismiss(): void;
+    retry(): void;
+    selectProtocol(protocol: ProtocolId): void;
+    selectWallet(wallet: string): void;
+    showScreen(screen: ModalScreen): void;
+}
+
+// @beta
+export interface ModalDefaults {
+    protocol?: ProtocolId;
+    wallet?: string;
+}
+
+// @beta
+export interface ModalRenderer {
+    close(): Promise<void>;
+    open(view: ModalView, actions: ModalActions): void;
+    showsWallets?(): boolean;
+    update(view: ModalView): void;
+}
 
 // @beta
 export type ModalScreen = "connect" | "wallets";
@@ -196,6 +245,7 @@ export interface ModalView {
     readonly protocol: ProtocolId;
     readonly protocols: readonly ProtocolOption[];
     readonly screen: ModalScreen;
+    readonly wallet: string | null;
     readonly wallets: readonly WalletOption[];
 }
 
@@ -203,7 +253,7 @@ export interface ModalView {
 export type Network = "mainnet" | "chipnet" | "regtest";
 
 // @beta
-export type ProtocolId = "wizardconnect" | "walletconnect" | "cashconnect";
+export type ProtocolId = "wizardconnect" | "bch-wc2" | "cashconnect";
 
 // @beta
 export interface ProtocolMark {
@@ -241,10 +291,12 @@ export interface WalletOption {
     readonly id: string;
     readonly logo: string | null;
     readonly name: string;
+    readonly protocols: readonly ProtocolId[];
 }
 
 // @beta
 export interface WalletSupport {
+    readonly href: string | null;
     readonly id: string;
     readonly logo: string;
     readonly name: string;

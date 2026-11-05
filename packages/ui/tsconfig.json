@@ -5,7 +5,10 @@
 		"noEmit": true,
 		"allowImportingTsExtensions": true,
 		// qr-code-styling's own types reach for unused canvas/jsdom types we don't depend on.
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"paths": {
+			"@bchconnect/core": ["../core/src/index.ts"]
+		}
 	},
-	"include": ["src"]
+	"include": ["src", "../core/src"]
 }
