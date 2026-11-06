@@ -11,6 +11,35 @@ import type { BchcMessages } from "./messages.ts";
 import type { BchcModal } from "./modal.ts";
 import { SHEET_QUERY } from "./sheet-query.ts";
 import type { ModalView } from "./state.ts";
+import type {
+	BchcAccent,
+	BchcBlur,
+	BchcFont,
+	BchcMode,
+	BchcNeutral,
+	BchcRadius,
+} from "./theme.generated.ts";
+
+/**
+ * The look of the modal and the toast. Each value is written to the element
+ * as its `data-bchc-*` attribute; an omitted one keeps the default.
+ *
+ * @beta
+ */
+export interface BchconnectModalTheme {
+	/** Accent colour. */
+	accent?: BchcAccent;
+	/** Neutral family. Defaults to the accent's pairing. */
+	neutral?: BchcNeutral;
+	/** Corner radius. */
+	radius?: BchcRadius;
+	/** Font family. */
+	font?: BchcFont;
+	/** Backdrop blur. */
+	blur?: BchcBlur;
+	/** Colour scheme. Defaults to following the system. */
+	mode?: BchcMode;
+}
 
 /**
  * Options for {@link bchconnectModal}.
@@ -20,8 +49,19 @@ import type { ModalView } from "./state.ts";
 export interface BchconnectModalOptions extends HeadlessModalOptions {
 	/** Partial catalogue merged over English, for the modal and the toast. */
 	messages?: Partial<BchcMessages>;
-	/** Show `bchc-toast` once connected. Defaults to `true`. */
-	toast?: boolean;
+	/** The look of the modal and the toast. */
+	theme?: BchconnectModalTheme;
+	/**
+	 * Show `bchc-toast` once connected, optionally with how long it stays in
+	 * milliseconds. Defaults to `true`.
+	 */
+	toast?: boolean | { duration?: number };
+}
+
+function applyTheme(element: HTMLElement, theme: BchconnectModalTheme = {}) {
+	for (const [axis, value] of Object.entries(theme)) {
+		if (value !== undefined) element.setAttribute(`data-bchc-${axis}`, value);
+	}
 }
 
 function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
@@ -33,6 +73,13 @@ function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
 	function showToast(view: ModalView) {
 		if (options.toast === false || view.phase.kind !== "connected") return;
 		const toast = document.createElement("bchc-toast");
+		applyTheme(toast, options.theme);
+		if (
+			typeof options.toast === "object" &&
+			options.toast.duration !== undefined
+		) {
+			toast.duration = options.toast.duration;
+		}
 		toast.view = {
 			walletName: view.phase.walletName,
 			walletLogo: view.phase.walletLogo,
@@ -52,6 +99,7 @@ function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
 				if (closing) return;
 				defineElements();
 				const element = document.createElement("bchc-modal");
+				applyTheme(element, options.theme);
 				if (options.messages !== undefined) {
 					element.messages = options.messages;
 				}

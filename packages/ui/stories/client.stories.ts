@@ -10,7 +10,10 @@ import {
 import { html } from "lit";
 import { expect, waitFor } from "storybook/test";
 import preview from "../.storybook/preview.ts";
-import { bchconnectModal } from "../src/bchconnect-modal.ts";
+import {
+	type BchconnectModalOptions,
+	bchconnectModal,
+} from "../src/bchconnect-modal.ts";
 import { PROTOCOL_LINKS } from "./fixtures.ts";
 import { settle } from "./settle.ts";
 
@@ -48,14 +51,14 @@ function scriptedConnector() {
 	};
 }
 
-async function clientWithModal() {
+async function clientWithModal(options?: BchconnectModalOptions) {
 	const scripted = scriptedConnector();
 	const client = createClient({
 		connectors: [scripted.connector],
 		network: "mainnet",
 		appMetadata: { name: "Story", url: "https://example.com" },
 		storage: memory(),
-		ui: bchconnectModal(),
+		ui: bchconnectModal(options),
 	});
 	await client.init();
 	return { client, ...scripted };
@@ -135,6 +138,69 @@ export const Dismissed = meta.story({
 		await expect(call).rejects.toMatchObject({ code: "ABORTED" });
 		expect(document.body.querySelector("bchc-modal")).toBeNull();
 		expect(document.body.querySelector("bchc-toast")).toBeNull();
+		await client.dispose();
+	},
+});
+
+const THEME = {
+	accent: "violet",
+	neutral: "sand",
+	radius: "small",
+	font: "mono",
+	blur: "none",
+	mode: "dark",
+} as const;
+
+function expectTheme(element: HTMLElement) {
+	for (const [axis, value] of Object.entries(THEME)) {
+		expect(element.getAttribute(`data-bchc-${axis}`)).toBe(value);
+	}
+}
+
+export const Themed = meta.story({
+	play: async () => {
+		const { client, approve } = await clientWithModal({
+			theme: THEME,
+			toast: { duration: Number.POSITIVE_INFINITY },
+		});
+
+		const call = client.connect();
+		await waitFor(() => mounted("bchc-modal"));
+		expectTheme(mounted("bchc-modal"));
+		await settle();
+		approve({
+			id: "story",
+			protocol: "wizardconnect",
+			wallet: { id: "cashonize", name: "Cashonize", source: "protocol" },
+			data: {},
+			status: { transport: "connected", peer: "reachable" },
+		});
+		await call;
+
+		const toast = mounted("bchc-toast") as HTMLElementTagNameMap["bchc-toast"];
+		expectTheme(toast);
+		expect(toast.duration).toBe(Number.POSITIVE_INFINITY);
+		await settle();
+		toast.remove();
+		await client.dispose();
+	},
+});
+
+export const Unthemed = meta.story({
+	play: async () => {
+		const { client } = await clientWithModal();
+
+		const call = client.connect();
+		await waitFor(() => mounted("bchc-modal"));
+		const modal = mounted("bchc-modal");
+		for (const axis of Object.keys(THEME)) {
+			expect(modal.hasAttribute(`data-bchc-${axis}`)).toBe(false);
+		}
+		await settle();
+		modal.shadowRoot
+			?.querySelector<HTMLElement>('[aria-label="Close"]')
+			?.click();
+		await expect(call).rejects.toMatchObject({ code: "ABORTED" });
 		await client.dispose();
 	},
 });

@@ -16,7 +16,10 @@
 import type { BchcModal, BchcModalEvents } from "./modal.ts";
 import type { BchcToast, BchcToastEvents } from "./toast.ts";
 
-export type { BchconnectModalOptions } from "./bchconnect-modal.ts";
+export type {
+	BchconnectModalOptions,
+	BchconnectModalTheme,
+} from "./bchconnect-modal.ts";
 export { bchconnectModal } from "./bchconnect-modal.ts";
 export {
 	BCHC_DIRECTORY,
