@@ -90,7 +90,10 @@ export interface ModalDefaults {
  * @beta
  */
 export interface HeadlessModalOptions {
-	/** Wallets to list. Defaults to the curated wallets that speak an enabled protocol. */
+	/**
+	 * Wallets to list, in order, with the one selected on open moved first.
+	 * Defaults to the curated wallets that speak an enabled protocol.
+	 */
 	wallets?: readonly WalletOption[];
 	/** Session type order. */
 	protocols?: readonly ProtocolId[];
@@ -156,10 +159,10 @@ function run(
 		options.protocols ?? BCHC_PROTOCOLS.map((entry) => entry.id),
 	);
 	const enabled = protocols.map((entry) => entry.id);
-	const wallets = (options.wallets ?? BCHC_WALLETS).filter((wallet) =>
+	const listed = (options.wallets ?? BCHC_WALLETS).filter((wallet) =>
 		wallet.protocols.some((id) => enabled.includes(id)),
 	);
-	const preferred = wallets.find(
+	const preferred = listed.find(
 		(entry) => entry.id === options.defaults?.wallet,
 	);
 	const initial =
@@ -174,8 +177,14 @@ function run(
 	const walletFor = (protocol: ProtocolId, current?: WalletOption) =>
 		current?.protocols.includes(protocol)
 			? current.id
-			: (wallets.find((entry) => entry.protocols.includes(protocol))?.id ??
+			: (listed.find((entry) => entry.protocols.includes(protocol))?.id ??
 				null);
+	// The wallet selected on open leads the list; the rest keep the given order.
+	const openWallet = walletFor(initial, preferred);
+	const wallets = [
+		...listed.filter((entry) => entry.id === openWallet),
+		...listed.filter((entry) => entry.id !== openWallet),
+	];
 
 	return new Promise<Session>((resolve, reject) => {
 		let view: ModalView = {
@@ -183,7 +192,7 @@ function run(
 			protocol: initial,
 			protocols,
 			wallets,
-			wallet: walletFor(initial, preferred),
+			wallet: openWallet,
 			directory: BCHC_DIRECTORY,
 			network: context.network,
 			phase: { kind: "initiating" },

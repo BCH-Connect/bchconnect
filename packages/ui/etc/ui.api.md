@@ -146,7 +146,20 @@ export function bchconnectModal(options?: BchconnectModalOptions): ConnectUi;
 // @beta
 export interface BchconnectModalOptions extends HeadlessModalOptions {
     messages?: Partial<BchcMessages>;
-    toast?: boolean;
+    theme?: BchconnectModalTheme;
+    toast?: boolean | {
+        duration?: number;
+    };
+}
+
+// @beta
+export interface BchconnectModalTheme {
+    accent?: BchcAccent;
+    blur?: BchcBlur;
+    font?: BchcFont;
+    mode?: BchcMode;
+    neutral?: BchcNeutral;
+    radius?: BchcRadius;
 }
 
 // @beta
