@@ -377,6 +377,35 @@ describe("headlessModal", () => {
 		expect(attempts.map((attempt) => attempt.protocol)).toEqual(["bch-wc2"]);
 	});
 
+	it("should list the default wallet first and keep the others in order", async () => {
+		const { context } = scriptedContext();
+		const modal = scriptedRenderer();
+		const listed = BCHC_WALLETS.map((wallet) => wallet.id);
+
+		void headlessModal(modal.renderer, {
+			defaults: { wallet: "selene" },
+		}).connect(context);
+		await settle();
+
+		expect(modal.views[0]?.wallet).toBe("selene");
+		expect(modal.views[0]?.wallets.map((wallet) => wallet.id)).toEqual([
+			"selene",
+			...listed.filter((id) => id !== "selene"),
+		]);
+	});
+
+	it("should keep the given wallet order without a default wallet", async () => {
+		const { context } = scriptedContext();
+		const modal = scriptedRenderer();
+
+		void headlessModal(modal.renderer).connect(context);
+		await settle();
+
+		expect(modal.views[0]?.wallets.map((wallet) => wallet.id)).toEqual(
+			BCHC_WALLETS.map((wallet) => wallet.id),
+		);
+	});
+
 	it("should let the default protocol win over a default wallet that lacks it", async () => {
 		const { context, attempts } = scriptedContext();
 		const modal = scriptedRenderer();
