@@ -41,6 +41,9 @@ export interface BchconnectModalTheme {
 	mode?: BchcMode;
 }
 
+// The option types it reaches, so a dapp can import this entry alone.
+export type { HeadlessModalOptions, ModalDefaults } from "./headless.ts";
+
 /**
  * Options for {@link bchconnectModal}.
  *
@@ -156,7 +159,7 @@ function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
  * @example
  * ```ts
  * import { createClient } from "@bchconnect/core";
- * import { bchconnectModal } from "@bchconnect/ui";
+ * import { bchconnectModal } from "@bchconnect/ui/modal";
  *
  * const client = createClient({
  *   connectors,

@@ -14,6 +14,10 @@
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
 		},
+		"./modal": {
+			"types": "./dist/bchconnect-modal.d.ts",
+			"default": "./dist/bchconnect-modal.js"
+		},
 		"./headless": {
 			"types": "./dist/headless.d.ts",
 			"default": "./dist/headless.js"
@@ -50,6 +54,11 @@
 	},
 	"peerDependencies": {
 		"@bchconnect/core": "workspace:^"
+	},
+	"peerDependenciesMeta": {
+		"@bchconnect/core": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"@bchconnect/core": "workspace:*",
