@@ -22,7 +22,12 @@ function packageDocComment(): string {
 // ESM only: custom elements need a browser, so there's no CommonJS consumer.
 export default defineConfig(
 	mergeConfig(baseConfig, {
-		entry: ["src/index.ts", "src/headless.ts", "src/locales/es.ts"],
+		entry: [
+			"src/index.ts",
+			"src/bchconnect-modal.ts",
+			"src/headless.ts",
+			"src/locales/es.ts",
+		],
 		format: ["esm"],
 		platform: "browser",
 		target: [...BROWSER_TARGETS],

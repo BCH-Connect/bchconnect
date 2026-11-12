@@ -45,9 +45,7 @@ describe("package entry", () => {
 			"BCHC_WALLETS",
 			"BchcModal",
 			"BchcToast",
-			"bchconnectModal",
 			"defineElements",
-			"headlessModal",
 		]);
 	});
 });
@@ -75,6 +73,22 @@ async function packagesImportedBy(file: URL, seen = new Set<string>()) {
 	}
 	return packages;
 }
+
+describe("main entry imports", () => {
+	it("should import nothing from @bchconnect/core, so the elements work without it", async () => {
+		const packages = await packagesImportedBy(
+			new URL("../src/index.ts", import.meta.url),
+		);
+		expect(packages).not.toContain("@bchconnect/core");
+	});
+});
+
+describe("modal entry", () => {
+	it("should export only the built-in modal", async () => {
+		const entry = await import("../src/bchconnect-modal.ts");
+		expect(Object.keys(entry)).toEqual(["bchconnectModal"]);
+	});
+});
 
 describe("headless entry", () => {
 	it("should export only the headless modal", async () => {
