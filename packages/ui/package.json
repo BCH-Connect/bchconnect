@@ -1,6 +1,21 @@
 {
 	"name": "@bchconnect/ui",
 	"version": "0.0.0",
+	"description": "Connect modal and success toast for BCH Connect",
+	"keywords": [
+		"bitcoin-cash",
+		"bch",
+		"walletconnect",
+		"wizardconnect",
+		"connect",
+		"modal",
+		"web-components",
+		"lit"
+	],
+	"homepage": "https://bchconnect.dev",
+	"bugs": {
+		"url": "https://github.com/BCH-Connect/bchconnect/issues"
+	},
 	"license": "MIT",
 	"repository": {
 		"type": "git",
