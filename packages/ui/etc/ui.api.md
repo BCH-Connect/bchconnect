@@ -4,7 +4,6 @@
 
 ```ts
 
-import { ConnectUi } from '@bchconnect/core';
 import { CSSResultGroup } from 'lit';
 import { LitElement } from 'lit';
 import { PropertyDeclarations } from 'lit';
@@ -141,15 +140,6 @@ export type BchcMode = "auto" | "light" | "dark";
 export type BchcNeutral = "sage" | "slate" | "sand" | "pure";
 
 // @beta
-export function bchconnectModal(options?: BchconnectModalOptions): ConnectUi;
-
-// @beta
-export interface BchconnectModalOptions extends HeadlessModalOptions {
-    messages?: Partial<BchcMessages>;
-    toast?: boolean;
-}
-
-// @beta
 export type BchcRadius = "none" | "small" | "medium" | "large" | "full";
 
 // @beta
@@ -199,40 +189,7 @@ export function defineElements(): void;
 export type FailureReason = "rejected" | "timeout" | "aborted" | "transport" | "network-mismatch" | "unsupported";
 
 // @beta
-export function headlessModal(renderer: ModalRenderer, options?: HeadlessModalOptions): ConnectUi;
-
-// @beta
-export interface HeadlessModalOptions {
-    defaults?: ModalDefaults;
-    protocols?: readonly ProtocolId[];
-    wallets?: readonly WalletOption[];
-}
-
-// @beta
 export type MarkShape = "tile" | "glyph";
-
-// @beta
-export interface ModalActions {
-    dismiss(): void;
-    retry(): void;
-    selectProtocol(protocol: ProtocolId): void;
-    selectWallet(wallet: string): void;
-    showScreen(screen: ModalScreen): void;
-}
-
-// @beta
-export interface ModalDefaults {
-    protocol?: ProtocolId;
-    wallet?: string;
-}
-
-// @beta
-export interface ModalRenderer {
-    close(): Promise<void>;
-    open(view: ModalView, actions: ModalActions): void;
-    showsWallets?(): boolean;
-    update(view: ModalView): void;
-}
 
 // @beta
 export type ModalScreen = "connect" | "wallets";

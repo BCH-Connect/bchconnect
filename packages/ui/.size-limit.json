@@ -8,7 +8,7 @@
 	},
 	{
 		"name": "Default modal: factory plus the elements it loads on first connect",
-		"path": "dist/index.js",
+		"path": "dist/bchconnect-modal.js",
 		"import": "{ bchconnectModal }",
 		"gzip": true,
 		"limit": "64 kB"

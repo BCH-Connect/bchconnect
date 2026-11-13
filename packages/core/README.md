@@ -24,7 +24,7 @@ link, and a toast confirms the connection.
 ```ts
 import { createClient, isBchConnectError } from "@bchconnect/core";
 import { wizardConnect } from "@bchconnect/connector-wizardconnect";
-import { bchconnectModal } from "@bchconnect/ui";
+import { bchconnectModal } from "@bchconnect/ui/modal";
 
 const client = createClient({
 	connectors: [wizardConnect()],
