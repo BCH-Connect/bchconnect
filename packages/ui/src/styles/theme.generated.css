@@ -221,7 +221,11 @@
 	}
 
 	[data-bchc-neutral="sage"],
-	:host([data-bchc-neutral="sage"]) {
+	:host([data-bchc-neutral="sage"]),
+	[data-bchc-accent="green"]:not([data-bchc-neutral]),
+	:host([data-bchc-accent="green"]:not([data-bchc-neutral])),
+	[data-bchc-accent="cyan"]:not([data-bchc-neutral]),
+	:host([data-bchc-accent="cyan"]:not([data-bchc-neutral])) {
 		--bchc-neutral-1: light-dark(#fcfdfc, #101211);
 		--bchc-neutral-2: light-dark(#f7f9f8, #171918);
 		--bchc-neutral-3: light-dark(#eff2f0, #1f2321);
@@ -240,7 +244,13 @@
 	}
 
 	[data-bchc-neutral="slate"],
-	:host([data-bchc-neutral="slate"]) {
+	:host([data-bchc-neutral="slate"]),
+	[data-bchc-accent="blue"]:not([data-bchc-neutral]),
+	:host([data-bchc-accent="blue"]:not([data-bchc-neutral])),
+	[data-bchc-accent="violet"]:not([data-bchc-neutral]),
+	:host([data-bchc-accent="violet"]:not([data-bchc-neutral])),
+	[data-bchc-accent="pink"]:not([data-bchc-neutral]),
+	:host([data-bchc-accent="pink"]:not([data-bchc-neutral])) {
 		--bchc-neutral-1: light-dark(#fcfdfd, #101113);
 		--bchc-neutral-2: light-dark(#f7f8fa, #17191b);
 		--bchc-neutral-3: light-dark(#eff1f4, #202226);
@@ -259,7 +269,11 @@
 	}
 
 	[data-bchc-neutral="sand"],
-	:host([data-bchc-neutral="sand"]) {
+	:host([data-bchc-neutral="sand"]),
+	[data-bchc-accent="red"]:not([data-bchc-neutral]),
+	:host([data-bchc-accent="red"]:not([data-bchc-neutral])),
+	[data-bchc-accent="amber"]:not([data-bchc-neutral]),
+	:host([data-bchc-accent="amber"]:not([data-bchc-neutral])) {
 		--bchc-neutral-1: light-dark(#fdfdfc, #121110);
 		--bchc-neutral-2: light-dark(#f9f8f7, #1a1816);
 		--bchc-neutral-3: light-dark(#f3f1ee, #24221f);
@@ -278,7 +292,9 @@
 	}
 
 	[data-bchc-neutral="pure"],
-	:host([data-bchc-neutral="pure"]) {
+	:host([data-bchc-neutral="pure"]),
+	[data-bchc-accent="ink"]:not([data-bchc-neutral]),
+	:host([data-bchc-accent="ink"]:not([data-bchc-neutral])) {
 		--bchc-neutral-1: light-dark(#fdfdfd, #111111);
 		--bchc-neutral-2: light-dark(#f8f8f8, #191919);
 		--bchc-neutral-3: light-dark(#f1f1f1, #222222);

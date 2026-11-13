@@ -120,8 +120,16 @@ function emitAccent(recipe: AccentRecipe): string {
 	return `${themed(`[data-bchc-accent="${recipe.name}"]`)} {\n${accentLines(recipe).join("\n")}\n}`;
 }
 
+// Each accent also selects its paired neutral when `data-bchc-neutral` is unset.
 function emitNeutral(recipe: ScaleRecipe): string {
-	return `${themed(`[data-bchc-neutral="${recipe.name}"]`)} {\n${neutralLines(recipe).join("\n")}\n}`;
+	const selectors = [
+		`[data-bchc-neutral="${recipe.name}"]`,
+		...ACCENTS.filter((accent) => accent.neutral === recipe.name).map(
+			(accent) =>
+				`[data-bchc-accent="${accent.name}"]:not([data-bchc-neutral])`,
+		),
+	];
+	return `${selectors.map(themed).join(",\n")} {\n${neutralLines(recipe).join("\n")}\n}`;
 }
 
 function emitBlur(): string {
@@ -407,12 +415,10 @@ ${list(blurs)}
 /**
  * Which neutral each accent is paired with by default.
  *
- * The pairing cannot live in CSS: a stylesheet can declare
- * \`--bchc-neutral-family\` but nothing can select on a custom property's
- * value, so whoever sets the theme attributes has to resolve it. Radix frames
- * the pairing as aesthetic rather than accessible — "the difference is subtle",
- * their words — which is why it is a default here and \`data-bchc-neutral\`
- * overrides it.
+ * The stylesheet applies it to any element with \`data-bchc-accent\` and no
+ * \`data-bchc-neutral\`. Radix frames the pairing as aesthetic rather than
+ * accessible — "the difference is subtle", their words — which is why it is a
+ * default here and \`data-bchc-neutral\` overrides it.
  *
  * @beta
  */

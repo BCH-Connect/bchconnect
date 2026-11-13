@@ -119,12 +119,10 @@ export const BCHC_BLURS = [
 /**
  * Which neutral each accent is paired with by default.
  *
- * The pairing cannot live in CSS: a stylesheet can declare
- * `--bchc-neutral-family` but nothing can select on a custom property's
- * value, so whoever sets the theme attributes has to resolve it. Radix frames
- * the pairing as aesthetic rather than accessible — "the difference is subtle",
- * their words — which is why it is a default here and `data-bchc-neutral`
- * overrides it.
+ * The stylesheet applies it to any element with `data-bchc-accent` and no
+ * `data-bchc-neutral`. Radix frames the pairing as aesthetic rather than
+ * accessible — "the difference is subtle", their words — which is why it is a
+ * default here and `data-bchc-neutral` overrides it.
  *
  * @beta
  */
