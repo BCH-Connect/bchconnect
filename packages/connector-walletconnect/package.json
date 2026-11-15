@@ -45,7 +45,6 @@
 	},
 	"devDependencies": {
 		"@bchconnect/core": "workspace:*",
-		"@bchconnect/test-utils": "workspace:*",
 		"@walletconnect/sign-client": "2.26.0",
 		"ws": "8.18.0"
 	}

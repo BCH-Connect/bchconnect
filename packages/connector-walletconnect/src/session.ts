@@ -15,7 +15,11 @@ import type {
 
 const NAMESPACE = "bch";
 
-/** A validated value, or the error that rejects it. */
+/**
+ * A validated value, or the error that rejects it.
+ *
+ * @internal
+ */
 export type Parsed<T> =
 	| { readonly data: T }
 	| { readonly error: BchConnectError };
@@ -29,6 +33,8 @@ function isBchAccount(account: string): boolean {
  * Reads the session data from the namespaces a wallet approved. A wallet may
  * approve less than was proposed: no method is required, and accounts on
  * other chains are ignored.
+ *
+ * @internal
  */
 export function parseData(
 	namespaces: unknown,
@@ -75,7 +81,11 @@ export function parseData(
 	return invalid;
 }
 
-/** The wallet's identity, from the metadata it sent. A wallet may send none. */
+/**
+ * The wallet's identity, from the metadata it sent. A wallet may send none.
+ *
+ * @internal
+ */
 export function parseWallet(metadata: unknown): WalletIdentity {
 	if (
 		typeof metadata !== "object" ||
@@ -98,6 +108,8 @@ export function parseWallet(metadata: unknown): WalletIdentity {
 /**
  * Builds the connector's session from a session the SDK holds.
  * `relayConnected` is whether the SDK's relay connection is up.
+ *
+ * @internal
  */
 export function toSession(
 	raw: SdkSession,

@@ -1,7 +1,11 @@
 import type { Network } from "@bchconnect/core";
 import type { WalletConnectChain } from "./types.js";
 
-/** The chain id a session uses on each network. */
+/**
+ * The chain id a session uses on each network.
+ *
+ * @internal
+ */
 export const chains: Readonly<Record<Network, WalletConnectChain>> = {
 	mainnet: "bch:bitcoincash",
 	chipnet: "bch:bchtest",

@@ -1,4 +1,8 @@
-/** Dapp identity the SDK sends to the wallet. */
+/**
+ * Dapp identity the SDK sends to the wallet.
+ *
+ * @internal
+ */
 export interface SdkMetadata {
 	name: string;
 	description: string;
@@ -6,7 +10,11 @@ export interface SdkMetadata {
 	icons: string[];
 }
 
-/** One session as the SDK stores it. */
+/**
+ * One session as the SDK stores it.
+ *
+ * @internal
+ */
 export interface SdkSession {
 	readonly topic: string;
 	/** Unix time, in seconds. */
@@ -16,20 +24,32 @@ export interface SdkSession {
 	readonly peer: { readonly metadata?: unknown };
 }
 
-/** A namespace the dapp proposes. */
+/**
+ * A namespace the dapp proposes.
+ *
+ * @internal
+ */
 export interface SdkProposalNamespace {
 	chains: string[];
 	methods: string[];
 	events: string[];
 }
 
-/** What `connect()` resolves with. */
+/**
+ * What `connect()` resolves with.
+ *
+ * @internal
+ */
 export interface SdkProposal {
 	readonly uri?: string;
 	approval(): Promise<SdkSession>;
 }
 
-/** The relay connection of the SDK's core. */
+/**
+ * The relay connection of the SDK's core.
+ *
+ * @internal
+ */
 export interface SdkRelayer {
 	readonly connected: boolean;
 	on(
@@ -42,24 +62,40 @@ export interface SdkRelayer {
 	): void;
 }
 
-/** Payload of `session_update`. */
+/**
+ * Payload of `session_update`.
+ *
+ * @internal
+ */
 export interface SdkSessionUpdate {
 	readonly topic: string;
 	readonly params: { readonly namespaces: unknown };
 }
 
-/** Payload of `session_event`. */
+/**
+ * Payload of `session_event`.
+ *
+ * @internal
+ */
 export interface SdkSessionEvent {
 	readonly topic: string;
 	readonly params: { readonly event: { readonly name: string } };
 }
 
-/** Payload of `session_delete` and `session_expire`. */
+/**
+ * Payload of `session_delete` and `session_expire`.
+ *
+ * @internal
+ */
 export interface SdkSessionEnd {
 	readonly topic: string;
 }
 
-/** The SDK events the connector listens to, with their payloads. */
+/**
+ * The SDK events the connector listens to, with their payloads.
+ *
+ * @internal
+ */
 export interface SdkEvents {
 	// biome-ignore lint/style/useNamingConvention: SDK event name.
 	session_update: SdkSessionUpdate;
@@ -71,7 +107,11 @@ export interface SdkEvents {
 	session_event: SdkSessionEvent;
 }
 
-/** The sign client, as the connector uses it. */
+/**
+ * The sign client, as the connector uses it.
+ *
+ * @internal
+ */
 export interface SdkSignClient {
 	readonly core: {
 		readonly relayer: SdkRelayer;
@@ -123,7 +163,11 @@ export interface SdkSignClient {
 	): unknown;
 }
 
-/** Options the connector passes to `SignClient.init()`. */
+/**
+ * Options the connector passes to `SignClient.init()`.
+ *
+ * @internal
+ */
 export interface SdkSignClientOptions {
 	projectId: string;
 	relayUrl?: string;
@@ -131,7 +175,11 @@ export interface SdkSignClientOptions {
 	telemetryEnabled: boolean;
 }
 
-/** The `SignClient` class, as the connector uses it. */
+/**
+ * The `SignClient` class, as the connector uses it.
+ *
+ * @internal
+ */
 export interface SdkSignClientFactory {
 	init(options: SdkSignClientOptions): Promise<SdkSignClient>;
 }
@@ -139,6 +187,8 @@ export interface SdkSignClientFactory {
 /**
  * Loads the sign client. The only place the SDK is imported, so it stays out
  * of the dapp's bundle until a connection needs it.
+ *
+ * @internal
  */
 export async function loadSignClient(): Promise<SdkSignClientFactory> {
 	const { SignClient } = await import("@walletconnect/sign-client");

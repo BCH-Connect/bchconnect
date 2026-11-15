@@ -302,9 +302,6 @@ importers:
       '@bchconnect/core':
         specifier: workspace:*
         version: link:../core
-      '@bchconnect/test-utils':
-        specifier: workspace:*
-        version: link:../test-utils
       '@walletconnect/sign-client':
         specifier: 2.26.0
         version: 2.26.0(db0@0.4.1)(typescript@7.0.2)(zod@4.6.5)

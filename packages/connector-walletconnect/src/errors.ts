@@ -55,7 +55,11 @@ function attributeRejection(
 	return code === 5000 ? "user" : "wallet";
 }
 
-/** The error `connect()` rejects with when the SDK's proposal fails. */
+/**
+ * The error `connect()` rejects with when the SDK's proposal fails.
+ *
+ * @internal
+ */
 export function toPairingError(reason: unknown): BchConnectError {
 	const options = { cause: reason };
 	if (isExpiry(reason)) {
@@ -83,7 +87,11 @@ export function toPairingError(reason: unknown): BchConnectError {
 	});
 }
 
-/** The error `request()` rejects with when the SDK's request fails. */
+/**
+ * The error `request()` rejects with when the SDK's request fails.
+ *
+ * @internal
+ */
 export function toRequestError(
 	reason: unknown,
 	sessionId: string,
@@ -104,7 +112,11 @@ export function toRequestError(
 	});
 }
 
-/** Whether a request failed because the wallet ended the session. */
+/**
+ * Whether a request failed because the wallet ended the session.
+ *
+ * @internal
+ */
 export function isSessionEnd(reason: unknown): boolean {
 	return isCodedRejection(reason) && reason.code === SESSION_ENDED;
 }
