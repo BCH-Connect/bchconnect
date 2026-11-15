@@ -37,7 +37,10 @@ const PROPOSED_METHODS = [
 	"bch_signMessage",
 ] as const;
 const CANCEL_METHOD = "bch_cancelPendingRequests"; // Method only implemented in Cashonize
-const USER_DISCONNECTED = { code: 6000, message: "User disconnected." };
+const USER_DISCONNECTED = {
+	code: 6000,
+	message: "User disconnected.",
+} as const;
 // The SDK refuses request expiries outside this range, in seconds.
 const MIN_EXPIRY = 300;
 const MAX_EXPIRY = 604_800;
@@ -172,8 +175,7 @@ export function walletConnect(
 
 	/**
 	 * Ends a session in the SDK. Never rejects: the SDK throws when offline or
-	 * when it is already gone. Once disposed it sends nothing: anything sent
-	 * would reopen the relay connection.
+	 * when it is already gone. Once disposed it sends nothing.
 	 */
 	async function endInSdk(
 		sdk: SdkSignClient | undefined,

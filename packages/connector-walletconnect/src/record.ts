@@ -9,6 +9,8 @@ const VERSION = 1;
  * namespace. It tells whether there is anything to restore without loading
  * the SDK, and tells this connector's sessions apart from other WalletConnect
  * code on the same origin.
+ *
+ * @internal
  */
 export interface SessionRecord {
 	/** The recorded topics, in the order they were added. */
@@ -19,7 +21,11 @@ export interface SessionRecord {
 	remove(topics: readonly string[]): Promise<void>;
 }
 
-/** Creates the session record kept in `storage`. */
+/**
+ * Creates the session record kept in `storage`.
+ *
+ * @internal
+ */
 export function createRecord(
 	storage: KeyValueStore,
 	logger: Logger,
