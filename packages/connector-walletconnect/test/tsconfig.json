@@ -1,0 +1,14 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"noEmit": true,
+		"isolatedDeclarations": false,
+		// The SDK's own declarations do not compile under exactOptionalPropertyTypes.
+		"skipLibCheck": true,
+		"paths": {
+			"@bchconnect/core": ["../../core/src/index.ts"]
+		}
+	},
+	"include": [".", "../src", "../../core/src"]
+}
