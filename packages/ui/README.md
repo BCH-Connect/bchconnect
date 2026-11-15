@@ -4,6 +4,8 @@ The connect modal and success toast of
 [BCH Connect](https://github.com/BCH-Connect/bchconnect), a wallet-connection
 library for Bitcoin Cash dapps. They are custom elements that work with vanilla JS/TS or any framework.
 
+![The connect modal on desktop and on a phone, next to the toasts shown once a wallet connects](https://raw.githubusercontent.com/BCH-Connect/bchconnect/main/.github/assets/ui-preview.jpg)
+
 > This package is in alpha and not yet stable. Expect breaking changes.
 
 ## Install
