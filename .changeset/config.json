@@ -6,13 +6,5 @@
 	"access": "public",
 	"baseBranch": "main",
 	"updateInternalDependencies": "patch",
-	"fixed": [
-		[
-			"@bchconnect/core",
-			"@bchconnect/react",
-			"@bchconnect/ui",
-			"@bchconnect/test-utils",
-			"bchconnect"
-		]
-	]
+	"fixed": [["@bchconnect/core", "@bchconnect/ui", "@bchconnect/test-utils"]]
 }
