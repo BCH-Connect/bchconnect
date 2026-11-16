@@ -71,6 +71,29 @@ describe("mergeWalletIdentity", () => {
 		});
 	});
 
+	it("should take nothing from the selection when the protocol named the wallet", () => {
+		const session = demoSession({
+			wallet: {
+				name: "Selene Wallet",
+				icon: "https://example.com/selene.svg",
+				source: "protocol",
+			},
+		});
+
+		const merged = mergeWalletIdentity(session, {
+			id: "cashonize",
+			name: "Cashonize",
+			icon: "https://example.com/cashonize.svg",
+		});
+
+		expect(merged).toBe(session);
+		expect(merged.wallet).toStrictEqual({
+			name: "Selene Wallet",
+			icon: "https://example.com/selene.svg",
+			source: "protocol",
+		});
+	});
+
 	it("should combine protocol fields with selection fields", () => {
 		const session = demoSession({
 			wallet: { icon: "https://example.com/paytaca.svg", source: "protocol" },
