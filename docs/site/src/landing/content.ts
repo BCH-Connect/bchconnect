@@ -50,7 +50,8 @@ export const FEATURES = {
 export const START = {
 	label: "Start with",
 	tabs: { install: "Install", prompt: "Prompt", skill: "Skill" },
-	install: "npm i @bchconnect/core @bchconnect/ui",
+	install:
+		"npm i @bchconnect/core @bchconnect/ui @bchconnect/connector-walletconnect @walletconnect/sign-client",
 	/** Installs the agent skill served at /SKILL.md into the user's coding agents. */
 	skill: `npx skills add ${SITE_URL}`,
 	copy: "Copy",
@@ -64,7 +65,29 @@ export const START = {
 
 export const CONNECT = {
 	action: "Connect wallet",
-	disabledHint: "Live wallet connections are coming soon",
+	disabledHint: "Live wallet connections are not configured on this build",
+	failed: "The connection failed. Try again.",
+	copyAddress: "Copy address",
+	addressCopied: "Address copied",
+	disconnect: "Disconnect",
+	/** Announced when a session starts. */
+	connectedTo: (wallet: string) => `Connected to ${wallet}`,
+	/** Stands in for a wallet that sends no name. */
+	unnamedWallet: "Wallet",
+} as const;
+
+export const SIGN = {
+	action: "Sign a message",
+	/** Shown by wallets that display a prompt next to the message. */
+	prompt:
+		"Sign this message to try BCH Connect. It costs nothing and moves no funds.",
+	waiting: "Confirm in your wallet",
+	cancel: "Cancel",
+	verified: "Message signed",
+	again: "Sign again",
+	mismatch: "The signature does not match this wallet's address.",
+	rejected: "You declined in your wallet.",
+	failed: "The wallet could not sign. Try again.",
 } as const;
 
 /** Shown as the prompt's heading and copied as its first line. */

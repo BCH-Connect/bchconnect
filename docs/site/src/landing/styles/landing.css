@@ -350,14 +350,15 @@
 	padding-left: 8px;
 }
 
+/* Wraps between packages rather than truncating: every package in the command stays readable. */
 .start-command {
 	flex: 1;
 	min-width: 0;
-	overflow: hidden;
 	font-family: var(--font-mono);
 	font-size: 0.9375rem;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+	line-height: 1.6;
+	overflow-wrap: normal;
+	text-wrap: pretty;
 	color: var(--neutral-12);
 }
 
@@ -688,21 +689,20 @@
 	fill: var(--neutral-12);
 }
 
+/* Two halves that draw out from the wire's exit and meet at the top, as the trunk lights. */
 .hub-plate-ring {
-	fill: none;
-	stroke: var(--accent-9);
-	stroke-width: 2;
-	opacity: 0;
-	transform-box: fill-box;
-	transform-origin: center;
-	transition:
-		opacity var(--duration-base) var(--ease-out),
-		transform var(--duration-slow) var(--ease-enter);
+	stroke: color-mix(in srgb, var(--accent-9) 85%, transparent);
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-dasharray: 1 1.1;
+	stroke-dashoffset: 1;
+	transition: stroke-dashoffset var(--duration-base) var(--ease-out);
 }
 
-.hub-plate[data-active="true"] .hub-plate-ring {
-	opacity: 1;
-	transform: scale(1.12);
+.hub[data-state="connected"] .hub-plate[data-active="true"] .hub-plate-ring {
+	stroke-dashoffset: 0;
+	transition: stroke-dashoffset var(--duration-slow) var(--ease-signal)
+		var(--duration-slow);
 }
 
 .hero-demo:has(.connect-button:is(:hover, :focus-visible)) .hub-line,
@@ -866,7 +866,8 @@
 	align-items: center;
 	gap: 12px;
 	min-height: 60px;
-	padding: 6px 6px 6px 10px;
+	/* Concentric with the pill's ends: the 36px logo and the 44px actions sit evenly inside its 60px. */
+	padding: 8px 8px 8px 12px;
 	border-radius: var(--radius-pill);
 	background-image: linear-gradient(
 		to bottom,
@@ -880,18 +881,33 @@
 		0 14px 32px var(--plate-shadow);
 }
 
+/* The wallet's own mark, untouched: a hairline only gives light or transparent logos an edge. */
 .account-logo {
+	display: grid;
+	place-items: center;
+	flex: none;
 	width: 36px;
 	height: 36px;
 	border-radius: 50%;
-	box-shadow: 0 0 0 2px var(--accent-9);
+	object-fit: cover;
+	background-color: var(--neutral-3);
+	box-shadow: 0 0 0 1px var(--edge-shade);
+	font-size: 0.9375rem;
+	font-weight: 700;
+	color: var(--neutral-11);
 }
 
 .account-body {
 	display: flex;
 	flex-direction: column;
-	padding-right: 8px;
+	gap: 1px;
+	padding-right: 4px;
 	line-height: 1.25;
+}
+
+.account-actions {
+	display: flex;
+	gap: 2px;
 }
 
 .account-wallet {
@@ -902,7 +918,8 @@
 .account-address {
 	font-family: var(--font-mono);
 	font-size: 0.875rem;
-	font-weight: 500;
+	font-weight: 450;
+	font-variant-numeric: tabular-nums;
 	color: var(--neutral-12);
 }
 
@@ -929,6 +946,73 @@
 .account-action[data-copied="true"] {
 	background-color: var(--neutral-4);
 	color: var(--neutral-12);
+}
+
+.account-action:active {
+	background-color: var(--neutral-5);
+}
+
+.account-action:focus-visible {
+	outline: 2px solid var(--accent-9);
+	outline-offset: 2px;
+}
+
+/* One quiet line under the pill: the action, then what the wallet is doing, then the outcome. */
+.sign-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 4px 10px;
+	min-height: 44px;
+	margin: 0;
+	font-size: 0.8125rem;
+	color: var(--neutral-11);
+}
+
+.sign-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 44px;
+	padding: 0 12px;
+	border-radius: var(--radius-pill);
+	font-weight: 600;
+	color: var(--neutral-12);
+	cursor: pointer;
+	transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.sign-icon {
+	width: 15px;
+	height: 15px;
+	color: var(--neutral-11);
+}
+
+.sign-action:hover {
+	background-color: var(--neutral-4);
+}
+
+.sign-action:active {
+	background-color: var(--neutral-5);
+}
+
+.sign-action:focus-visible {
+	outline: 2px solid var(--accent-9);
+	outline-offset: 2px;
+}
+
+.sign-live {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background-color: var(--accent-9);
+}
+
+.sign-check {
+	width: 16px;
+	height: 16px;
+	color: var(--accent-11);
 }
 
 @media (max-width: 959px) {
@@ -1073,6 +1157,12 @@
 	}
 }
 
+@keyframes sign-wait {
+	to {
+		opacity: 0.3;
+	}
+}
+
 @keyframes copy-confirm {
 	from {
 		opacity: 0;
@@ -1198,6 +1288,14 @@
 
 	.account {
 		animation: grow var(--duration-slow) var(--ease-enter) both;
+	}
+
+	.sign-live {
+		animation: sign-wait 1.2s var(--ease-out) infinite alternate;
+	}
+
+	.sign-check {
+		animation: pop var(--duration-base) var(--ease-enter);
 	}
 
 	.copy-confirm {

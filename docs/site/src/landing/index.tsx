@@ -1,7 +1,7 @@
 import { HomeLayout } from "fumadocs-ui/layouts/home";
 import { baseOptions } from "@/lib/layout.shared";
 import { DropWire } from "./components/drop-wire";
-import { useConnectDemo } from "./hooks/use-connect-demo";
+import { useLiveConnect } from "./hooks/use-live-connect";
 import { Features } from "./sections/features";
 import { Footer } from "./sections/footer";
 import { Hero } from "./sections/hero";
@@ -11,7 +11,7 @@ import "./styles/footer.css";
 
 export function Landing() {
 	const base = baseOptions();
-	const demo = useConnectDemo();
+	const demo = useLiveConnect();
 
 	return (
 		<HomeLayout
@@ -24,8 +24,8 @@ export function Landing() {
 			<div className="landing">
 				<div className="landing-light" aria-hidden="true" />
 				<Hero demo={demo} />
-				<Features session={null} />
-				<DropWire connected={false} />
+				<Features session={demo.session?.protocol ?? null} />
+				<DropWire connected={demo.status === "connected"} />
 				<Footer />
 			</div>
 		</HomeLayout>
