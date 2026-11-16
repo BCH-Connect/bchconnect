@@ -5,7 +5,7 @@
 	"sideEffects": false,
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "pnpm --filter \"@bchconnect/docs-site^...\" run build && vite build",
 		"preview": "vite preview",
 		"deploy": "pnpm build && wrangler deploy",
 		"typecheck": "tsc --noEmit",
