@@ -1,8 +1,4 @@
-/*
- * Site tokens as Tailwind utilities. Colours alias palette.css, so they
- * follow the theme switch; radius, shadow and easing mirror @bchconnect/ui's
- * tokens.css, which the package does not export as CSS.
- */
+/* Colours alias palette.css so they follow the theme switch; radius, shadow and easing mirror @bchconnect/ui's tokens.css, which the package does not export as CSS. */
 @theme {
 	--color-accent-1: var(--accent-1);
 	--color-accent-2: var(--accent-2);

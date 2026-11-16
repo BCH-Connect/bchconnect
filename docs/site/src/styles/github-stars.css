@@ -1,0 +1,133 @@
+.github-stars {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	height: 36px;
+	padding: 0 13px 0 11px;
+	border: 1px solid var(--color-fd-border);
+	border-radius: 999px;
+	background-color: color-mix(
+		in srgb,
+		var(--color-fd-secondary) 50%,
+		transparent
+	);
+	font-size: 0.875rem;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	color: var(--color-fd-muted-foreground);
+	transition:
+		background-color 160ms var(--ease-swift),
+		border-color 160ms var(--ease-swift),
+		color 160ms var(--ease-swift),
+		scale 160ms var(--ease-swift);
+}
+
+.github-stars:hover {
+	border-color: var(--neutral-7);
+	background-color: var(--color-fd-accent);
+	color: var(--color-fd-accent-foreground);
+}
+
+.github-stars:active {
+	scale: 0.97;
+	transition-duration: 60ms;
+}
+
+.github-stars:focus-visible {
+	outline: 2px solid var(--accent-focus);
+	outline-offset: 2px;
+}
+
+.github-stars-mark {
+	flex: none;
+}
+
+.github-stars-rule {
+	width: 1px;
+	height: 14px;
+	background-color: var(--color-fd-border);
+}
+
+.github-stars-count {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-weight: 600;
+	color: var(--neutral-12);
+}
+
+.github-stars-star {
+	position: relative;
+	display: inline-flex;
+}
+
+.github-stars-star svg {
+	fill: transparent;
+	stroke: var(--accent-11);
+	stroke-width: 2;
+	stroke-linejoin: round;
+	transition: fill 200ms var(--ease-swift);
+}
+
+.github-stars:hover .github-stars-star svg {
+	fill: var(--accent-9);
+	stroke: var(--accent-9);
+}
+
+.github-stars-spark {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 3px;
+	height: 3px;
+	margin: -1.5px 0 0 -1.5px;
+	border-radius: 50%;
+	background-color: var(--accent-9);
+	opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.github-stars:hover .github-stars-star svg {
+		animation: github-stars-pop 520ms var(--ease-swift);
+	}
+
+	.github-stars:hover .github-stars-spark {
+		animation: github-stars-spark 560ms var(--ease-swift);
+	}
+}
+
+@keyframes github-stars-pop {
+	0% {
+		scale: 1;
+		rotate: 0deg;
+	}
+	35% {
+		scale: 1.35;
+	}
+	100% {
+		scale: 1;
+		rotate: 72deg;
+	}
+}
+
+@keyframes github-stars-spark {
+	0% {
+		opacity: 1;
+		transform: rotate(var(--a)) translateX(3px) scale(1);
+	}
+	100% {
+		opacity: 0;
+		transform: rotate(var(--a)) translateX(12px) scale(0.3);
+	}
+}
+
+@media (max-width: 390px) {
+	.github-stars-label,
+	.github-stars-rule {
+		display: none;
+	}
+}
+
+body:has(.landing) #nd-nav ul:has(> .github-stars) {
+	order: -1;
+}

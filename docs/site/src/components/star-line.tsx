@@ -1,9 +1,7 @@
 import { Star } from "lucide-react";
-import { gitConfig } from "@/lib/shared";
+import { repoUrl } from "@/lib/shared";
 
 export function StarLine() {
-	const repoUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
-
 	return (
 		<p className="mt-12 border-fd-border border-t pt-4 text-fd-muted-foreground text-sm">
 			<Star className="-mt-0.5 me-1.5 inline size-3.5" aria-hidden="true" />

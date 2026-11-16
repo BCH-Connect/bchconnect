@@ -12,6 +12,8 @@ export const gitConfig = {
 	contentDir: "docs/site/content/docs",
 };
 
+export const repoUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
+
 const getDocsUrl = createGetUrl(docsRoute);
 
 export function getPageMarkdownUrl(page: {

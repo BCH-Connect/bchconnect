@@ -1,11 +1,15 @@
 @import "tailwindcss";
 @import "@fontsource-variable/plus-jakarta-sans";
 @import "@fontsource-variable/fira-code";
+@import "@fontsource-variable/fraunces/full.css";
 @import "fumadocs-ui/css/lib/default-colors.css";
 @import "fumadocs-ui/css/preset.css";
 @import "fumadocs-twoslash/twoslash.css";
 @import "./palette.css";
+@import "./identity.css";
 @import "./tokens.css";
+@import "./version-tag.css";
+@import "./github-stars.css";
 
 html {
 	scrollbar-gutter: stable;
@@ -24,6 +28,23 @@ bchc-modal {
 	position: relative;
 	z-index: 50;
 	display: block;
+}
+
+/*
+ * On the landing the header is clear at the top so the page's light runs
+ * up behind it; Fumadocs still draws its hairline and blurs the ground
+ * there, which shows as a band over the grain. Both return with the
+ * header's own background once the page scrolls.
+ */
+body:has(.landing) #nd-nav > nav {
+	transition-property:
+		background-color, border-color, box-shadow, border-radius;
+	transition-duration: 200ms;
+}
+
+body:has(.landing) #nd-nav > nav:not([class*="bg-fd-background"]) {
+	border-bottom-color: transparent;
+	backdrop-filter: none;
 }
 
 /*
