@@ -146,7 +146,7 @@ export interface WalletSelection {
 	id?: string;
 	/** Display name. */
 	name?: string;
-	/** Logo URL. */
+	/** Logo URL. Saved with the session, so pass a URL, not a data URI. */
 	icon?: string;
 }
 

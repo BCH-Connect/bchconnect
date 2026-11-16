@@ -353,11 +353,7 @@ describe("headlessModal", () => {
 		expect(read()).toMatchObject({ id: "cashonize" });
 		modal.actions().selectWallet("optn");
 
-		expect(read()).toEqual({
-			id: "optn",
-			name: "OPTN",
-			icon: BCHC_WALLETS.find((entry) => entry.id === "optn")?.logo,
-		});
+		expect(read()).toEqual({ id: "optn", name: "OPTN" });
 	});
 
 	it("should open on the default wallet and the first protocol it speaks", async () => {

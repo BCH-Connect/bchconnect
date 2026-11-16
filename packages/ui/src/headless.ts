@@ -138,12 +138,6 @@ function enabledProtocols(
 		.flatMap((id) => BCHC_PROTOCOLS.filter((entry) => entry.id === id));
 }
 
-function selectionOf(wallet: WalletOption): WalletSelection {
-	const selection: WalletSelection = { id: wallet.id, name: wallet.name };
-	if (wallet.logo !== null) selection.icon = wallet.logo;
-	return selection;
-}
-
 interface Attempt {
 	readonly controller: AbortController;
 	settled: Promise<void>;
@@ -210,7 +204,10 @@ function run(
 		function selected(): WalletSelection | undefined {
 			if (renderer.showsWallets?.() === false) return undefined;
 			const wallet = wallets.find((entry) => entry.id === view.wallet);
-			return wallet === undefined ? undefined : selectionOf(wallet);
+			// No logo: the selection is saved with the session, and a data URI would overflow cookie storage.
+			return wallet === undefined
+				? undefined
+				: { id: wallet.id, name: wallet.name };
 		}
 
 		// Each start bumps this, so a start superseded while it waited is skipped.

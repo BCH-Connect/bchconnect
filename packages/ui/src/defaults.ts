@@ -45,6 +45,16 @@ export const BCHC_PROTOCOLS: readonly ProtocolOption[] = [
  * The wallets BCH Connect ships logos, a support matrix and desktop links
  * for, in the order the wallet list shows them.
  *
+ * A session names the wallet picked in the modal but doesn't carry its
+ * logo; look the logo up here by `session.wallet.id`.
+ *
+ * @example
+ * ```ts
+ * const logo =
+ *   BCHC_WALLETS.find((wallet) => wallet.id === session.wallet.id)?.logo ??
+ *   session.wallet.icon;
+ * ```
+ *
  * @example
  * ```ts
  * const enabled = view.protocols.map((protocol) => protocol.id);
