@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "bchconnect",
+	"name": "bchconnect-docs",
 	"compatibility_date": "2026-11-10",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "@tanstack/react-start/server-entry"
