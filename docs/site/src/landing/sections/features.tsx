@@ -1,6 +1,4 @@
 import type { ProtocolId } from "@bchconnect/ui";
-import { Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
 import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { useState } from "react";
 import { Frameworks } from "../components/features/frameworks";
@@ -94,15 +92,6 @@ export function Features({ session }: FeaturesProps) {
 					<>
 						<p className="feature-body">{FEATURES.protocols.body}</p>
 						<p className="feature-detail">{FEATURES.protocols.detail}</p>
-						<Link
-							to="/docs/$"
-							// biome-ignore lint/style/useNamingConvention: `_splat` is TanStack Router's catch-all param name
-							params={{ _splat: "concepts/protocols" }}
-							className="feature-link"
-						>
-							{FEATURES.protocols.link}
-							<ArrowRight aria-hidden="true" />
-						</Link>
 					</>
 				}
 				visual={<ProtocolConfig session={session} />}
