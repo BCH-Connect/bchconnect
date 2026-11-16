@@ -1,9 +1,4 @@
-/*
- * Landing page only. It extends @bchconnect/ui's design system: the same
- * palette families (palette.css), and the radius, shadow and motion roles of
- * its tokens.css and modal.css, copied here because the package ships no
- * stylesheet.
- */
+/* Radius, shadow and motion roles mirror @bchconnect/ui's tokens.css and modal.css, which the package does not export as CSS. */
 
 .landing {
 	position: relative;
@@ -16,22 +11,33 @@
 	color: var(--neutral-12);
 
 	--field-opacity: 0.2;
+	--glint-opacity: 0.22;
+
+	--font-display: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
+	--display-weight: 500;
+	--display-tracking: -0.015em;
+	--display-leading: 1;
+	--display-scale: 1.04;
+	--display-settings: "opsz" 144, "SOFT" 40, "WONK" 1;
 	--paper: var(--neutral-1);
 	--hairline: var(--neutral-6);
-	/* A field sunk into the page, and the controls that sit raised on it. */
-	--inset: var(--neutral-2);
 	--inset-line: var(--neutral-5);
 	--raised: var(--neutral-1);
-	--shadow-tight: #2a2f2d0a;
-	--shadow-soft: #2a2f2d14;
+	--shadow-tight: #2c2e330a;
+	--shadow-soft: #2c2e3314;
 	--plate-top: var(--neutral-1);
 	--plate-bottom: color-mix(in srgb, var(--neutral-2) 60%, var(--neutral-1));
-	/* Wires lean toward the accent so they sit in the field instead of greying it. */
 	--wire: color-mix(in srgb, var(--accent-9) 28%, var(--neutral-8));
 	--wire-awake: color-mix(in srgb, var(--accent-9) 45%, var(--neutral-10));
 	--hub-label: var(--neutral-11);
-	/* A hairline around a mark, so its white parts still read on white paper. */
 	--mark-edge: drop-shadow(0 0 0.6px #2a2f2d59);
+	--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.7 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+	--grain-blend: multiply;
+	--grain-opacity: 0.3;
+	--edge-light: #ffffffd9;
+	--edge-shade: color-mix(in srgb, var(--neutral-12) 10%, transparent);
+	--plate-shadow: color-mix(in srgb, var(--accent-9) 16%, transparent);
+	--wire-edge: #ffffff99;
 
 	--radius-pill: 999px;
 
@@ -39,9 +45,8 @@
 	--duration-base: 320ms;
 	--duration-slow: 560ms;
 	--ease-out: cubic-bezier(0.2, 0.9, 0.2, 1);
-	/* A signal gathers speed leaving a plate and brakes into the control. */
 	--ease-signal: cubic-bezier(0.55, 0, 0.3, 1);
-	/* Without `linear()` an entrance settles plainly; a bezier can only fake the spring by overshooting hard. */
+	/* Without `linear()` the entrance falls back to a plain ease; a bezier can only fake the spring by overshooting. */
 	--ease-enter: var(--ease-out);
 }
 
@@ -75,19 +80,27 @@
 
 .dark .landing {
 	--field-opacity: 0.2;
+	--glint-opacity: 0.18;
 	--paper: var(--neutral-2);
 	--raised: var(--neutral-4);
-	--shadow-tight: #10121140;
-	--shadow-soft: #10121166;
+	--shadow-tight: #10111340;
+	--shadow-soft: #10111366;
 	--plate-top: var(--neutral-4);
 	--plate-bottom: var(--neutral-3);
 	--wire: var(--neutral-7);
 	--wire-awake: var(--neutral-10);
 	--hub-label: var(--neutral-10);
 	--mark-edge: none;
+	--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.7 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+	--grain-blend: screen;
+	--grain-opacity: 0.28;
+	--edge-light: #ffffff29;
+	--edge-shade: #00000066;
+	--plate-shadow: var(--shadow-soft);
+	--wire-edge: #00000059;
 }
 
-/* Same width and gutter as the site header, so both share one left edge. */
+/* Matches the header's --fd-layout-width (index.tsx), so both share one left edge. */
 .landing-container {
 	width: 100%;
 	max-width: 1208px;
@@ -95,16 +108,9 @@
 	padding-inline: 16px;
 }
 
-/*
- * The page's light: the accent, with a touch of a neighbouring hue, rising
- * behind the protocols and fading into the ground. It has no edge anywhere, so the hero
- * and the sections after it are one surface.
- */
 .landing-light {
-	/* Behind the protocols: right of the copy on wide screens, below it on narrow ones. */
 	--light-at: 76% 34%;
 	--light-main: 34% 40%;
-	/* A second, softer light in the accent's own hue: depth, not a second colour. */
 	--light-companion: 26% 30%;
 	--light-wash: 40% 44%;
 	position: absolute;
@@ -133,6 +139,26 @@
 	mask-image: linear-gradient(to bottom, black 45%, transparent);
 }
 
+.landing-light::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: var(--grain);
+	background-size: 220px 220px;
+	mix-blend-mode: var(--grain-blend);
+	opacity: var(--grain-opacity);
+	mask-image:
+		radial-gradient(
+			70% 70% at var(--light-at),
+			black 25%,
+			#00000059 65%,
+			transparent
+		),
+		linear-gradient(to bottom, black 40%, transparent 90%);
+	mask-composite: intersect;
+}
+
 .dark .landing-light {
 	background:
 		radial-gradient(
@@ -152,14 +178,13 @@
 		);
 }
 
-/* Hero */
-
 .hero {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
 	gap: 64px;
 	align-items: center;
-	padding-block: 88px 136px;
+	min-height: min(calc(100svh - 56px), 960px);
+	padding-block: 64px 96px;
 }
 
 .hero-copy {
@@ -168,10 +193,12 @@
 
 .hero-title {
 	margin: 0;
-	font-size: clamp(2.5rem, 1.2rem + 3.6vw, 4rem);
-	font-weight: 700;
-	line-height: 1.02;
-	letter-spacing: -0.025em;
+	font-family: var(--font-display);
+	font-size: calc(clamp(2.5rem, 1.2rem + 3.6vw, 4rem) * var(--display-scale));
+	font-weight: var(--display-weight);
+	font-variation-settings: var(--display-settings);
+	line-height: var(--display-leading);
+	letter-spacing: var(--display-tracking);
 	text-wrap: balance;
 }
 
@@ -190,7 +217,7 @@
 	margin-top: 36px;
 }
 
-.hero-action {
+.landing-action {
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;
@@ -206,63 +233,63 @@
 		transform var(--duration-fast) var(--ease-out);
 }
 
-.hero-action svg {
+.landing-action svg {
 	width: 16px;
 	height: 16px;
 	flex: none;
 }
 
-.hero-action:active {
+.landing-action:active {
 	transform: scale(0.98);
 }
 
-/* Ink, as the modal's session pill is. */
-.hero-action--primary {
+.landing-action--primary {
 	padding-right: 18px;
 	background-color: var(--neutral-12);
 	color: var(--neutral-1);
+	box-shadow:
+		inset 0 1px 0 #ffffff2e,
+		0 1px 2px var(--shadow-tight);
 }
 
-.hero-action--primary svg {
+.landing-action--primary svg {
 	transition: translate var(--duration-base) var(--ease-enter);
 }
 
-.hero-action--primary:hover {
-	box-shadow: 0 8px 20px color-mix(in srgb, var(--neutral-12) 26%, transparent);
+.landing-action--primary:hover {
+	box-shadow:
+		inset 0 1px 0 #ffffff2e,
+		0 8px 20px color-mix(in srgb, var(--neutral-12) 26%, transparent);
 }
 
-.hero-action--primary:hover svg {
+.landing-action--primary:hover svg {
 	translate: 3px 0;
 }
 
-.hero-action--secondary {
+.landing-action--secondary {
 	background-color: color-mix(in srgb, var(--paper) 80%, transparent);
-	box-shadow: inset 0 0 0 1px var(--hairline);
+	box-shadow:
+		inset 0 0 0 1px var(--hairline),
+		inset 0 1px 0 var(--edge-light),
+		0 1px 2px var(--shadow-tight);
 	color: var(--neutral-12);
 }
 
-.hero-action--secondary:hover {
+.landing-action--secondary:hover {
 	background-color: var(--neutral-3);
 }
 
-/*
- * The ways to start: one quiet field sunk into the page, in the modal's tile
- * language, not a second card under the actions. A segmented switch picks
- * the install line or the agent prompt; both states are one row, so switching
- * never moves anything, and the full prompt opens in a popover over the page.
- */
 .start-panel {
 	width: min(100%, 520px);
 	margin-top: 28px;
 	padding: 12px;
 	border-radius: 16px;
-	background-color: var(--inset);
-	box-shadow: inset 0 0 0 1px var(--inset-line);
-	transition: box-shadow var(--duration-fast) var(--ease-out);
-}
-
-.start-panel:hover {
-	box-shadow: inset 0 0 0 1px var(--hairline);
+	background-color: color-mix(in srgb, var(--paper) 40%, transparent);
+	backdrop-filter: blur(14px) saturate(1.5);
+	box-shadow:
+		inset 0 0 0 1px color-mix(in srgb, var(--paper) 80%, transparent),
+		inset 0 1px 0 var(--edge-light),
+		0 8px 24px var(--shadow-soft);
 }
 
 .start-switch {
@@ -272,10 +299,9 @@
 	grid-auto-columns: 1fr;
 	padding: 3px;
 	border-radius: var(--radius-pill);
-	background-color: var(--neutral-3);
+	background-color: color-mix(in srgb, var(--neutral-12) 8%, transparent);
 }
 
-/* One thumb slides between the segments instead of each segment painting its own. */
 .start-thumb {
 	position: absolute;
 	top: 3px;
@@ -341,7 +367,6 @@
 	user-select: none;
 }
 
-/* The modal's pill button, raised on the field; copying answers on the button itself. */
 .start-pill {
 	display: inline-flex;
 	flex: none;
@@ -355,7 +380,10 @@
 	font-weight: 600;
 	white-space: nowrap;
 	color: var(--neutral-12);
-	box-shadow: inset 0 0 0 1px var(--inset-line);
+	box-shadow:
+		inset 0 0 0 1px var(--inset-line),
+		inset 0 1px 0 var(--edge-light),
+		0 1px 2px var(--shadow-tight);
 	cursor: pointer;
 	transition:
 		background-color var(--duration-fast) var(--ease-out),
@@ -365,7 +393,10 @@
 }
 
 .start-pill:hover {
-	box-shadow: inset 0 0 0 1px var(--hairline);
+	box-shadow:
+		inset 0 0 0 1px var(--hairline),
+		inset 0 1px 0 var(--edge-light),
+		0 1px 2px var(--shadow-tight);
 }
 
 .start-pill:active {
@@ -379,7 +410,6 @@
 	box-shadow: inset 0 0 0 1px var(--accent-7);
 }
 
-/* The prompt's row names it and opens it; the whole line is the control. */
 .start-view {
 	display: inline-flex;
 	flex: 1;
@@ -418,6 +448,10 @@
 	.start-view {
 		min-height: 44px;
 	}
+
+	.start-segment {
+		height: 40px;
+	}
 }
 
 /* Docked under the panel by the component on wide screens; centred by the browser on phones. */
@@ -428,12 +462,14 @@
 	padding: 18px 20px 16px;
 	border: 0;
 	border-radius: 20px;
-	background-color: var(--paper);
+	background-color: color-mix(in srgb, var(--paper) 62%, transparent);
+	backdrop-filter: blur(18px) saturate(1.5);
 	color: var(--neutral-12);
 	box-shadow:
 		0 1px 2px var(--shadow-tight),
 		0 24px 64px var(--shadow-soft),
-		inset 0 0 0 1px var(--hairline);
+		inset 0 1px 0 var(--edge-light),
+		inset 0 0 0 1px color-mix(in srgb, var(--paper) 80%, transparent);
 	opacity: 0;
 	translate: 0 6px;
 	transition:
@@ -484,11 +520,6 @@
 	min-width: 0;
 }
 
-/*
- * The field behind the protocols is a connection code in the modal's own
- * drawing: round modules and rounded finder eyes. A light passes over it the
- * way it passes over the modal's code while a link is on its way.
- */
 .hero-demo::before {
 	content: "";
 	position: absolute;
@@ -518,12 +549,52 @@
 	pointer-events: none;
 }
 
-/* Once connected, the code has done its job and recedes. */
 .hero-demo:has(.account)::before {
 	opacity: calc(var(--field-opacity) * 0.4);
 }
 
-/* Protocols, wires, client */
+.code-glints {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	z-index: -1;
+	width: 680px;
+	height: 680px;
+	translate: -50% -52%;
+	fill: var(--accent-9);
+	mask-image: radial-gradient(closest-side, black 50%, transparent);
+	opacity: var(--glint-opacity);
+	transition: opacity var(--duration-slow) var(--ease-out);
+	pointer-events: none;
+}
+
+.code-glints circle {
+	opacity: 0;
+}
+
+.hero-demo:has(.account) .code-glints {
+	opacity: calc(var(--glint-opacity) * 0.4);
+}
+
+.section-title {
+	max-width: 20ch;
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: calc(clamp(1.9rem, 1rem + 2.2vw, 2.75rem) * var(--display-scale));
+	font-weight: var(--display-weight);
+	font-variation-settings: var(--display-settings);
+	line-height: var(--display-leading);
+	letter-spacing: var(--display-tracking);
+	text-wrap: balance;
+}
+
+.section-lede {
+	max-width: 56ch;
+	margin: 16px 0 0;
+	font-size: 1.0625rem;
+	line-height: 1.6;
+	color: var(--neutral-11);
+}
 
 .hub {
 	display: block;
@@ -532,10 +603,16 @@
 	overflow: visible;
 }
 
+.hub-edge,
 .hub-line,
 .hub-lit,
 .hub-signal {
 	stroke-linecap: round;
+}
+
+.hub-edge {
+	stroke: var(--wire-edge);
+	stroke-width: 4;
 }
 
 .hub-line {
@@ -544,7 +621,6 @@
 	transition: stroke var(--duration-base) var(--ease-out);
 }
 
-/* Draws along the wire, plate to control, instead of changing colour in place. */
 .hub-lit {
 	stroke: var(--accent-9);
 	stroke-width: 2;
@@ -554,7 +630,6 @@
 	transition: stroke-dashoffset var(--duration-slow) var(--ease-signal);
 }
 
-/* A short segment, hidden before the wire starts until it travels. */
 .hub-signal {
 	stroke: var(--accent-9);
 	stroke-width: 2.5;
@@ -575,19 +650,21 @@
 	cursor: default;
 }
 
-/* Raised on the page by light alone: a soft top-lit face and a shadow, no outline. */
-.hub-plate-top {
-	stop-color: var(--plate-top);
+.hub-plate-frame {
+	overflow: visible;
 }
 
-.hub-plate-bottom {
-	stop-color: var(--plate-bottom);
-}
-
-.hub-plate-face {
-	fill: url(#hub-plate-fill);
-	filter: drop-shadow(0 14px 18px var(--shadow-soft))
-		drop-shadow(0 2px 3px var(--shadow-tight));
+.hub-card {
+	width: 100%;
+	height: 100%;
+	border-radius: 26px;
+	background-color: color-mix(in srgb, var(--paper) 52%, transparent);
+	backdrop-filter: blur(14px) saturate(1.5);
+	box-shadow:
+		inset 0 1px 0 var(--edge-light),
+		inset 0 0 0 1px color-mix(in srgb, var(--paper) 70%, transparent),
+		0 2px 3px var(--shadow-tight),
+		0 14px 18px var(--plate-shadow);
 }
 
 .hub-mark {
@@ -628,13 +705,12 @@
 	transform: scale(1.12);
 }
 
-/* Reaching for the control wakes every wire; pointing at a tile wakes its own. */
 .hero-demo:has(.connect-button:is(:hover, :focus-visible)) .hub-line,
 .hub:has(.hub-plate[data-id="wizardconnect"]:hover)
 	.hub-route[data-id="wizardconnect"]
 	.hub-line,
-.hub:has(.hub-plate[data-id="walletconnect"]:hover)
-	.hub-route[data-id="walletconnect"]
+.hub:has(.hub-plate[data-id="bch-wc2"]:hover)
+	.hub-route[data-id="bch-wc2"]
 	.hub-line,
 .hub:has(.hub-plate[data-id="cashconnect"]:hover)
 	.hub-route[data-id="cashconnect"]
@@ -653,13 +729,10 @@
 	stroke-dashoffset: 0;
 }
 
-/* The trunk lights only when the session reaches the app. */
 .hub[data-state="connected"] .hub-trunk .hub-lit {
 	stroke-dashoffset: 0;
 	transition-delay: var(--duration-slow);
 }
-
-/* The control the trunk runs into: the one solid accent on the page. */
 
 .connect {
 	display: flex;
@@ -670,6 +743,7 @@
 
 .connect-button {
 	position: relative;
+	isolation: isolate;
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;
@@ -684,6 +758,8 @@
 	white-space: nowrap;
 	cursor: pointer;
 	box-shadow:
+		inset 0 1px 0 #ffffff59,
+		inset 0 -1px 0 #0000001f,
 		0 1px 2px var(--shadow-tight),
 		0 12px 28px -10px color-mix(in srgb, var(--accent-9) 70%, transparent);
 	transition:
@@ -695,12 +771,21 @@
 .connect-button:hover {
 	background-color: var(--accent-10);
 	box-shadow:
+		inset 0 1px 0 #ffffff59,
+		inset 0 -1px 0 #0000001f,
 		0 1px 2px var(--shadow-tight),
 		0 16px 40px -10px color-mix(in srgb, var(--accent-9) 85%, transparent);
 }
 
 .connect-button:active {
-	scale: 0.98;
+	background-color: var(--accent-10);
+	scale: 0.975;
+	box-shadow:
+		inset 0 1px 0 #ffffff26,
+		inset 0 2px 6px #00000038,
+		0 1px 1px var(--shadow-tight),
+		0 6px 14px -8px color-mix(in srgb, var(--accent-9) 60%, transparent);
+	transition-duration: 60ms;
 }
 
 .connect-button:focus-visible {
@@ -712,18 +797,45 @@
 	cursor: progress;
 }
 
-/* Each signal the trunk delivers leaves a ring around the control, like the modal's signal rings. */
+@property --arrival {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+.connect-button::before,
 .connect-button::after {
 	content: "";
 	position: absolute;
 	inset: 0;
+	z-index: -1;
 	border-radius: inherit;
-	box-shadow: 0 0 0 1.5px var(--accent-9);
 	opacity: 0;
 	pointer-events: none;
 }
 
-/* A live dot, shown only while a connection is under way. */
+.connect-button::before {
+	background-image: radial-gradient(
+		ellipse 46% 110% at 50% 0,
+		#ffffff4d,
+		transparent 70%
+	);
+}
+
+.connect-button::after {
+	padding: 1.5px;
+	background-image: radial-gradient(
+		var(--arrival) calc(var(--arrival) * 0.4) at 50% 0,
+		transparent 55%,
+		color-mix(in srgb, #ffffff 85%, var(--accent-9)) 88%,
+		transparent 100%
+	);
+	mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	mask-composite: exclude;
+}
+
 .connect-button-live {
 	width: 0;
 	height: 8px;
@@ -749,8 +861,6 @@
 	color: var(--neutral-11);
 }
 
-/* The connected account, as a dapp's header shows it */
-
 .account {
 	display: inline-flex;
 	align-items: center;
@@ -758,10 +868,16 @@
 	min-height: 60px;
 	padding: 6px 6px 6px 10px;
 	border-radius: var(--radius-pill);
-	background-image: linear-gradient(var(--plate-top), var(--plate-bottom));
+	background-image: linear-gradient(
+		to bottom,
+		var(--plate-top),
+		var(--plate-bottom)
+	);
 	box-shadow:
+		inset 0 1px 0 var(--edge-light),
+		inset 0 0 0 1px var(--edge-shade),
 		0 2px 3px var(--shadow-tight),
-		0 14px 32px var(--shadow-soft);
+		0 14px 32px var(--plate-shadow);
 }
 
 .account-logo {
@@ -828,7 +944,8 @@
 		margin: 0 auto;
 	}
 
-	.hero-demo::before {
+	.hero-demo::before,
+	.code-glints {
 		width: 520px;
 		height: 520px;
 	}
@@ -844,7 +961,6 @@
 }
 
 @media (max-width: 559px) {
-	/* The drawing scales down with the column; the labels should not drop below 12px. */
 	.hub-label {
 		font-size: 15px;
 	}
@@ -854,12 +970,6 @@
 		justify-content: center;
 	}
 }
-
-/*
- * Motion. Things arrive by rising and fading, as they do in the modal; the
- * wires carry a signal in turn from each protocol down the trunk, and every
- * arrival leaves a ring around the connect control.
- */
 
 @keyframes arrive {
 	from {
@@ -886,7 +996,6 @@
 	}
 }
 
-/* Travels the whole wire in the first half of the cycle, then rests. */
 @keyframes signal {
 	0% {
 		stroke-dashoffset: 0.16;
@@ -897,7 +1006,6 @@
 	}
 }
 
-/* The stem is short: it travels in the first quarter. */
 @keyframes signal-short {
 	0% {
 		stroke-dashoffset: 0.16;
@@ -908,7 +1016,6 @@
 	}
 }
 
-/* Idle: travels the whole wire in the first 30% of the cycle, then rests. */
 @keyframes signal-idle {
 	0% {
 		stroke-dashoffset: 0.16;
@@ -929,14 +1036,30 @@
 	}
 }
 
-@keyframes ring {
+@keyframes arrival-face {
 	0% {
-		inset: 0;
-		opacity: 0.5;
+		opacity: 0;
 	}
-	40%,
+	10% {
+		opacity: 1;
+	}
+	55%,
 	100% {
-		inset: -10px;
+		opacity: 0;
+	}
+}
+
+@keyframes arrival-rim {
+	0% {
+		--arrival: 8px;
+		opacity: 1;
+	}
+	60% {
+		opacity: 0.9;
+	}
+	75%,
+	100% {
+		--arrival: 300px;
 		opacity: 0;
 	}
 }
@@ -964,7 +1087,6 @@
 	}
 }
 
-/* A small jump of joy when the session lands. */
 @keyframes hop {
 	0% {
 		translate: 0 0;
@@ -1015,18 +1137,20 @@
 		animation: hop 700ms var(--ease-enter) 300ms both;
 	}
 
+	/* `backwards`, not `both`: a held opacity animation makes the plate a backdrop root, and the card's glass would stop blurring the wires behind it. */
 	.hub-plate {
 		transform-box: fill-box;
 		transform-origin: center;
 		animation: pop var(--duration-slow) var(--ease-enter)
-			calc(160ms + var(--index) * 70ms) both;
+			calc(160ms + var(--index) * 70ms) backwards;
 	}
 
+	.hub-edge,
 	.hub-line {
 		animation: draw 900ms var(--ease-out) calc(360ms + var(--index) * 70ms) both;
 	}
 
-	.hub-trunk .hub-line {
+	.hub-trunk :is(.hub-edge, .hub-line) {
 		animation: draw 400ms var(--ease-out) 1000ms both;
 	}
 
@@ -1038,10 +1162,7 @@
 		animation: sweep 7s var(--ease-signal) 1.2s infinite;
 	}
 
-	/*
-	 * Idle: a 6s cycle per wire, 2s apart, so a signal reaches the trunk
-	 * every 2s, first at 3.4s. The trunk and the ring run on that 2s beat.
-	 */
+	/* Each wire runs a 6s cycle 2s apart, so a signal reaches the trunk every 2s from 3.4s; the trunk and arrival delays depend on this. */
 	.hub[data-state="idle"] .hub-route .hub-signal {
 		stroke: color-mix(in srgb, var(--accent-9) 70%, transparent);
 		animation: signal-idle 6s var(--ease-signal) calc(1.6s + var(--index) * 2s)
@@ -1053,16 +1174,18 @@
 		animation: signal-trunk 2s var(--ease-out) 3.4s infinite;
 	}
 
-	.hero-demo:has(.hub[data-state="idle"]) .connect-button::after {
-		animation: ring 2s var(--ease-out) 3.7s infinite;
+	.hero-demo:has(.hub[data-state="idle"]) .connect-button::before {
+		animation: arrival-face 2s var(--ease-out) 3.7s infinite;
 	}
 
-	/* Connecting: only the chosen wire carries traffic, quicker. */
+	.hero-demo:has(.hub[data-state="idle"]) .connect-button::after {
+		animation: arrival-rim 2s var(--ease-out) 3.7s infinite;
+	}
+
 	.hub[data-state="connecting"] .hub-route[data-active="true"] .hub-signal {
 		animation: signal 1.4s var(--ease-signal) infinite;
 	}
 
-	/* Connected: a calm 2.4s beat down the whole path, wire then trunk. */
 	.hub[data-state="connected"] .hub-route[data-active="true"] .hub-signal {
 		stroke: var(--accent-foreground);
 		animation: signal 2.4s var(--ease-signal) 1s infinite;
@@ -1073,7 +1196,6 @@
 		animation: signal-short 2.4s var(--ease-out) 2.2s infinite;
 	}
 
-	/* The account grows out of the button it replaces. */
 	.account {
 		animation: grow var(--duration-slow) var(--ease-enter) both;
 	}

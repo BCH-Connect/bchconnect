@@ -12,10 +12,9 @@ const MARK = 44;
 const JOIN = { x: 220, y: 256 } as const;
 const TRUNK = `M ${JOIN.x} ${JOIN.y} V ${HEIGHT}`;
 
-/** WizardConnect crowns the arch; the other two sit level on either side. */
 const PLATES: Readonly<Record<ProtocolId, { x: number; y: number }>> = {
 	wizardconnect: { x: 220, y: 72 },
-	walletconnect: { x: 84, y: 160 },
+	"bch-wc2": { x: 84, y: 160 },
 	cashconnect: { x: 356, y: 160 },
 };
 
@@ -36,6 +35,7 @@ function wire(x: number, y: number): string {
 function Wire({ d }: { d: string }) {
 	return (
 		<>
+			<path d={d} pathLength={1} className="hub-edge" />
 			<path d={d} pathLength={1} className="hub-line" />
 			<path d={d} pathLength={1} className="hub-lit" />
 			<path d={d} pathLength={1} className="hub-signal" />
@@ -49,10 +49,6 @@ interface ProtocolHubProps {
 	readonly active: ProtocolId | null;
 }
 
-/**
- * Three protocols, one wire each, joined into a single trunk that runs into
- * the connect control below.
- */
 export function ProtocolHub({ state, active }: ProtocolHubProps) {
 	return (
 		<svg
@@ -62,13 +58,6 @@ export function ProtocolHub({ state, active }: ProtocolHubProps) {
 			aria-hidden="true"
 			data-state={state}
 		>
-			<defs>
-				<linearGradient id="hub-plate-fill" x1="0" y1="0" x2="0" y2="1">
-					<stop offset="0" className="hub-plate-top" />
-					<stop offset="1" className="hub-plate-bottom" />
-				</linearGradient>
-			</defs>
-
 			{PROTOCOLS.map((protocol, index) => {
 				const { x, y } = PLATES[protocol.id];
 				return (
@@ -109,7 +98,16 @@ export function ProtocolHub({ state, active }: ProtocolHubProps) {
 							{protocol.name}
 						</text>
 						<rect {...box} className="hub-plate-ring" />
-						<rect {...box} className="hub-plate-face" />
+						{/* An HTML face: blur and box-shadow are not available to an SVG rect. */}
+						<foreignObject
+							x={box.x}
+							y={box.y}
+							width={PLATE}
+							height={PLATE}
+							className="hub-plate-frame"
+						>
+							<div className="hub-card" />
+						</foreignObject>
 						<image
 							href={protocol.mark}
 							x={x - MARK / 2}
