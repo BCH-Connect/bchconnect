@@ -1,10 +1,10 @@
+import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
 import { fumadocsMdx } from "fumadocs-mdx/vite";
 import { transformerTwoslash } from "fumadocs-twoslash";
-import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
@@ -12,6 +12,7 @@ export default defineConfig({
 		port: 3000,
 	},
 	plugins: [
+		cloudflare({ viteEnvironment: { name: "ssr" } }),
 		fumadocsMdx({
 			globalOptions: {
 				mdxOptions: {
@@ -34,10 +35,6 @@ export default defineConfig({
 			},
 		}),
 		react(),
-		// please see https://tanstack.com/start/latest/docs/framework/react/guide/hosting#nitro for guides on hosting
-		nitro({
-			preset: "vercel",
-		}),
 	],
 	resolve: {
 		tsconfigPaths: true,
