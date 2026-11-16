@@ -2,6 +2,10 @@
 
 # BCH Connect
 
+[![CI](https://github.com/BCH-Connect/bchconnect/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/BCH-Connect/bchconnect/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@bchconnect/core?label=npm&color=0AC18E)](https://www.npmjs.com/org/bchconnect)
+[![License: MIT](https://img.shields.io/npm/l/@bchconnect/core?color=0AC18E)](LICENSE)
+
 BCH Connect is a wallet-connection library for Bitcoin Cash dapps. One
 TypeScript API connects your dapp to wallets across connection protocols,
 with a built-in modal you can ship as it is or replace with your own UI.
@@ -28,11 +32,11 @@ To get started, read the docs at [bchconnect.dev](https://bchconnect.dev).
 
 ## Packages
 
-| Package                                                                   | What it is                                 |
-| ------------------------------------------------------------------------- | ------------------------------------------ |
-| [`@bchconnect/core`](packages/core)                                       | The client: sessions, requests and errors. |
-| [`@bchconnect/connector-walletconnect`](packages/connector-walletconnect) | The WalletConnect connector.               |
-| [`@bchconnect/ui`](packages/ui)                                           | The connect modal and success toast.       |
+| Package | Version | What it is |
+| --- | --- | --- |
+| [`@bchconnect/core`](packages/core) | [![npm](https://img.shields.io/npm/v/@bchconnect/core?label=&color=0AC18E)](https://www.npmjs.com/package/@bchconnect/core) | The client: sessions, requests and errors. |
+| [`@bchconnect/connector-walletconnect`](packages/connector-walletconnect) | [![npm](https://img.shields.io/npm/v/@bchconnect/connector-walletconnect?label=&color=0AC18E)](https://www.npmjs.com/package/@bchconnect/connector-walletconnect) | The WalletConnect connector. |
+| [`@bchconnect/ui`](packages/ui) | [![npm](https://img.shields.io/npm/v/@bchconnect/ui?label=&color=0AC18E)](https://www.npmjs.com/package/@bchconnect/ui) | The connect modal and success toast. |
 
 Connectors for WizardConnect and CashConnect are planned.
 
