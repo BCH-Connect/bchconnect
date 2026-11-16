@@ -105,6 +105,18 @@ bchconnectModal({
 });
 ```
 
+The session names the wallet picked in the modal but doesn't carry its logo,
+so the saved session stays small. To show the logo, look it up by id, in your
+own `wallets` list if you pass one:
+
+```ts
+import { BCHC_WALLETS } from "@bchconnect/ui";
+
+const logo =
+	BCHC_WALLETS.find((wallet) => wallet.id === session.wallet.id)?.logo ??
+	session.wallet.icon;
+```
+
 ## Theming
 
 The modal and the toast are built to be restyled. Pick an accent, a neutral

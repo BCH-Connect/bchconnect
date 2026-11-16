@@ -9,8 +9,15 @@
 		// See ../tsconfig.json for why.
 		"skipLibCheck": true,
 		"paths": {
-			"@bchconnect/core": ["../../core/src/index.ts"]
+			"@bchconnect/core": ["../../core/src/index.ts"],
+			"@bchconnect/test-utils": ["../../test-utils/src/index.ts"]
 		}
 	},
-	"include": [".", "../tools", "../src", "../../core/src"]
+	"include": [
+		".",
+		"../tools",
+		"../src",
+		"../../core/src",
+		"../../test-utils/src"
+	]
 }
