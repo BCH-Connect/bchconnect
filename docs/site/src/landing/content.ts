@@ -49,11 +49,14 @@ export const FEATURES = {
 
 export const START = {
 	label: "Start with",
-	tabs: { install: "Install", prompt: "Prompt" },
+	tabs: { install: "Install", prompt: "Prompt", skill: "Skill" },
 	install: "npm i @bchconnect/core @bchconnect/ui",
+	/** Installs the agent skill served at /SKILL.md into the user's coding agents. */
+	skill: `npx skills add ${SITE_URL}`,
 	copy: "Copy",
 	copied: "Copied",
 	copyInstall: "Copy install command",
+	copySkill: "Copy skill install command",
 	copyPrompt: "Copy prompt",
 	/** Names the prompt on the panel; the popover shows the prompt itself. */
 	promptLabel: "Prompt for your coding agent",
@@ -66,9 +69,11 @@ export const CONNECT = {
 
 /** Shown as the prompt's heading and copied as its first line. */
 export const AGENT_PROMPT_TITLE =
-	"Add wallet connection to my dapp with BCH Connect.";
+	"Add Bitcoin Cash wallet connection to my dapp with BCH Connect.";
 
-export const AGENT_PROMPT_BODY = `Read ${SITE_URL}/llms.txt first. Install @bchconnect/core, @bchconnect/ui and the connector package for each protocol I need, create one client with those connectors, and use the built-in modal from @bchconnect/ui/modal unless I ask for a custom interface. Every documentation page is also available as Markdown by adding .md to its URL. Before writing code, ask me which framework I use and which protocols I need to support.`;
+// Keep the prompt short: the instructions live in /SKILL.md, so they can
+// improve without anyone copying a new prompt.
+export const AGENT_PROMPT_BODY = `Read ${SITE_URL}/SKILL.md first and follow it step by step. If this folder has no project yet, create a new dapp as it describes.`;
 
 export const AGENT_PROMPT = `${AGENT_PROMPT_TITLE}\n\n${AGENT_PROMPT_BODY}`;
 
@@ -130,6 +135,7 @@ export const FOOTER = {
 		{
 			title: "For agents",
 			links: [
+				{ label: "SKILL.md", href: "/SKILL.md" },
 				{ label: "llms.txt", href: "/llms.txt" },
 				{ label: "llms-full.txt", href: "/llms-full.txt" },
 			],

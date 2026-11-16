@@ -10,16 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SKILLDotmdRouteImport } from './routes/SKILL[.]md'
 import { Route as LlmsFullDottxtRouteImport } from './routes/llms-full[.]txt'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as ApiSearchRouteImport } from './routes/api/search'
 import { Route as DocsSplatRouteImport } from './routes/docs/$'
 import { Route as DocsChar123Char125DotmdRouteImport } from './routes/docs/{$}[.]md'
 import { Route as EmbedModalRouteImport } from './routes/embed/modal'
+import { Route as DotwellKnownAgentSkillsIndexDotjsonRouteImport } from './routes/[.]well-known/agent-skills/index[.]json'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SKILLDotmdRoute = SKILLDotmdRouteImport.update({
+  id: '/SKILL.md',
+  path: '/SKILL.md',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LlmsFullDottxtRoute = LlmsFullDottxtRouteImport.update({
@@ -52,73 +59,93 @@ const EmbedModalRoute = EmbedModalRouteImport.update({
   path: '/embed/modal',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DotwellKnownAgentSkillsIndexDotjsonRoute =
+  DotwellKnownAgentSkillsIndexDotjsonRouteImport.update({
+    id: '/.well-known/agent-skills/index.json',
+    path: '/.well-known/agent-skills/index.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/SKILL.md': typeof SKILLDotmdRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/api/search': typeof ApiSearchRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/embed/modal': typeof EmbedModalRoute
+  '/.well-known/agent-skills/index.json': typeof DotwellKnownAgentSkillsIndexDotjsonRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/SKILL.md': typeof SKILLDotmdRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/api/search': typeof ApiSearchRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/embed/modal': typeof EmbedModalRoute
+  '/.well-known/agent-skills/index.json': typeof DotwellKnownAgentSkillsIndexDotjsonRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/SKILL.md': typeof SKILLDotmdRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/api/search': typeof ApiSearchRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/embed/modal': typeof EmbedModalRoute
+  '/.well-known/agent-skills/index.json': typeof DotwellKnownAgentSkillsIndexDotjsonRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/SKILL.md'
     | '/llms-full.txt'
     | '/llms.txt'
     | '/api/search'
     | '/docs/$'
     | '/docs/{$}.md'
     | '/embed/modal'
+    | '/.well-known/agent-skills/index.json'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/SKILL.md'
     | '/llms-full.txt'
     | '/llms.txt'
     | '/api/search'
     | '/docs/$'
     | '/docs/{$}.md'
     | '/embed/modal'
+    | '/.well-known/agent-skills/index.json'
   id:
     | '__root__'
     | '/'
+    | '/SKILL.md'
     | '/llms-full.txt'
     | '/llms.txt'
     | '/api/search'
     | '/docs/$'
     | '/docs/{$}.md'
     | '/embed/modal'
+    | '/.well-known/agent-skills/index.json'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SKILLDotmdRoute: typeof SKILLDotmdRoute
   LlmsFullDottxtRoute: typeof LlmsFullDottxtRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   ApiSearchRoute: typeof ApiSearchRoute
   DocsSplatRoute: typeof DocsSplatRoute
   DocsChar123Char125DotmdRoute: typeof DocsChar123Char125DotmdRoute
   EmbedModalRoute: typeof EmbedModalRoute
+  DotwellKnownAgentSkillsIndexDotjsonRoute: typeof DotwellKnownAgentSkillsIndexDotjsonRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -128,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/SKILL.md': {
+      id: '/SKILL.md'
+      path: '/SKILL.md'
+      fullPath: '/SKILL.md'
+      preLoaderRoute: typeof SKILLDotmdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/llms-full.txt': {
@@ -172,17 +206,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmbedModalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.well-known/agent-skills/index.json': {
+      id: '/.well-known/agent-skills/index.json'
+      path: '/.well-known/agent-skills/index.json'
+      fullPath: '/.well-known/agent-skills/index.json'
+      preLoaderRoute: typeof DotwellKnownAgentSkillsIndexDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SKILLDotmdRoute: SKILLDotmdRoute,
   LlmsFullDottxtRoute: LlmsFullDottxtRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
   ApiSearchRoute: ApiSearchRoute,
   DocsSplatRoute: DocsSplatRoute,
   DocsChar123Char125DotmdRoute: DocsChar123Char125DotmdRoute,
   EmbedModalRoute: EmbedModalRoute,
+  DotwellKnownAgentSkillsIndexDotjsonRoute:
+    DotwellKnownAgentSkillsIndexDotjsonRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
