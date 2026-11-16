@@ -1,0 +1,35 @@
+---
+title: Architecture
+description: "Three levels: a protocol-agnostic core, protocol definitions, and shared capabilities."
+icon: Layers
+---
+
+BCH Connect is built in three levels. Each one has a single job, and each depends only on the ones below it.
+
+| Level                   | What lives there                                                                 | Knows about Bitcoin Cash? |
+| ----------------------- | -------------------------------------------------------------------------------- | ------------------------- |
+| Shared capabilities     | Helpers that work across protocols, such as getting an address or signing a transaction | Yes                       |
+| Protocol definitions    | Each protocol's own methods, events and session shape, faithful to its specification | Yes                       |
+| Core                    | Lifecycle, sessions, requests, events, storage and errors                        | No                        |
+
+## The core
+
+The core is the foundation. It knows what a wallet-connection protocol is in general: something that pairs, holds sessions, sends requests, receives events and ends. It knows nothing about addresses, transactions or signing.
+
+That is deliberate. Because the core carries no Bitcoin Cash meaning, a new protocol can plug into it without the core changing. The core has been checked against very different shapes: relay-based protocols, wallets injected into the page, deep-link round trips that survive a page reload, handshakes the wallet starts, several wallets at once, and channels that negotiate between protocols. The goal is a core that stays stable for protocols that don't exist yet.
+
+## Protocol definitions
+
+Each protocol gets its own definition package. It describes that protocol's methods, events and sessions exactly as the protocol's authors specified them: nothing hidden, nothing added. If one protocol can do something another can't, you see that difference here rather than discovering it at runtime.
+
+Next to each definition sits a connector, the adapter that speaks the protocol on the wire. Connectors absorb the protocol's quirks, such as version differences, malformed replies and reconnect edge cases, so they never reach your code.
+
+## Shared capabilities
+
+Some things are common enough that you'd like to write them once, such as asking for an address or signing a transaction. Shared capabilities are opt-in helpers for exactly that. A protocol provides a capability if and only if it genuinely fits.
+
+This is why the design holds together. A protocol that doesn't fit a shared capability simply doesn't offer it, and your dapp checks for it. A protocol that doesn't fit the core isn't a wallet-connection protocol at all.
+
+## Around the levels
+
+The client ties the levels together for your dapp: it registers connectors, holds sessions and exposes state for your UI. The default UI and the framework bindings sit on top of the client. None of them add protocol behavior of their own.

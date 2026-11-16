@@ -1,0 +1,29 @@
+---
+title: Vocabulary
+description: "The words these docs use, and what each one means precisely."
+icon: BookA
+---
+
+These docs use a small set of words, always with the same meaning. When a page says "session" or "capability", it means exactly what is written here.
+
+| Term                | Meaning                                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Protocol**        | A specification for how a dapp and a wallet talk to each other, such as WizardConnect, WalletConnect or CashConnect. Its authors own it, not BCH Connect. |
+| **Connector**       | BCH Connect's adapter for one protocol. Each connector ships as its own package, so you install only the protocols you support.                      |
+| **Wallet**          | The user's signing application on the other end, such as Cashonize, Selene, Paytaca, Zapit or Electron Cash.                                         |
+| **Client**          | The single object your dapp creates. It holds the registered connectors, all sessions, and the state your UI reads.                                  |
+| **Session**         | One live, established link between your dapp and one wallet over one protocol. A session never changes in place; when something about it changes, a new snapshot replaces it. |
+| **Pairing**         | The step that sets up a session before one exists: a QR code, a link that opens the wallet, or a similar hand-off.                                  |
+| **Capability**      | A named feature a particular session supports, such as signing a transaction or signing a message. The connector works it out for each session.     |
+| **Request**         | Something your dapp asks the wallet over a session, with a matching response.                                                                       |
+| **Protocol event**  | Something the wallet tells your dapp on its own, with no request behind it, such as "the addresses changed".                                        |
+| **Lifecycle event** | Something BCH Connect tells you about sessions and requests themselves: a session connected, changed or ended; a request started or settled.       |
+| **Network**         | The chain your dapp works on: mainnet, chipnet or regtest.                                                                                           |
+
+## Words we avoid
+
+The docs don't use "connection" as a noun for what you hold after connecting. It blurs two different things: a session that has been established, and a transport that happens to be up right now. A session can exist while its transport is briefly down, so the docs keep the two apart. [Sessions and lifecycle](/docs/concepts/sessions) explains how.
+
+## Words your users see
+
+The default UI speaks to people who usually know their wallet's name but not protocol names. It calls a protocol a **session type**, says "connection link" rather than pairing link, and never shows technical terms, links or error codes. When you build your own UI, the same approach will serve your users well.

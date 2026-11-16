@@ -20,6 +20,16 @@ export const Route = createRootRoute({
 			{
 				title: "BCH Connect",
 			},
+			{
+				name: "theme-color",
+				content: "#fcfdfc",
+				media: "(prefers-color-scheme: light)",
+			},
+			{
+				name: "theme-color",
+				content: "#101211",
+				media: "(prefers-color-scheme: dark)",
+			},
 		],
 		links: [{ rel: "stylesheet", href: appCss }],
 	}),

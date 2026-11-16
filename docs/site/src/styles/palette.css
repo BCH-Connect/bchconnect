@@ -1,0 +1,274 @@
+/*
+ * Mirrors @bchconnect/ui's generated palette (packages/ui/src/styles/theme.generated.css).
+ * `accent` is green and `neutral` is sage, the library's defaults; the other
+ * families are the accents a dapp can pick. Regenerate from there, don't hand-tune.
+ */
+:root {
+	--accent-1: #f8fffb;
+	--accent-2: #ecfdf5;
+	--accent-3: #dafaeb;
+	--accent-4: #c6f6e0;
+	--accent-5: #b1f0d4;
+	--accent-6: #98e8c6;
+	--accent-7: #7adeb5;
+	--accent-8: #54d2a3;
+	--accent-9: #08c18e;
+	--accent-10: #00b280;
+	--accent-11: #007e55;
+	--accent-12: #003923;
+	--accent-foreground: #003923;
+	--accent-focus: #009e72;
+
+	--neutral-1: #fcfdfc;
+	--neutral-2: #f7f9f8;
+	--neutral-3: #eff2f0;
+	--neutral-4: #e5eae8;
+	--neutral-5: #dbe1de;
+	--neutral-6: #cfd6d2;
+	--neutral-7: #c0c9c5;
+	--neutral-8: #b0bab5;
+	--neutral-9: #7e8984;
+	--neutral-10: #717c76;
+	--neutral-11: #616c67;
+	--neutral-12: #2a2f2d;
+
+	--cyan-1: #f7feff;
+	--cyan-2: #ebfcff;
+	--cyan-3: #d9f8ff;
+	--cyan-4: #c4f2fe;
+	--cyan-5: #aeebfb;
+	--cyan-6: #95e2f5;
+	--cyan-7: #75d7ee;
+	--cyan-8: #4dcae5;
+	--cyan-9: #00b2d1;
+	--cyan-10: #00a4c3;
+	--cyan-11: #007790;
+	--cyan-12: #003644;
+	--cyan-foreground: #003644;
+	--cyan-focus: #0097b2;
+
+	--blue-1: #f9fdff;
+	--blue-2: #eff9ff;
+	--blue-3: #e2f2ff;
+	--blue-4: #d6eaff;
+	--blue-5: #c8e1ff;
+	--blue-6: #b6d5ff;
+	--blue-7: #a1c7ff;
+	--blue-8: #88b7ff;
+	--blue-9: #427ff7;
+	--blue-10: #3571e7;
+	--blue-11: #2762d7;
+	--blue-12: #0e2a62;
+	--blue-foreground: #000000;
+	--blue-focus: #4f86f1;
+
+	--violet-1: #fefbff;
+	--violet-2: #faf5ff;
+	--violet-3: #f4ebff;
+	--violet-4: #ede1ff;
+	--violet-5: #e5d5ff;
+	--violet-6: #dcc7ff;
+	--violet-7: #d0b5ff;
+	--violet-8: #c4a0ff;
+	--violet-9: #9259ea;
+	--violet-10: #854adb;
+	--violet-11: #8145d6;
+	--violet-12: #381c61;
+	--violet-foreground: #000000;
+	--violet-focus: #9f6ef1;
+
+	--pink-1: #fffaff;
+	--pink-2: #fff1fd;
+	--pink-3: #ffe4f9;
+	--pink-4: #ffd7f4;
+	--pink-5: #ffc8ed;
+	--pink-6: #ffb5e6;
+	--pink-7: #ff9ddd;
+	--pink-8: #ff84d1;
+	--pink-9: #e253ae;
+	--pink-10: #d244a0;
+	--pink-11: #b72888;
+	--pink-12: #510e3b;
+	--pink-foreground: #000000;
+	--pink-focus: #d95aa9;
+
+	--red-1: #fffaf9;
+	--red-2: #fff2ef;
+	--red-3: #ffe7e3;
+	--red-4: #ffdbd6;
+	--red-5: #ffcec8;
+	--red-6: #ffbdb6;
+	--red-7: #ffa89f;
+	--red-8: #ff8d85;
+	--red-9: #e83f41;
+	--red-10: #d72d34;
+	--red-11: #ca1b28;
+	--red-12: #5a080d;
+	--red-foreground: #000000;
+	--red-focus: #eb5653;
+
+	--amber-1: #fffcf6;
+	--amber-2: #fff7e8;
+	--amber-3: #ffeed3;
+	--amber-4: #ffe4bc;
+	--amber-5: #ffd9a4;
+	--amber-6: #fbcb89;
+	--amber-7: #f4bb68;
+	--amber-8: #eba940;
+	--amber-9: #e49900;
+	--amber-10: #d68b00;
+	--amber-11: #955c00;
+	--amber-12: #462600;
+	--amber-foreground: #462600;
+	--amber-focus: #bd7c00;
+
+	--ink-1: #fdfdfd;
+	--ink-2: #f8f8f8;
+	--ink-3: #f1f1f1;
+	--ink-4: #e9e9e9;
+	--ink-5: #dfdfdf;
+	--ink-6: #d4d4d4;
+	--ink-7: #c6c6c6;
+	--ink-8: #b7b7b7;
+	--ink-9: #2e2e2e;
+	--ink-10: #232323;
+	--ink-11: #696969;
+	--ink-12: #2e2e2e;
+	--ink-foreground: #fdfdfd;
+	--ink-focus: #898989;
+}
+
+.dark {
+	--accent-1: #05150e;
+	--accent-2: #021f14;
+	--accent-3: #002c1b;
+	--accent-4: #003821;
+	--accent-5: #004329;
+	--accent-6: #005234;
+	--accent-7: #006543;
+	--accent-8: #008359;
+	--accent-9: #08c18e;
+	--accent-10: #2ed09c;
+	--accent-11: #45dfaa;
+	--accent-12: #c1f9e0;
+	--accent-foreground: #05150e;
+	--accent-focus: #007b53;
+
+	--neutral-1: #101211;
+	--neutral-2: #171918;
+	--neutral-3: #1f2321;
+	--neutral-4: #272d2a;
+	--neutral-5: #303733;
+	--neutral-6: #3c4440;
+	--neutral-7: #4b5550;
+	--neutral-8: #646f6a;
+	--neutral-9: #78837e;
+	--neutral-10: #85918b;
+	--neutral-11: #b9c6bf;
+	--neutral-12: #e4eae7;
+
+	--cyan-1: #041418;
+	--cyan-2: #011d23;
+	--cyan-3: #002933;
+	--cyan-4: #003341;
+	--cyan-5: #003e4e;
+	--cyan-6: #004c5e;
+	--cyan-7: #005f74;
+	--cyan-8: #007b95;
+	--cyan-9: #00b2d1;
+	--cyan-10: #12c1e0;
+	--cyan-11: #3fd8f7;
+	--cyan-12: #bff5ff;
+	--cyan-foreground: #041418;
+	--cyan-focus: #00768e;
+
+	--blue-1: #091120;
+	--blue-2: #0b1831;
+	--blue-3: #0a1f4a;
+	--blue-4: #082661;
+	--blue-5: #0a2e76;
+	--blue-6: #113b8d;
+	--blue-7: #1649af;
+	--blue-8: #2c64d2;
+	--blue-9: #427ff7;
+	--blue-10: #4f8eff;
+	--blue-11: #9ac3ff;
+	--blue-12: #d4e9ff;
+	--blue-foreground: #091120;
+	--blue-focus: #2f64cb;
+
+	--violet-1: #130d1f;
+	--violet-2: #1c1130;
+	--violet-3: #291448;
+	--violet-4: #35155e;
+	--violet-5: #401972;
+	--violet-6: #4f2289;
+	--violet-7: #632baa;
+	--violet-8: #7d45cd;
+	--violet-9: #9259ea;
+	--violet-10: #a067fa;
+	--violet-11: #ceb0ff;
+	--violet-12: #ecdeff;
+	--violet-foreground: #000000;
+	--violet-focus: #7e4ccb;
+
+	--pink-1: #1c0a15;
+	--pink-2: #2a0c1f;
+	--pink-3: #3d0a2c;
+	--pink-4: #4f0538;
+	--pink-5: #600344;
+	--pink-6: #740a54;
+	--pink-7: #900b69;
+	--pink-8: #b12c84;
+	--pink-9: #e253ae;
+	--pink-10: #f262bc;
+	--pink-11: #ff9bdc;
+	--pink-12: #ffd4f2;
+	--pink-foreground: #1c0a15;
+	--pink-focus: #b23686;
+
+	--red-1: #1f0a09;
+	--red-2: #2e0c0b;
+	--red-3: #440709;
+	--red-4: #580007;
+	--red-5: #6b0008;
+	--red-6: #81000f;
+	--red-7: #a00013;
+	--red-8: #c3222b;
+	--red-9: #e83f41;
+	--red-10: #f8504f;
+	--red-11: #ffa29a;
+	--red-12: #ffd8d3;
+	--red-foreground: #000000;
+	--red-focus: #c32f32;
+
+	--amber-1: #190f03;
+	--amber-2: #251500;
+	--amber-3: #351c00;
+	--amber-4: #422300;
+	--amber-5: #4e2c00;
+	--amber-6: #603800;
+	--amber-7: #764700;
+	--amber-8: #975e00;
+	--amber-9: #e49900;
+	--amber-10: #f4a81c;
+	--amber-11: #ffb432;
+	--amber-12: #ffe3b4;
+	--amber-foreground: #190f03;
+	--amber-focus: #945c00;
+
+	--ink-1: #111111;
+	--ink-2: #191919;
+	--ink-3: #222222;
+	--ink-4: #2b2b2b;
+	--ink-5: #353535;
+	--ink-6: #424242;
+	--ink-7: #525252;
+	--ink-8: #6c6c6c;
+	--ink-9: #e9e9e9;
+	--ink-10: #f8f8f8;
+	--ink-11: #c3c3c3;
+	--ink-12: #e9e9e9;
+	--ink-foreground: #111111;
+	--ink-focus: #696969;
+}

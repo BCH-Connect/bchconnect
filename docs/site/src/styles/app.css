@@ -1,7 +1,15 @@
 @import "tailwindcss";
-@import "fumadocs-ui/css/neutral.css";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource-variable/fira-code";
+@import "@fontsource-variable/fraunces/full.css";
+@import "fumadocs-ui/css/lib/default-colors.css";
 @import "fumadocs-ui/css/preset.css";
 @import "fumadocs-twoslash/twoslash.css";
+@import "./palette.css";
+@import "./identity.css";
+@import "./tokens.css";
+@import "./version-tag.css";
+@import "./github-stars.css";
 
 html {
 	scrollbar-gutter: stable;
@@ -10,4 +18,188 @@ html {
 html > body[data-scroll-locked] {
 	margin-right: 0px !important;
 	--removed-body-scroll-bar-size: 0px !important;
+}
+
+/*
+ * Until @bchconnect/ui gives its overlay a z-index, the header's z-40 would
+ * paint over the open modal. A positioned host stacks the whole modal above it.
+ */
+bchc-modal {
+	position: relative;
+	z-index: 50;
+	display: block;
+}
+
+/*
+ * On the landing the header is clear at the top so the page's light runs
+ * up behind it; Fumadocs still draws its hairline and blurs the ground
+ * there, which shows as a band over the grain. Both return with the
+ * header's own background once the page scrolls.
+ */
+body:has(.landing) #nd-nav > nav {
+	transition-property:
+		background-color, border-color, box-shadow, border-radius;
+	transition-duration: 200ms;
+}
+
+body:has(.landing) #nd-nav > nav:not([class*="bg-fd-background"]) {
+	border-bottom-color: transparent;
+	backdrop-filter: none;
+}
+
+/*
+ * --color-fd-* aliases our palette instead of Fumadocs' defaults. The light
+ * values live in @theme (Tailwind's theme layer, which correctly overrides
+ * default-colors.css's own @theme block by source order); the dark values
+ * are restated in a plain .dark rule because default-colors.css's own .dark
+ * block is unlayered and would otherwise beat a layered @theme override.
+ */
+@theme {
+	--font-sans: "Plus Jakarta Sans Variable", system-ui, sans-serif;
+	--font-mono:
+		"FiraCode Nerd Font", "Fira Code Variable", ui-monospace, monospace;
+
+	--color-fd-background: var(--neutral-1);
+	--color-fd-foreground: var(--neutral-12);
+	--color-fd-muted: var(--neutral-3);
+	--color-fd-muted-foreground: var(--neutral-11);
+	--color-fd-popover: var(--neutral-1);
+	--color-fd-popover-foreground: var(--neutral-12);
+	--color-fd-card: var(--neutral-2);
+	--color-fd-card-foreground: var(--neutral-12);
+	--color-fd-border: var(--neutral-6);
+	--color-fd-primary: var(--accent-11);
+	--color-fd-primary-foreground: var(--neutral-1);
+	--color-fd-secondary: var(--neutral-3);
+	--color-fd-secondary-foreground: var(--neutral-12);
+	--color-fd-accent: var(--accent-3);
+	--color-fd-accent-foreground: var(--accent-12);
+	--color-fd-ring: var(--accent-focus);
+	--color-fd-success: var(--accent-11);
+}
+
+.dark {
+	--color-fd-background: var(--neutral-1);
+	--color-fd-foreground: var(--neutral-12);
+	--color-fd-muted: var(--neutral-3);
+	--color-fd-muted-foreground: var(--neutral-11);
+	--color-fd-popover: var(--neutral-2);
+	--color-fd-popover-foreground: var(--neutral-12);
+	--color-fd-card: var(--neutral-2);
+	--color-fd-card-foreground: var(--neutral-12);
+	--color-fd-border: var(--neutral-6);
+	--color-fd-primary: var(--accent-11);
+	--color-fd-primary-foreground: var(--neutral-1);
+	--color-fd-secondary: var(--neutral-3);
+	--color-fd-secondary-foreground: var(--neutral-12);
+	--color-fd-accent: var(--accent-3);
+	--color-fd-accent-foreground: var(--accent-12);
+	--color-fd-ring: var(--accent-focus);
+	--color-fd-success: var(--accent-11);
+}
+
+body {
+	font-size: 16px;
+	line-height: 1.65;
+}
+
+.prose {
+	font-size: 1rem;
+	line-height: 1.65;
+}
+
+.prose h1,
+#nd-page > h1 {
+	font-weight: 700;
+	letter-spacing: -0.025em;
+	text-wrap: balance;
+}
+
+.prose h2,
+.prose h3 {
+	font-weight: 700;
+	letter-spacing: -0.015em;
+	text-wrap: balance;
+}
+
+code,
+pre {
+	font-feature-settings:
+		"calt" 1,
+		"liga" 1;
+}
+
+::selection {
+	background-color: var(--accent-4);
+	color: var(--accent-12);
+}
+
+html {
+	caret-color: var(--accent-9);
+	scrollbar-color: var(--neutral-7) transparent;
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent-focus);
+	outline-offset: 2px;
+}
+
+.prose a {
+	color: var(--accent-11);
+	text-decoration: underline;
+	text-decoration-color: var(--accent-6);
+	text-underline-offset: 3px;
+	text-decoration-thickness: 1.5px;
+}
+
+.prose a:hover {
+	text-decoration-color: currentColor;
+}
+
+.prose :not(pre) > code {
+	border-radius: 6px;
+	font-size: 0.88em;
+	padding: 2px 6px;
+}
+
+.prose table {
+	font-variant-numeric: tabular-nums;
+}
+
+/* Code blocks stay Dracula in both site modes; scoped vars keep the title bar and copy button legible on it. */
+.shiki {
+	background-color: #282a36;
+	color: #f8f8f2;
+	border-color: #44475a;
+	--color-fd-muted-foreground: #6272a4;
+	--color-fd-accent-foreground: #f8f8f2;
+}
+
+.fd-twoslash-popover,
+.twoslash-popup-container {
+	background-color: #282a36;
+	color: #f8f8f2;
+	border-color: #44475a;
+}
+
+.twoslash-popup-arrow {
+	background-color: #282a36;
+	border-color: #44475a;
+}
+
+.callout {
+	border-radius: 14px;
+	box-shadow: none;
+}
+
+.callout-info {
+	--color-fd-info: var(--accent-11);
+	background-color: var(--accent-3);
+	border-color: var(--accent-6);
+	color: var(--accent-12);
+}
+
+/* The callout's left accent bar; targeted by its literal Tailwind arbitrary-value class since the component exposes no other hook. */
+.callout [class*="bg-(--callout-color)"] {
+	display: none;
 }

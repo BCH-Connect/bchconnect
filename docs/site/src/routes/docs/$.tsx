@@ -12,8 +12,9 @@ import {
 } from "fumadocs-ui/layouts/docs/page";
 import { Suspense, use } from "react";
 import { useMDXComponents } from "@/components/mdx";
+import { StarLine } from "@/components/star-line";
 import { baseOptions } from "@/lib/layout.shared";
-import { getPageMarkdownUrl, gitConfig } from "@/lib/shared";
+import { getPageMarkdownUrl, gitConfig, repoUrl } from "@/lib/shared";
 import { docs, source } from "@/lib/source";
 
 export const Route = createFileRoute("/docs/$")({
@@ -56,12 +57,13 @@ function Content({ path, markdownUrl }: { path: string; markdownUrl: string }) {
 				<MarkdownCopyButton markdownUrl={markdownUrl} />
 				<ViewOptionsPopover
 					markdownUrl={markdownUrl}
-					githubUrl={`https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/${gitConfig.contentDir}/${path}`}
+					githubUrl={`${repoUrl}/blob/${gitConfig.branch}/${gitConfig.contentDir}/${path}`}
 				/>
 			</div>
 			<DocsBody>
 				<Mdx components={useMDXComponents()} />
 			</DocsBody>
+			<StarLine />
 		</DocsPage>
 	);
 }

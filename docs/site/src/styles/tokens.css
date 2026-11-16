@@ -1,0 +1,42 @@
+/* Colours alias palette.css so they follow the theme switch; radius, shadow and easing mirror @bchconnect/ui's tokens.css, which the package does not export as CSS. */
+@theme {
+	--color-accent-1: var(--accent-1);
+	--color-accent-2: var(--accent-2);
+	--color-accent-3: var(--accent-3);
+	--color-accent-4: var(--accent-4);
+	--color-accent-5: var(--accent-5);
+	--color-accent-6: var(--accent-6);
+	--color-accent-7: var(--accent-7);
+	--color-accent-8: var(--accent-8);
+	--color-accent-9: var(--accent-9);
+	--color-accent-10: var(--accent-10);
+	--color-accent-11: var(--accent-11);
+	--color-accent-12: var(--accent-12);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-accent-focus: var(--accent-focus);
+
+	--color-neutral-1: var(--neutral-1);
+	--color-neutral-2: var(--neutral-2);
+	--color-neutral-3: var(--neutral-3);
+	--color-neutral-4: var(--neutral-4);
+	--color-neutral-5: var(--neutral-5);
+	--color-neutral-6: var(--neutral-6);
+	--color-neutral-7: var(--neutral-7);
+	--color-neutral-8: var(--neutral-8);
+	--color-neutral-9: var(--neutral-9);
+	--color-neutral-10: var(--neutral-10);
+	--color-neutral-11: var(--neutral-11);
+	--color-neutral-12: var(--neutral-12);
+
+	--radius-panel: 24px;
+	--radius-control: 14px;
+	--radius-inset: 10px;
+
+	--ease-swift: cubic-bezier(0.2, 0.9, 0.2, 1);
+
+	--text-display: clamp(2.5rem, 1.35rem + 4vw, 4.25rem);
+	--text-display--line-height: 1.02;
+	--text-display--letter-spacing: -0.035em;
+	--text-lede: 1.1875rem;
+	--text-lede--line-height: 1.55;
+}
