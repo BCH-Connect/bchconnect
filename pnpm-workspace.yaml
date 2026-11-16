@@ -8,6 +8,7 @@ strictPeerDependencies: true
 allowBuilds:
   esbuild: false
   rs-module-lexer: false
+  workerd: false
 
 minimumReleaseAgeExclude:
   - '@storybook/addon-vitest@10.6.1'

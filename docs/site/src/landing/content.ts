@@ -20,7 +20,6 @@ export const FEATURES = {
 		body: "BCH Connect is protocol-agnostic. Each connection follows the same session model, so your app doesn't need a separate integration path for every protocol.",
 		detail: "You then branch on the capabilities of the current session.",
 		files: { config: "client.ts", capabilities: "sign.ts" },
-		link: "Compare the protocols",
 	},
 	interface: {
 		title: "Beautiful built-in UI or fully headless",
@@ -118,13 +117,7 @@ export const FOOTER = {
 	groups: [
 		{
 			title: "Docs",
-			links: [
-				{ label: "Introduction", doc: "" },
-				{ label: "Concepts", doc: "concepts" },
-				{ label: "Connectors", doc: "connectors" },
-				{ label: "Interface", doc: "ui" },
-				{ label: "API reference", doc: "reference" },
-			],
+			links: [{ label: "Introduction", doc: "" }],
 		},
 		{
 			title: "Project",

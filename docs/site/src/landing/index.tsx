@@ -19,11 +19,7 @@ export function Landing() {
 			// Matches .landing-container, so the wordmark sits on the content's left edge.
 			className="[--fd-layout-width:1208px]"
 			nav={{ ...base.nav, transparentMode: "top" }}
-			links={[
-				{ text: "Docs", url: "/docs" },
-				{ text: "Concepts", url: "/docs/concepts" },
-				...(base.links ?? []),
-			]}
+			links={[{ text: "Docs", url: "/docs" }, ...(base.links ?? [])]}
 		>
 			<div className="landing">
 				<div className="landing-light" aria-hidden="true" />
