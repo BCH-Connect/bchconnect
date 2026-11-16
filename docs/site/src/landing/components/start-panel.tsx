@@ -10,9 +10,15 @@ import {
 import { useRoving } from "../hooks/use-roving";
 import { CopyButton } from "./copy-button";
 
-type Tab = "install" | "prompt";
+type Tab = "install" | "prompt" | "skill";
 
-const TABS: readonly Tab[] = ["install", "prompt"];
+const TABS: readonly Tab[] = ["install", "prompt", "skill"];
+
+/** The tabs that show a shell command, with the label of their copy button. */
+const COMMANDS = {
+	install: { command: START.install, copyLabel: START.copyInstall },
+	skill: { command: START.skill, copyLabel: START.copySkill },
+} as const;
 
 export function StartPanel() {
 	const [tab, setTab] = useState<Tab>("install");
@@ -74,17 +80,17 @@ export function StartPanel() {
 			</div>
 
 			<div id={panelId} role="tabpanel" className="start-row" key={tab}>
-				{tab === "install" ? (
+				{tab !== "prompt" ? (
 					<>
 						<code className="start-command">
 							<span className="start-sigil" aria-hidden="true">
 								$
 							</span>
-							{START.install}
+							{COMMANDS[tab].command}
 						</code>
 						<CopyButton
-							text={START.install}
-							label={START.copyInstall}
+							text={COMMANDS[tab].command}
+							label={COMMANDS[tab].copyLabel}
 							copiedLabel={START.copied}
 							className="start-pill"
 						>
