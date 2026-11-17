@@ -458,8 +458,9 @@ export function cashConnect<const T extends CashConnectTemplate>(
 	/**
 	 * Ends a session that was paired with another template: the wallet runs
 	 * the template it received at pairing, so the session cannot be used. Its
-	 * record stays under that template until the SDK clears it, after sending
-	 * the wallet the end; a load that could not get that far tries again.
+	 * record stays under that template until the SDK clears it, which it does
+	 * after sending the wallet the end, whether or not the relay took it. A
+	 * load whose relay cannot be reached leaves the record for the next one.
 	 */
 	async function endStale(
 		sdk: Sdk,
