@@ -6,8 +6,11 @@
  * @beta
  */
 export interface SendTemplate {
+	/** The template's name, which the wallet shows. */
 	readonly name: "BCH Connect send";
+	/** What the template does, which the wallet shows. */
 	readonly description: "Sends satoshis from the wallet to one address.";
+	/** The template's one action. */
 	readonly actions: {
 		readonly send: {
 			readonly meta: {
@@ -122,8 +125,11 @@ export const sendTemplate: SendTemplate = {
  * @beta
  */
 export interface SendTokensTemplate {
+	/** The template's name, which the wallet shows. */
 	readonly name: "BCH Connect send tokens";
+	/** What the template does, which the wallet shows. */
 	readonly description: "Sends fungible CashTokens from the wallet to one address.";
+	/** The template's one action. */
 	readonly actions: {
 		readonly sendTokens: {
 			readonly meta: {

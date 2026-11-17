@@ -14,8 +14,9 @@ import type { CashConnect } from "./types.js";
 
 /**
  * Runs one action of the session's template in the wallet and resolves with
- * that action's typed result. Same as `client.request(session, "executeAction",
- * { action, params }, opts)`, with the result narrowed to `action`.
+ * that action's typed result. Same as `client.request()` with the method
+ * `"executeAction"` and the action's name and params, with the result
+ * narrowed to `action`.
  *
  * @param client - The client the session belongs to.
  * @param session - The CashConnect session to run the action in.

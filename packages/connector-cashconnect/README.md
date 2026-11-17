@@ -2,7 +2,7 @@
 
 The CashConnect connector of [BCH Connect](https://github.com/BCH-Connect/bchconnect),
 a wallet-connection library for Bitcoin Cash dapps. It speaks the
-[CashConnect](https://cashconnect.bch.guru) protocol through the CashConnect SDK:
+[CashConnect](https://gitlab.com/cashconnect-js/cashconnect-js) protocol through the CashConnect SDK:
 the dapp declares a template of actions, and the wallet runs them and signs
 the transactions they build.
 
@@ -139,16 +139,16 @@ because the wallet would still run the old one.
 Besides `executeAction`, a session answers two reads and sends one event:
 
 ```ts
-const balances = await client.request(session, "getBalances");
-const nfts = await client.request(session, "getTokens");
+const balances = await client.request(session, "getBalances", undefined);
+const nfts = await client.request(session, "getTokens", undefined);
 
 client.subscribe(session, "balancesChanged", ({ balances }) => {
 	console.log(balances.sats);
 });
 ```
 
-An action that asks the person to approve has no deadline unless you pass
-`timeoutMs`. The wallet reports declining and failing the same way, so a
+`executeAction` has no deadline unless you pass `timeoutMs`, because the
+person may need time to approve it in the wallet. The wallet reports declining and failing the same way, so a
 rejected request never says who rejected it; the wallet's own text is in the
 error's `remoteMessage`.
 
