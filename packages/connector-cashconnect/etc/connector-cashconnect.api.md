@@ -61,7 +61,9 @@ export interface CashConnectAction {
 export type CashConnectActionName<T extends CashConnectTemplate> = keyof T["actions"] & string;
 
 // @beta
-export type CashConnectActionParams<T extends CashConnectTemplate, A extends CashConnectActionName<T>> = CashConnectValues<T["actions"][A]["params"]>;
+export type CashConnectActionParams<T extends CashConnectTemplate, A extends CashConnectActionName<T>> = T["actions"][A]["params"] extends (infer R) ? R extends unknown ? [keyof R] extends [never] ? {
+    readonly [name: string]: never;
+} : CashConnectValues<R> : never : never;
 
 // @beta
 export interface CashConnectActionResult<T extends CashConnectTemplate, A extends CashConnectActionName<T>> {
@@ -228,9 +230,7 @@ export type CashConnectValue<V> = V extends {
 } ? K extends "array" ? readonly CashConnectValues<P>[] : CashConnectValues<P> : CashConnectLeafValue<V>;
 
 // @beta
-export type CashConnectValues<R> = [keyof R] extends [never] ? {
-    readonly [name: string]: never;
-} : { readonly [K in keyof R as R[K] extends {
+export type CashConnectValues<R> = { readonly [K in keyof R as R[K] extends {
         readonly required: false;
     } ? never : K]: CashConnectValue<R[K]>; } & { readonly [K in keyof R as R[K] extends {
         readonly required: false;

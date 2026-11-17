@@ -271,34 +271,37 @@ export type CashConnectValue<V> = V extends {
 	: CashConnectLeafValue<V>;
 
 /**
- * Values of a variable record; `required: false` makes a key optional. A
- * record that declares no variable takes no value.
+ * Values of a variable record; `required: false` makes a key optional.
  *
  * @beta
  */
-export type CashConnectValues<R> = [keyof R] extends [never]
-	? { readonly [name: string]: never }
-	: {
-				readonly [K in keyof R as R[K] extends { readonly required: false }
-					? never
-					: K]: CashConnectValue<R[K]>;
-			} & {
-				readonly [K in keyof R as R[K] extends { readonly required: false }
-					? K
-					: never]?: CashConnectValue<R[K]>;
-			} extends infer V
-		? { [K in keyof V]: V[K] }
-		: never;
+export type CashConnectValues<R> = {
+	readonly [K in keyof R as R[K] extends { readonly required: false }
+		? never
+		: K]: CashConnectValue<R[K]>;
+} & {
+	readonly [K in keyof R as R[K] extends { readonly required: false }
+		? K
+		: never]?: CashConnectValue<R[K]>;
+} extends infer V
+	? { [K in keyof V]: V[K] }
+	: never;
 
 /**
- * Params of one action.
+ * Params of one action. An action that declares none takes no value.
  *
  * @beta
  */
 export type CashConnectActionParams<
 	T extends CashConnectTemplate,
 	A extends CashConnectActionName<T>,
-> = CashConnectValues<T["actions"][A]["params"]>;
+> = T["actions"][A]["params"] extends infer R
+	? R extends unknown
+		? [keyof R] extends [never]
+			? { readonly [name: string]: never }
+			: CashConnectValues<R>
+		: never
+	: never;
 
 /**
  * Returned values of one action.

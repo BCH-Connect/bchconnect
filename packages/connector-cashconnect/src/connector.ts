@@ -186,8 +186,8 @@ export function cashConnect<const T extends CashConnectTemplate>(
 	const live = new Map<string, Instance<T>>();
 	// The sessions the wallet ended, which the client may not have heard of.
 	const endedByWallet = new Set<string>();
-	// The disconnects that have not finished telling the wallet.
-	const disconnecting = new Set<Promise<void>>();
+	// The ends of a session that have not finished telling the wallet.
+	const ending = new Set<Promise<void>>();
 
 	function getSetup(): Setup {
 		if (setup === undefined) {
@@ -254,6 +254,29 @@ export function cashConnect<const T extends CashConnectTemplate>(
 	 * Builds the instance of one slot. `template` is the hash of the template
 	 * the slot's session is paired with, which its record keeps.
 	 */
+	/**
+	 * Ends the instance's session on the wire, then stops it. The instance is
+	 * out of `dispose()`'s reach meanwhile, and `dispose()` waits for it: a
+	 * stop before the wallet is told would leave the wallet a session the
+	 * dapp no longer has.
+	 */
+	async function end(
+		instance: Instance<T>,
+		reason: string,
+		erase: boolean,
+	): Promise<void> {
+		instances.delete(instance);
+		const ended = (async () => {
+			// The record goes at once: the SDK can take seconds to reach the relay.
+			if (erase) await instance.store.close();
+			await forget(instance, reason);
+			await stop(instance);
+		})();
+		ending.add(ended);
+		await ended;
+		ending.delete(ended);
+	}
+
 	function createInstance(
 		sdk: Sdk,
 		slot: string,
@@ -455,8 +478,7 @@ export function cashConnect<const T extends CashConnectTemplate>(
 			return;
 		}
 		if (disposed) return;
-		await forget(instance, TEMPLATE_CHANGED);
-		await stop(instance);
+		await end(instance, TEMPLATE_CHANGED, false);
 	}
 
 	/** Tells the client again that the wallet ended this session, if it did. */
@@ -689,18 +711,8 @@ export function cashConnect<const T extends CashConnectTemplate>(
 			// First, so the end the SDK reports back is not taken for the wallet's.
 			live.delete(session.id);
 			instance.session = undefined;
-			// Out of `dispose()`'s reach: it would stop the instance before the
-			// wallet is told, with the record already erased.
-			instances.delete(instance);
-			const ended = (async () => {
-				// The record goes at once: the SDK can take seconds to reach the relay.
-				await instance.store.close();
-				await forget(instance, DISCONNECTED);
-				await stop(instance);
-			})();
-			disconnecting.add(ended);
-			await ended;
-			disconnecting.delete(ended);
+			instance.release();
+			await end(instance, DISCONNECTED, true);
 		},
 
 		async request<M extends MethodName<CashConnect<T>>>(
@@ -764,7 +776,7 @@ export function cashConnect<const T extends CashConnectTemplate>(
 		async dispose() {
 			disposed = true;
 			live.clear();
-			await Promise.all([...disconnecting, ...[...instances].map(stop)]);
+			await Promise.all([...ending, ...[...instances].map(stop)]);
 		},
 	};
 }

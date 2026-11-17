@@ -11,7 +11,6 @@ import type {
 	CashConnectLeafValue,
 	CashConnectTemplate,
 	CashConnectValue,
-	CashConnectValues,
 } from "../../src/index.js";
 import type { FixtureTemplate } from "./fixtures/template.js";
 
@@ -220,11 +219,44 @@ describe("CashConnectValues", () => {
 			}>
 		>().toEqualTypeOf<readonly { readonly maybe?: string }[]>();
 	});
+});
+
+describe("CashConnectActionParams", () => {
+	interface Ping extends CashConnectTemplate {
+		actions: {
+			ping: {
+				params: Record<never, never>;
+				instructions: [];
+				returns: Record<never, never>;
+			};
+		};
+	}
+	interface Text extends CashConnectTemplate {
+		actions: {
+			ping: {
+				params: { text: { type: "string"; name: "" } };
+				instructions: [];
+				returns: Record<never, never>;
+			};
+		};
+	}
 
 	it("should take no value for an action that declares no params", () => {
-		type None = CashConnectValues<Record<never, never>>;
+		type None = CashConnectActionParams<Ping, "ping">;
 
 		expectTypeOf<Record<never, never>>().toExtend<None>();
 		expectTypeOf<{ amount: bigint }>().not.toExtend<None>();
+	});
+
+	it("should keep the params of each template of a union apart", () => {
+		expectTypeOf<CashConnectActionParams<Ping | Text, "ping">>().toEqualTypeOf<
+			{ readonly [name: string]: never } | { readonly text: string }
+		>();
+	});
+
+	it("should leave the values an action without returns resolves with empty", () => {
+		expectTypeOf<CashConnectActionReturns<Ping, "ping">>().toEqualTypeOf<
+			Record<never, never>
+		>();
 	});
 });

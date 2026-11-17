@@ -1446,6 +1446,19 @@ describe("subscribe", () => {
 		expect(listener).not.toHaveBeenCalled();
 	});
 
+	it("should stop delivering as soon as a disconnect starts", async () => {
+		const h = await harness();
+		const { session, dapp } = await connected(h);
+		const listener = vi.fn();
+		h.connector.subscribe(session, "balancesChanged", listener);
+
+		const disconnecting = h.connector.disconnect(session);
+		dapp.emit("balancesChanged", { sats: 1n });
+
+		expect(listener).not.toHaveBeenCalled();
+		await disconnecting;
+	});
+
 	it("should keep a throwing listener from reaching the SDK or the other listeners", async () => {
 		const h = await harness();
 		const { session, dapp } = await connected(h);
@@ -1696,6 +1709,42 @@ describe("dispose", () => {
 		expect(h.logger.warn).not.toHaveBeenCalled();
 		expect(await storedSlots(h.storage)).toEqual([]);
 		await disconnecting;
+	});
+
+	it("should let the end of a session of another template finish telling the wallet before it resolves", async () => {
+		fakeSdk.startOutcome = () => "wait";
+		const h = await harness();
+		await seed(h.storage, "slot-1", { template: sendTemplate });
+		await h.connector.restore();
+		await vi.waitFor(() => expect(fakeSdk.dapps).toHaveLength(1));
+		const dapp = dappOf("slot-1");
+		await flush();
+		// The SDK clears the record once it has sent the end; this holds it there.
+		let release = (): void => {};
+		const erase = h.storage.delete.bind(h.storage);
+		vi.spyOn(h.storage, "delete").mockImplementationOnce(async (key) => {
+			await new Promise<void>((resolve) => {
+				release = resolve;
+			});
+			return erase(key);
+		});
+		dapp.settleStart();
+		await flush();
+		expect(dapp.calls).toEqual(["start", "forgetSession"]);
+
+		let disposed = false;
+		const disposing = h.connector.dispose?.().then(() => {
+			disposed = true;
+		});
+		await flush();
+
+		expect(disposed).toBe(false);
+		expect(dapp.calls).toEqual(["start", "forgetSession"]);
+		release();
+		await disposing;
+		expect(dapp.calls).toEqual(["start", "forgetSession", "stop"]);
+		expect(dapp.forgets).toEqual(["The dapp's template changed"]);
+		expect(await storedSlots(h.storage)).toEqual([]);
 	});
 
 	it("should resolve a restore empty when its only instance fails to start after it", async () => {
