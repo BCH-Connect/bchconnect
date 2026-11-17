@@ -5,6 +5,7 @@
  * @packageDocumentation
  */
 
+export { cashConnect } from "./connector.js";
 export { executeAction } from "./execute-action.js";
 export type {
 	CashConnectAction,
