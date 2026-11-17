@@ -55,12 +55,7 @@ export const Route = createRootRoute({
 			{ name: "twitter:image", content: OG_IMAGE },
 			{ name: "twitter:image:alt", content: OG_IMAGE_ALT },
 		],
-		links: [
-			{ rel: "stylesheet", href: appCss },
-			{ rel: "icon", href: "/favicon.ico", sizes: "32x32" },
-			{ rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-			{ rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
-		],
+		links: [{ rel: "stylesheet", href: appCss }],
 	}),
 	component: RootComponent,
 });
