@@ -103,7 +103,8 @@ Two templates are included:
 | `sendTokensTemplate` | `sendTokens`: pays `amount` fungible tokens of `category` to `recipient`, with 1000 satoshis. |
 
 `sendTokensTemplate` has not been confirmed against a wallet yet. The
-category must be one of the session's `allowedTokens`. The wallet may spend an
+category must be one of the session's `allowedTokens`. `amount` must be
+positive, and the connector does not check it: validate it before you call. The wallet may spend an
 output of the category that also holds an NFT, and its change does not carry
 the NFT on: do not use it with a category whose NFTs the wallet must keep.
 
