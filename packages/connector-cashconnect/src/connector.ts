@@ -186,6 +186,8 @@ export function cashConnect<const T extends CashConnectTemplate>(
 	const live = new Map<string, Instance<T>>();
 	// The sessions the wallet ended, which the client may not have heard of.
 	const endedByWallet = new Set<string>();
+	// The disconnects that have not finished telling the wallet.
+	const disconnecting = new Set<Promise<void>>();
 
 	function getSetup(): Setup {
 		if (setup === undefined) {
@@ -248,14 +250,19 @@ export function cashConnect<const T extends CashConnectTemplate>(
 		}
 	}
 
-	function createInstance(sdk: Sdk, slot: string): Instance<T> {
+	/**
+	 * Builds the instance of one slot. `template` is the hash of the template
+	 * the slot's session is paired with, which its record keeps.
+	 */
+	function createInstance(
+		sdk: Sdk,
+		slot: string,
+		template: string,
+	): Instance<T> {
 		const { network, appMetadata, logger } = getSetup().context;
 		const { name, url, icon, description } = appMetadata;
 		const chain = chains[network];
-		const store = getSetup().records.open(slot, {
-			chain,
-			template: toTemplateHash(sdk.Hasher, config.template),
-		});
+		const store = getSetup().records.open(slot, { chain, template });
 
 		function onEstablished({
 			session,
@@ -342,7 +349,6 @@ export function cashConnect<const T extends CashConnectTemplate>(
 				instance.dapp.off("sessionDeleted", onDeleted);
 				instance.dapp.off("balancesChanged", onBalances);
 				instance.dapp.off("walletReachabilityChanged", onReachability);
-				instance.listeners.clear();
 			},
 		};
 		// Before `start()`: the SDK reports a restored session, and a stored
@@ -407,8 +413,12 @@ export function cashConnect<const T extends CashConnectTemplate>(
 		await getSetup().records.erase(instance.slot);
 	}
 
-	async function resume(sdk: Sdk, slot: string): Promise<Resumed<T>> {
-		const instance = createInstance(sdk, slot);
+	async function resume(
+		sdk: Sdk,
+		slot: string,
+		template: string,
+	): Promise<Resumed<T>> {
+		const instance = createInstance(sdk, slot, template);
 		try {
 			await start(instance);
 		} catch (reason) {
@@ -424,14 +434,17 @@ export function cashConnect<const T extends CashConnectTemplate>(
 
 	/**
 	 * Ends a session that was paired with another template: the wallet runs
-	 * the template it received at pairing, so the session cannot be used. A
-	 * relay that cannot be reached leaves the record for the next load, so the
-	 * wallet is still told.
+	 * the template it received at pairing, so the session cannot be used. Its
+	 * record stays under that template until the SDK clears it, after sending
+	 * the wallet the end; a load that could not get that far tries again.
 	 */
-	async function endStale(sdk: Sdk, slot: string): Promise<void> {
-		const instance = createInstance(sdk, slot);
+	async function endStale(
+		sdk: Sdk,
+		slot: string,
+		template: string,
+	): Promise<void> {
+		const instance = createInstance(sdk, slot, template);
 		try {
-			// The SDK reads the record while it starts, so it is erased afterwards.
 			await start(instance);
 		} catch (error) {
 			getSetup().context.logger.warn(
@@ -444,7 +457,6 @@ export function cashConnect<const T extends CashConnectTemplate>(
 		if (disposed) return;
 		await forget(instance, TEMPLATE_CHANGED);
 		await stop(instance);
-		await instance.store.close();
 	}
 
 	/** Tells the client again that the wallet ended this session, if it did. */
@@ -590,7 +602,11 @@ export function cashConnect<const T extends CashConnectTemplate>(
 			const checked = sdk.TemplateSchema.safeParse(config.template);
 			if (!checked.success) throw toTemplateError(checked.error);
 
-			const instance = createInstance(sdk, crypto.randomUUID());
+			const instance = createInstance(
+				sdk,
+				crypto.randomUUID(),
+				toTemplateHash(sdk.Hasher, config.template),
+			);
 			let paired: SdkDappSession;
 			try {
 				await withAbort(start(instance), signal).catch((error: unknown) => {
@@ -642,8 +658,11 @@ export function cashConnect<const T extends CashConnectTemplate>(
 			const template = toTemplateHash(sdk.Hasher, config.template);
 			const resuming: Promise<Resumed<T>>[] = [];
 			for (const item of here) {
-				if (item.template === template) resuming.push(resume(sdk, item.slot));
-				else void endStale(sdk, item.slot);
+				if (item.template === template) {
+					resuming.push(resume(sdk, item.slot, item.template));
+				} else {
+					void endStale(sdk, item.slot, item.template);
+				}
 			}
 			const resumed = await Promise.all(resuming);
 			if (disposed) return [];
@@ -670,10 +689,18 @@ export function cashConnect<const T extends CashConnectTemplate>(
 			// First, so the end the SDK reports back is not taken for the wallet's.
 			live.delete(session.id);
 			instance.session = undefined;
-			// The record goes at once: the SDK can take seconds to reach the relay.
-			await instance.store.close();
-			await forget(instance, DISCONNECTED);
-			await stop(instance);
+			// Out of `dispose()`'s reach: it would stop the instance before the
+			// wallet is told, with the record already erased.
+			instances.delete(instance);
+			const ended = (async () => {
+				// The record goes at once: the SDK can take seconds to reach the relay.
+				await instance.store.close();
+				await forget(instance, DISCONNECTED);
+				await stop(instance);
+			})();
+			disconnecting.add(ended);
+			await ended;
+			disconnecting.delete(ended);
 		},
 
 		async request<M extends MethodName<CashConnect<T>>>(
@@ -737,12 +764,7 @@ export function cashConnect<const T extends CashConnectTemplate>(
 		async dispose() {
 			disposed = true;
 			live.clear();
-			await Promise.all(
-				[...instances].map((instance) => {
-					instance.session = undefined;
-					return stop(instance);
-				}),
-			);
+			await Promise.all([...disconnecting, ...[...instances].map(stop)]);
 		},
 	};
 }

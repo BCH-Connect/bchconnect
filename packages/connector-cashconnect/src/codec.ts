@@ -203,7 +203,8 @@ function toWireValues(
 		}
 	}
 
-	const wire: Record<string, SdkWireValue> = {};
+	// Entries, so a variable named `__proto__` becomes a key of its own.
+	const wire: [string, SdkWireValue][] = [];
 	for (const [name, variable] of Object.entries(variables)) {
 		const path = toPath(prefix, name);
 		const value = getOwn(values, name);
@@ -214,9 +215,9 @@ function toWireValues(
 				`Action "${scope.action}" is missing param "${path}"`,
 			);
 		}
-		wire[name] = toWireValue(scope, variable, value, path);
+		wire.push([name, toWireValue(scope, variable, value, path)]);
 	}
-	return wire;
+	return Object.fromEntries(wire);
 }
 
 /**
@@ -308,7 +309,8 @@ function fromWireValues(
 	data: Readonly<Record<string, unknown>>,
 	prefix: string,
 ): DecodedValues {
-	const decoded: Record<string, DecodedValue> = {};
+	// Entries, so a variable named `__proto__` becomes a key of its own.
+	const decoded: [string, DecodedValue][] = [];
 	for (const [name, variable] of Object.entries(variables)) {
 		const path = toPath(prefix, name);
 		const value = getOwn(data, name);
@@ -319,9 +321,9 @@ function fromWireValues(
 				{ sessionId: scope.sessionId },
 			);
 		}
-		decoded[name] = fromWireValue(scope, variable, value, path);
+		decoded.push([name, fromWireValue(scope, variable, value, path)]);
 	}
-	return decoded;
+	return Object.fromEntries(decoded);
 }
 
 /**

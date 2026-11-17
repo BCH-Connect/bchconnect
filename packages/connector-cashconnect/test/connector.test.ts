@@ -908,6 +908,53 @@ describe("restore", () => {
 		expect(h.emit).not.toHaveBeenCalled();
 	});
 
+	it("should keep the record of a session of another template under the template it was paired with until it has ended", async () => {
+		fakeSdk.startOutcome = () => "wait";
+		const h = await harness();
+		await seed(h.storage, "slot-1", { template: sendTemplate });
+		const set = vi.spyOn(h.storage, "set");
+		await h.connector.restore();
+		await vi.waitFor(() => expect(fakeSdk.dapps).toHaveLength(1));
+		const dapp = dappOf("slot-1");
+		await flush();
+		set.mockClear();
+
+		// The relay replays the last event to an instance that starts.
+		dapp.receiveEvent();
+		await flush();
+
+		expect(set).toHaveBeenCalledWith("slot:slot-1", expect.any(String));
+		expect(await storedRecord(h.storage, "slot-1")).toMatchObject({
+			template: toTemplateHash(Hasher, sendTemplate),
+		});
+		dapp.settleStart();
+		await flush();
+		expect(await storedSlots(h.storage)).toEqual([]);
+	});
+
+	it("should keep the record of a session of another template when the wallet could not be told", async () => {
+		fakeSdk.startOutcome = () => "wait";
+		const h = await harness();
+		await seed(h.storage, "slot-1", { template: sendTemplate });
+		await h.connector.restore();
+		await vi.waitFor(() => expect(fakeSdk.dapps).toHaveLength(1));
+		const dapp = dappOf("slot-1");
+		const cause = new Error("Dapp.start() must be called first.");
+		dapp.forgetError = cause;
+		await flush();
+
+		dapp.settleStart();
+		await flush();
+
+		expect(dapp.calls).toEqual(["start", "forgetSession", "stop"]);
+		expect(h.logger.warn).toHaveBeenCalledWith(
+			"Ending the CashConnect session failed",
+			cause,
+		);
+		expect(await storedSlots(h.storage)).toEqual(["slot-1"]);
+		expect(await storedRecord(h.storage, "slot-1")).toBeDefined();
+	});
+
 	it("should not wait for a session of another template to end", async () => {
 		fakeSdk.startOutcome = (slot) => (slot === "slot-1" ? "wait" : "open");
 		const h = await harness();
@@ -1620,7 +1667,49 @@ describe("dispose", () => {
 			code: "ABORTED",
 			message: "The CashConnect connector was disposed",
 		});
+		expect(loadSdk).not.toHaveBeenCalled();
 		expect(fakeSdk.dapps).toEqual([]);
+	});
+
+	it("should not stop again an instance that has already stopped", async () => {
+		const h = await harness();
+		const { dapp } = await connected(h);
+		await dapp.deleteSession();
+		await flush();
+		expect(dapp.calls.filter((call) => call === "stop")).toHaveLength(1);
+
+		await h.connector.dispose?.();
+
+		expect(dapp.calls.filter((call) => call === "stop")).toHaveLength(1);
+	});
+
+	it("should let a disconnect in flight tell the wallet before it resolves", async () => {
+		const h = await harness();
+		const { session, dapp } = await connected(h);
+		dapp.calls.length = 0;
+
+		const disconnecting = h.connector.disconnect(session);
+		await h.connector.dispose?.();
+
+		expect(dapp.forgets).toEqual(["Disconnected by the dapp"]);
+		expect(dapp.calls).toEqual(["forgetSession", "stop"]);
+		expect(h.logger.warn).not.toHaveBeenCalled();
+		expect(await storedSlots(h.storage)).toEqual([]);
+		await disconnecting;
+	});
+
+	it("should resolve a restore empty when its only instance fails to start after it", async () => {
+		fakeSdk.startOutcome = () => "wait";
+		const h = await harness();
+		await seed(h.storage, "slot-1");
+		const restoring = h.connector.restore();
+		await vi.waitFor(() => expect(fakeSdk.dapps).toHaveLength(1));
+
+		await h.connector.dispose?.();
+		dappOf("slot-1").settleStart({ reject: socketError() });
+
+		await expect(restoring).resolves.toEqual([]);
+		expect(await storedSlots(h.storage)).toEqual(["slot-1"]);
 	});
 
 	it("should build nothing for a connect that was still loading the SDK", async () => {

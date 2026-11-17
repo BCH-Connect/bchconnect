@@ -68,6 +68,8 @@ let wallet: Wallet;
 let logger: SpyLogger;
 /** The page's `localStorage`, where core keeps connector records across clients. */
 let items: Map<string, string>;
+/** Every session record written so far, parsed, in order. */
+let written: { readonly template: string }[];
 const invites: string[] = [];
 const disposers: (() => Promise<void>)[] = [];
 
@@ -161,10 +163,16 @@ async function untilReachable(
 beforeEach(async () => {
 	relay = startRelay();
 	items = new Map();
+	written = [];
 	vi.stubGlobal("window", {
 		localStorage: {
 			getItem: (key: string) => items.get(key) ?? null,
-			setItem: (key: string, value: string) => items.set(key, value),
+			setItem: (key: string, value: string) => {
+				items.set(key, value);
+				if (key.startsWith("bchconnect:cashconnect:slot:")) {
+					written.push(JSON.parse(value));
+				}
+			},
 			removeItem: (key: string) => items.delete(key),
 		},
 	});
@@ -728,6 +736,8 @@ describe("restore", () => {
 		await untilReachable(first, session.id);
 		const { dappPubkey } = wallet.session();
 		await first.dispose();
+		const paired = written.at(-1)?.template;
+		written.length = 0;
 
 		const second = newClient({
 			template: { ...template, name: "Loopback, changed" },
@@ -742,6 +752,11 @@ describe("restore", () => {
 		await until(() => expect(storedRecords()).toEqual({}));
 		await until(() => expect(relay.openSockets()).toBe(1));
 		expect(connected).not.toHaveBeenCalled();
+		// The relay replays the last event, which the SDK records. A record
+		// rewritten under the new template would be restored by a load that
+		// found it.
+		expect(written.length).toBeGreaterThan(0);
+		expect(written.every((record) => record.template === paired)).toBe(true);
 	});
 
 	it("should keep the record of a session while the relay cannot be reached, and restore it at the next load", async () => {

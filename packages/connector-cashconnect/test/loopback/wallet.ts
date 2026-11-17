@@ -103,11 +103,11 @@ export interface Wallet {
 	/** The coins the wallet holds; tests replace or extend them. */
 	utxos: SpendableUTXO[];
 	/** Answers a pairing proposal; by default approves with the tokens asked for. A rejection declines. */
-	answerProposal: (
+	answerProposal(
 		proposal: SessionProposalResponse,
-	) => Promise<SessionCreateRequest>;
+	): Promise<SessionCreateRequest>;
 	/** Answers a built action; by default approves it. A rejection declines. */
-	answerAction: (action: ReceivedAction) => Promise<void>;
+	answerAction(action: ReceivedAction): Promise<void>;
 	readonly proposals: readonly SessionProposalResponse[];
 	readonly actions: readonly ReceivedAction[];
 	/** Public keys of the dapps whose sessions ended. */

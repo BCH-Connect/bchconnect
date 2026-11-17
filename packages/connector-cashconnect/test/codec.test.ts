@@ -1,5 +1,6 @@
 import { ConfigError, InvalidWalletResponseError } from "@bchconnect/core";
 import { Address, Bytes, Hasher } from "@cashconnect-js/core/primitives";
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { fromWireReturns, toWireParams } from "../src/codec.js";
 import type { SdkPrimitives } from "../src/sdk.js";
@@ -502,6 +503,138 @@ describe("fromWireReturns", () => {
 		expectInvalidResponse(
 			() => fromWireReturns(sdk, session, "groups", data),
 			`The wallet returned a malformed "${name}" for action "groups"`,
+		);
+	});
+});
+
+describe("a variable named like an object's prototype", () => {
+	// As a dapp gets a template from JSON: `__proto__` is an own key.
+	const inherited: CashConnectTemplate = JSON.parse(`{
+		"name": "Prototype keys",
+		"actions": {
+			"run": {
+				"params": {
+					"note": { "type": "string", "name": "Note" },
+					"__proto__": { "type": "string", "name": "Proto" }
+				},
+				"instructions": [],
+				"returns": {
+					"__proto__": {
+						"type": "object",
+						"properties": { "tx": { "type": "bytes", "name": "Tx" } }
+					}
+				}
+			}
+		}
+	}`);
+	const inheritedSession = {
+		id: SESSION_ID,
+		data: { template: inherited, chain: "bchtest" },
+	} as const;
+
+	it("should be encoded as a param of its own", () => {
+		const wire = toWireParams(
+			sdk,
+			inheritedSession,
+			"run",
+			JSON.parse('{"note":"a","__proto__":"b"}'),
+		);
+
+		expect(Object.keys(wire)).toEqual(["note", "__proto__"]);
+		expect(Object.getPrototypeOf(wire)).toBe(Object.prototype);
+		expect(Object.getOwnPropertyDescriptor(wire, "__proto__")?.value).toEqual(
+			Bytes.fromUTF8("b").toUint8Array(),
+		);
+	});
+
+	it("should be decoded as a value of its own", () => {
+		const data: unknown = JSON.parse('{"__proto__":{"tx":0}}', (_, value) =>
+			value === 0 ? raw : value,
+		);
+
+		const decoded = fromWireReturns(sdk, inheritedSession, "run", data);
+
+		expect(Object.keys(decoded)).toEqual(["__proto__"]);
+		expect(Object.getPrototypeOf(decoded)).toBe(Object.prototype);
+		expect("tx" in decoded).toBe(false);
+		expect(
+			Object.getOwnPropertyDescriptor(decoded, "__proto__")?.value,
+		).toEqual({ tx: raw });
+	});
+});
+
+describe("a round trip", () => {
+	const variables = {
+		sats: { type: "satoshis", name: "Amount" },
+		count: { type: "number", name: "Count" },
+		note: { type: "string", name: "Note" },
+		to: { type: "address", name: "Recipient" },
+		raw: { type: "bytes", name: "Raw" },
+		group: {
+			type: "object",
+			properties: {
+				count: { type: "number", name: "Count" },
+				note: { type: "string", name: "Note" },
+			},
+		},
+		list: {
+			type: "array",
+			properties: {
+				count: { type: "number", name: "Count" },
+				to: { type: "address", name: "Recipient" },
+			},
+		},
+	} as const;
+	const mirror = {
+		name: "Round trip",
+		actions: {
+			run: { params: variables, instructions: [], returns: variables },
+		},
+	} as const satisfies CashConnectTemplate;
+
+	const chain = fc.constantFrom("bitcoincash", "bchtest", "bchreg");
+	const hash = fc.uint8Array({ minLength: 20, maxLength: 20 });
+	const kind = fc.constantFrom("P2PKH", "P2SH20");
+	const number = fc.bigInt({ min: -(2n ** 70n), max: 2n ** 70n });
+	const text = fc.string({ unit: "grapheme" });
+
+	it("should decode what was encoded, for every declared type and chain", () => {
+		fc.assert(
+			fc.property(
+				chain,
+				fc.bigInt({ min: 0n, max: MAX_SATOSHIS }),
+				number,
+				text,
+				fc.tuple(hash, kind),
+				fc.uint8Array(),
+				fc.array(fc.tuple(number, hash, kind), { maxLength: 4 }),
+				(chainId, sats, count, note, [payload, type], bytes, items) => {
+					const mirrorSession = {
+						id: SESSION_ID,
+						data: { template: mirror, chain: chainId },
+					};
+					const toAddress = (hash160: Uint8Array, as: "P2PKH" | "P2SH20") =>
+						Address.fromHash160Bytes(hash160, as).toCashAddr(chainId);
+					const params = {
+						sats,
+						count,
+						note,
+						to: toAddress(payload, type),
+						raw: bytes,
+						group: { count, note },
+						list: items.map(([itemCount, hash160, as]) => ({
+							count: itemCount,
+							to: toAddress(hash160, as),
+						})),
+					};
+
+					const wire = toWireParams(sdk, mirrorSession, "run", params);
+
+					expect(fromWireReturns(sdk, mirrorSession, "run", wire)).toEqual(
+						params,
+					);
+				},
+			),
 		);
 	});
 });

@@ -42,7 +42,7 @@ export interface CashConnectGroupVariable {
 	readonly type: "object" | "array";
 	/** Whether the value must be given. Default: `true`. */
 	readonly required?: boolean | undefined;
-	/** The grouped variables, by name. Every one of them is required. */
+	/** The grouped variables, by name. */
 	readonly properties: { readonly [name: string]: CashConnectBasicVariable };
 }
 
@@ -256,7 +256,8 @@ export type CashConnectLeafValue<V> = V extends { readonly type: infer K }
 	: never;
 
 /**
- * The TypeScript type of one variable's value.
+ * The TypeScript type of one variable's value: a leaf, or for a group its
+ * properties' values, once (`object`) or as a list (`array`).
  *
  * @beta
  */
@@ -265,26 +266,29 @@ export type CashConnectValue<V> = V extends {
 	readonly properties: infer P;
 }
 	? K extends "array"
-		? readonly { readonly [N in keyof P]: CashConnectLeafValue<P[N]> }[]
-		: { readonly [N in keyof P]: CashConnectLeafValue<P[N]> }
+		? readonly CashConnectValues<P>[]
+		: CashConnectValues<P>
 	: CashConnectLeafValue<V>;
 
 /**
- * Values of a variable record; `required: false` makes a key optional.
+ * Values of a variable record; `required: false` makes a key optional. A
+ * record that declares no variable takes no value.
  *
  * @beta
  */
-export type CashConnectValues<R> = {
-	readonly [K in keyof R as R[K] extends { readonly required: false }
-		? never
-		: K]: CashConnectValue<R[K]>;
-} & {
-	readonly [K in keyof R as R[K] extends { readonly required: false }
-		? K
-		: never]?: CashConnectValue<R[K]>;
-} extends infer V
-	? { [K in keyof V]: V[K] }
-	: never;
+export type CashConnectValues<R> = [keyof R] extends [never]
+	? { readonly [name: string]: never }
+	: {
+				readonly [K in keyof R as R[K] extends { readonly required: false }
+					? never
+					: K]: CashConnectValue<R[K]>;
+			} & {
+				readonly [K in keyof R as R[K] extends { readonly required: false }
+					? K
+					: never]?: CashConnectValue<R[K]>;
+			} extends infer V
+		? { [K in keyof V]: V[K] }
+		: never;
 
 /**
  * Params of one action.

@@ -11,6 +11,7 @@ import type {
 	CashConnectLeafValue,
 	CashConnectTemplate,
 	CashConnectValue,
+	CashConnectValues,
 } from "../../src/index.js";
 import type { FixtureTemplate } from "./fixtures/template.js";
 
@@ -108,17 +109,6 @@ describe("CashConnectActionParams", () => {
 	});
 });
 
-describe("CashConnectValue", () => {
-	it("should require every property of a group", () => {
-		expectTypeOf<
-			CashConnectValue<{
-				type: "object";
-				properties: { a: { type: "string"; name: ""; required: false } };
-			}>
-		>().toEqualTypeOf<{ readonly a: string }>();
-	});
-});
-
 describe("CashConnectActionReturns", () => {
 	it("should type returned values by their declared types", () => {
 		expectTypeOf<
@@ -206,5 +196,35 @@ describe("a template without literal types", () => {
 		expectTypeOf<bigint>().toExtend<
 			CashConnectActionParams<Template, string>[string]
 		>();
+	});
+});
+
+describe("CashConnectValues", () => {
+	it("should make a grouped variable declared optional an optional key of its group", () => {
+		expectTypeOf<
+			CashConnectValue<{
+				type: "object";
+				properties: {
+					always: { type: "bytes"; name: "" };
+					maybe: { type: "satoshis"; name: ""; required: false };
+				};
+			}>
+		>().toEqualTypeOf<{
+			readonly always: Uint8Array;
+			readonly maybe?: bigint;
+		}>();
+		expectTypeOf<
+			CashConnectValue<{
+				type: "array";
+				properties: { maybe: { type: "string"; name: ""; required: false } };
+			}>
+		>().toEqualTypeOf<readonly { readonly maybe?: string }[]>();
+	});
+
+	it("should take no value for an action that declares no params", () => {
+		type None = CashConnectValues<Record<never, never>>;
+
+		expectTypeOf<Record<never, never>>().toExtend<None>();
+		expectTypeOf<{ amount: bigint }>().not.toExtend<None>();
 	});
 });

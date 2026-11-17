@@ -225,10 +225,12 @@ export interface CashConnectTransactionOutput {
 export type CashConnectValue<V> = V extends {
     readonly type: infer K;
     readonly properties: infer P;
-} ? K extends "array" ? readonly { readonly [N in keyof P]: CashConnectLeafValue<P[N]>; }[] : { readonly [N in keyof P]: CashConnectLeafValue<P[N]>; } : CashConnectLeafValue<V>;
+} ? K extends "array" ? readonly CashConnectValues<P>[] : CashConnectValues<P> : CashConnectLeafValue<V>;
 
 // @beta
-export type CashConnectValues<R> = { readonly [K in keyof R as R[K] extends {
+export type CashConnectValues<R> = [keyof R] extends [never] ? {
+    readonly [name: string]: never;
+} : { readonly [K in keyof R as R[K] extends {
         readonly required: false;
     } ? never : K]: CashConnectValue<R[K]>; } & { readonly [K in keyof R as R[K] extends {
         readonly required: false;
