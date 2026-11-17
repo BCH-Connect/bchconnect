@@ -1,0 +1,53 @@
+{
+	"name": "@bchconnect/connector-cashconnect",
+	"version": "0.0.0",
+	"description": "CashConnect connector for BCH Connect, running template actions in the wallet over Nostr.",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/BCH-Connect/bchconnect.git",
+		"directory": "packages/connector-cashconnect"
+	},
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"import": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			},
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			}
+		},
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/index.cjs",
+	"types": "./dist/index.d.cts",
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=22"
+	},
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
+	"scripts": {
+		"build": "tsdown",
+		"api": "api-extractor run --local --verbose"
+	},
+	"peerDependencies": {
+		"@bchconnect/core": "workspace:^",
+		"@cashconnect-js/core": "1.0.0-alpha.31",
+		"@cashconnect-js/nostr": "1.0.0-alpha.31"
+	},
+	"devDependencies": {
+		"@bchconnect/core": "workspace:*",
+		"@bitauth/libauth": "3.1.0-next.8",
+		"@cashconnect-js/core": "1.0.0-alpha.31",
+		"@cashconnect-js/nostr": "1.0.0-alpha.31"
+	}
+}

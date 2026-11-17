@@ -12,7 +12,10 @@ const FILES: readonly File[] = ["config", "capabilities"];
  * settled; the others follow its pattern until their packages ship.
  */
 const FACTORIES: Readonly<
-	Record<ProtocolId, { name: string; args: string; from: string }>
+	Record<
+		ProtocolId,
+		{ name: string; args: string; from: string; alsoImport?: string }
+	>
 > = {
 	wizardconnect: {
 		name: "wizardConnect",
@@ -26,7 +29,8 @@ const FACTORIES: Readonly<
 	},
 	cashconnect: {
 		name: "cashConnect",
-		args: "",
+		args: "{ template: sendTemplate }",
+		alsoImport: "sendTemplate",
 		from: "@bchconnect/connector-cashconnect",
 	},
 };
@@ -43,14 +47,18 @@ function Config({ session }: ProtocolConfigProps) {
 			{f("createClient")}
 			{" } "}
 			{k("from")} {s('"@bchconnect/core"')};{"\n"}
-			{PROTOCOLS.map((protocol) => (
-				<Fragment key={protocol.id}>
-					{k("import")} {"{ "}
-					{f(FACTORIES[protocol.id].name)}
-					{" }\n  "}
-					{k("from")} {s(`"${FACTORIES[protocol.id].from}"`)};{"\n"}
-				</Fragment>
-			))}
+			{PROTOCOLS.map((protocol) => {
+				const { name, alsoImport, from } = FACTORIES[protocol.id];
+				return (
+					<Fragment key={protocol.id}>
+						{k("import")} {"{ "}
+						{f(name)}
+						{alsoImport && <>, {f(alsoImport)}</>}
+						{" }\n  "}
+						{k("from")} {s(`"${from}"`)};{"\n"}
+					</Fragment>
+				);
+			})}
 			{"\n"}
 			{k("export const")} client = {f("createClient")}({"{\n"}
 			{"  network: "}
