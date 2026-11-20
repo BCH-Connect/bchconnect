@@ -5,6 +5,11 @@ import { repoUrl } from "@/lib/shared";
 
 export const SITE_URL = "https://bchconnect.dev";
 
+export const NOTICE = {
+	title: "BCH Connect is in alpha.",
+	body: "Only the bch-wc2 connector is published so far. Connectors for WizardConnect, CashConnect and Pat's new bch-wc2 browser extension are being finished, along with the React and Vue bindings.",
+} as const;
+
 export const HERO = {
 	headline: "Connect every Bitcoin Cash wallet.",
 	lede: "Reliable BCH wallet connections out of the box, through one type-safe API for any connection protocol and your favorite JS framework.",

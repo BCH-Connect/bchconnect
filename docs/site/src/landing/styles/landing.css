@@ -178,6 +178,26 @@
 		);
 }
 
+.alpha-notice {
+	padding: 10px 48px;
+	background-color: color-mix(in srgb, var(--accent-3) 70%, var(--neutral-1));
+	font-weight: 400;
+}
+
+.alpha-notice-text {
+	max-width: 80ch;
+	margin: 0;
+	font-size: 0.875rem;
+	line-height: 1.5;
+	color: var(--neutral-11);
+	text-wrap: pretty;
+}
+
+.alpha-notice-text strong {
+	font-weight: 600;
+	color: var(--neutral-12);
+}
+
 .hero {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
