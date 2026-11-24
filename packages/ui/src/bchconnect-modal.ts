@@ -109,7 +109,7 @@ function elementsRenderer(
 	let mounted: Promise<void> = Promise.resolve();
 	let closing = false;
 	let theme: BchconnectModalTheme = options.theme ?? {};
-	const toasts = new Set<HTMLElement>();
+	let toasts: HTMLElement[] = [];
 
 	function showToast(view: ModalView) {
 		if (options.toast === false || view.phase.kind !== "connected") return;
@@ -126,15 +126,10 @@ function elementsRenderer(
 			walletLogo: view.phase.walletLogo,
 		};
 		if (options.messages !== undefined) toast.messages = options.messages;
-		toast.addEventListener(
-			"bchc-dismiss",
-			() => {
-				toasts.delete(toast);
-				toast.remove();
-			},
-			{ once: true },
-		);
-		toasts.add(toast);
+		toast.addEventListener("bchc-dismiss", () => toast.remove(), {
+			once: true,
+		});
+		toasts.push(toast);
 		document.body.append(toast);
 	}
 
@@ -196,11 +191,9 @@ function elementsRenderer(
 		setTheme(next) {
 			theme = next;
 			if (modal !== null) applyTheme(modal, theme);
-			for (const toast of toasts) {
-				// A toast the page removed itself never sends `bchc-dismiss`.
-				if (toast.isConnected) applyTheme(toast, theme);
-				else toasts.delete(toast);
-			}
+			// Dismissed toasts, and those the page removed itself, are dropped here.
+			toasts = toasts.filter((toast) => toast.isConnected);
+			for (const toast of toasts) applyTheme(toast, theme);
 		},
 	};
 }

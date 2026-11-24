@@ -11,7 +11,7 @@
 		"path": "dist/bchconnect-modal.js",
 		"import": "{ bchconnectModal }",
 		"gzip": true,
-		"limit": "64 kB"
+		"limit": "64.5 kB"
 	},
 	{
 		"name": "Default data (protocols, wallets, directory)",

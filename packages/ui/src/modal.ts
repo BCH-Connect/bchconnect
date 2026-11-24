@@ -140,15 +140,6 @@ export function useCodeRenderer(renderer: CodeRenderer): void {
 	codeRenderer = renderer;
 }
 
-const THEME_ATTRIBUTES: readonly string[] = [
-	"data-bchc-accent",
-	"data-bchc-neutral",
-	"data-bchc-radius",
-	"data-bchc-font",
-	"data-bchc-blur",
-	"data-bchc-mode",
-];
-
 /**
  * The `<bchc-modal>` web component
  *
@@ -199,26 +190,17 @@ export class BchcModal extends LitElement {
 		_copied: { state: true },
 		_linkFailed: { state: true },
 		_brokenLogos: { state: true },
+		// Observed so a theme change re-renders: the code reads its colours from computed styles.
+		_accent: { attribute: "data-bchc-accent" },
+		_neutral: { attribute: "data-bchc-neutral" },
+		_radius: { attribute: "data-bchc-radius" },
+		_font: { attribute: "data-bchc-font" },
+		_blur: { attribute: "data-bchc-blur" },
+		_mode: { attribute: "data-bchc-mode" },
 	};
 
 	/** Lit's adopted style sheets. @internal */
 	static override styles: CSSResultGroup = [theme, tokens, modal];
-
-	/** Lit's observed attributes, plus the theme's: the code reads its colours from computed styles. @internal */
-	static override get observedAttributes(): string[] {
-		// biome-ignore lint/complexity/noThisInStatic: Lit finalizes `this`, so the getter must run with this class, not LitElement.
-		return [...super.observedAttributes, ...THEME_ATTRIBUTES];
-	}
-
-	/** Re-renders on a theme change, so the code repaints in the new colours. @internal */
-	override attributeChangedCallback(
-		name: string,
-		old: string | null,
-		value: string | null,
-	): void {
-		super.attributeChangedCallback(name, old, value);
-		if (THEME_ATTRIBUTES.includes(name)) this.requestUpdate();
-	}
 
 	/** The state to render. Setting it re-renders the modal. */
 	declare view: ModalView | null;
