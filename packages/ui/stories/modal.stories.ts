@@ -371,6 +371,39 @@ export const MessagesSetWhileClosed = meta.story({
 	},
 });
 
+// The code's colours are read from computed styles, so a theme attribute
+// changed while open must repaint it.
+export const ThemeAttributeLiveChange = meta.story({
+	play: async ({ canvasElement }) => {
+		await settle();
+		const modal = modalHost(canvasElement);
+		const shadow = modalShadow(canvasElement);
+		const accent = () => {
+			const probe = shadow.querySelector(".probe");
+			if (probe === null) throw new Error("probe missing");
+			return getComputedStyle(probe).accentColor;
+		};
+		const plateFill = () => {
+			const image = shadow.querySelector(".code svg:not(.code-outgoing) image");
+			const href =
+				image?.getAttribute("href") ??
+				image?.getAttributeNS("http://www.w3.org/1999/xlink", "href") ??
+				"";
+			// The QR library re-embeds the mark's plate as base64.
+			const [, base64] = href.split(";base64,");
+			const svg =
+				base64 === undefined ? decodeURIComponent(href) : atob(base64);
+			return /fill="([^"]+)"/.exec(svg)?.[1] ?? null;
+		};
+		await waitFor(() => expect(plateFill()).toBe(accent()));
+		const before = accent();
+
+		modal.setAttribute("data-bchc-accent", "pink");
+		expect(accent()).not.toBe(before);
+		await waitFor(() => expect(plateFill()).toBe(accent()));
+	},
+});
+
 // Tagged so the dedicated reduced-motion Vitest project (see vitest.config.ts)
 // is the only one that runs it; the other browsers already cover this story's
 // markup under ordinary motion via `Scan`.

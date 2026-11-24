@@ -97,12 +97,16 @@ export interface BchcMessages {
 // @beta
 export class BchcModal extends LitElement {
     constructor();
+    // @internal
+    override attributeChangedCallback(name: string, old: string | null, value: string | null): void;
     close(): Promise<void>;
     // @internal
     override connectedCallback(): void;
     // @internal
     override disconnectedCallback(): void;
     messages: Partial<BchcMessages> | null;
+    // @internal
+    static override get observedAttributes(): string[];
     // @internal
     static override properties: PropertyDeclarations;
     // @internal
