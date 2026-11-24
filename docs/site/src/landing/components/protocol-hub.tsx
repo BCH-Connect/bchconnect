@@ -18,6 +18,30 @@ const PLATES: Readonly<Record<ProtocolId, { x: number; y: number }>> = {
 	cashconnect: { x: 356, y: 160 },
 };
 
+/** The ring's distance from the plate, kept even around the corners. */
+const RING_GAP = 6;
+const PLATE_RADIUS = 26;
+
+/**
+ * One half of the ring around a plate, from where the wire leaves it at the
+ * bottom to the top, so the two halves draw out from the wire and meet.
+ */
+function ringHalf(x: number, y: number, side: 1 | -1): string {
+	const half = PLATE / 2 + RING_GAP;
+	const r = PLATE_RADIUS + RING_GAP;
+	const sweep = side === 1 ? 0 : 1;
+	const edge = x + side * half;
+	const corner = x + side * (half - r);
+	return [
+		`M ${x} ${y + half}`,
+		`H ${corner}`,
+		`A ${r} ${r} 0 0 ${sweep} ${edge} ${y + half - r}`,
+		`V ${y - half + r}`,
+		`A ${r} ${r} 0 0 ${sweep} ${corner} ${y - half}`,
+		`H ${x}`,
+	].join(" ");
+}
+
 /**
  * From the middle of a plate down to the join, leaving it vertical so the
  * three read as one trunk. It starts under the plate, hidden by it.
@@ -84,7 +108,7 @@ export function ProtocolHub({ state, active }: ProtocolHubProps) {
 					y: y - PLATE / 2,
 					width: PLATE,
 					height: PLATE,
-					rx: 26,
+					rx: PLATE_RADIUS,
 				};
 				return (
 					<g
@@ -97,7 +121,16 @@ export function ProtocolHub({ state, active }: ProtocolHubProps) {
 						<text x={x} y={y - PLATE / 2 - 14} className="hub-label">
 							{protocol.name}
 						</text>
-						<rect {...box} className="hub-plate-ring" />
+						<path
+							d={ringHalf(x, y, 1)}
+							pathLength={1}
+							className="hub-plate-ring"
+						/>
+						<path
+							d={ringHalf(x, y, -1)}
+							pathLength={1}
+							className="hub-plate-ring"
+						/>
 						{/* An HTML face: blur and box-shadow are not available to an SVG rect. */}
 						<foreignObject
 							x={box.x}
