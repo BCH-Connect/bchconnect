@@ -14,6 +14,8 @@ export type LiveClient = Client<WalletConnect>;
 
 let client: Promise<LiveClient> | null = null;
 
+const LOOK = { accent: "violet" } as const;
+
 /**
  * Creates the client once and restores the previous visit's session. The
  * modal offers only the protocols of the connectors passed here.
@@ -27,6 +29,7 @@ export function loadClient(): Promise<LiveClient> {
 				import("@bchconnect/connector-walletconnect"),
 				import("@bchconnect/ui/modal"),
 			]);
+		const ui = bchconnectModal();
 		const instance = createClient({
 			connectors: [walletConnect({ projectId: projectId ?? "" })],
 			network: "mainnet",
@@ -35,11 +38,16 @@ export function loadClient(): Promise<LiveClient> {
 				url: window.location.origin,
 				description: "Wallet connection for Bitcoin Cash dapps.",
 			},
-			ui: bchconnectModal({
-				theme: { accent: "violet", mode: siteMode() },
-			}),
+			ui,
 		});
 		await instance.init();
+		// The theme switch toggles `<html>`'s class, which `siteMode()` reads. Observed
+		// only after a successful load, so a retried load leaves no observer behind.
+		const followSite = () => ui.setTheme({ ...LOOK, mode: siteMode() });
+		followSite();
+		new MutationObserver(followSite).observe(document.documentElement, {
+			attributeFilter: ["class"],
+		});
 		return instance;
 	})();
 	client = loading;

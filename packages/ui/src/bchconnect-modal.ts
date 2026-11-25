@@ -61,22 +61,60 @@ export interface BchconnectModalOptions extends HeadlessModalOptions {
 	toast?: boolean | { duration?: number };
 }
 
-function applyTheme(element: HTMLElement, theme: BchconnectModalTheme = {}) {
-	for (const [axis, value] of Object.entries(theme)) {
-		if (value !== undefined) element.setAttribute(`data-bchc-${axis}`, value);
+/**
+ * What {@link bchconnectModal} returns: the client's `ui`, plus a way to
+ * change its look later.
+ *
+ * @beta
+ */
+export interface BchconnectModalUi extends ConnectUi {
+	/**
+	 * Replaces the theme of the modal and the toast, including those on
+	 * screen. An axis the new theme leaves out goes back to its default.
+	 *
+	 * @example
+	 * ```ts
+	 * const ui = bchconnectModal({ theme: { accent: "violet", mode: "light" } });
+	 * // Later, when the site's own theme changes:
+	 * ui.setTheme({ accent: "violet", mode: "dark" });
+	 * ```
+	 */
+	setTheme(theme: BchconnectModalTheme): void;
+}
+
+const THEME_AXES: Readonly<Record<keyof BchconnectModalTheme, true>> = {
+	accent: true,
+	neutral: true,
+	radius: true,
+	font: true,
+	blur: true,
+	mode: true,
+};
+
+function applyTheme(element: HTMLElement, theme: BchconnectModalTheme) {
+	for (const axis of Object.keys(
+		THEME_AXES,
+	) as (keyof BchconnectModalTheme)[]) {
+		const value = theme[axis];
+		if (value === undefined) element.removeAttribute(`data-bchc-${axis}`);
+		else element.setAttribute(`data-bchc-${axis}`, value);
 	}
 }
 
-function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
+function elementsRenderer(
+	options: BchconnectModalOptions,
+): ModalRenderer & Pick<BchconnectModalUi, "setTheme"> {
 	let latest: ModalView | null = null;
 	let modal: BchcModal | null = null;
 	let mounted: Promise<void> = Promise.resolve();
 	let closing = false;
+	let theme: BchconnectModalTheme = options.theme ?? {};
+	let toasts: HTMLElement[] = [];
 
 	function showToast(view: ModalView) {
 		if (options.toast === false || view.phase.kind !== "connected") return;
 		const toast = document.createElement("bchc-toast");
-		applyTheme(toast, options.theme);
+		applyTheme(toast, theme);
 		if (
 			typeof options.toast === "object" &&
 			options.toast.duration !== undefined
@@ -91,6 +129,7 @@ function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
 		toast.addEventListener("bchc-dismiss", () => toast.remove(), {
 			once: true,
 		});
+		toasts.push(toast);
 		document.body.append(toast);
 	}
 
@@ -102,7 +141,7 @@ function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
 				if (closing) return;
 				defineElements();
 				const element = document.createElement("bchc-modal");
-				applyTheme(element, options.theme);
+				applyTheme(element, theme);
 				if (options.messages !== undefined) {
 					element.messages = options.messages;
 				}
@@ -149,6 +188,13 @@ function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
 			element.remove();
 			if (latest !== null) showToast(latest);
 		},
+		setTheme(next) {
+			theme = next;
+			if (modal !== null) applyTheme(modal, theme);
+			// Dismissed toasts, and those the page removed itself, are dropped here.
+			toasts = toasts.filter((toast) => toast.isConnected);
+			for (const toast of toasts) applyTheme(toast, theme);
+		},
 	};
 }
 
@@ -175,6 +221,7 @@ function elementsRenderer(options: BchconnectModalOptions): ModalRenderer {
  */
 export function bchconnectModal(
 	options: BchconnectModalOptions = {},
-): ConnectUi {
-	return headlessModal(elementsRenderer(options), options);
+): BchconnectModalUi {
+	const renderer = elementsRenderer(options);
+	return { ...headlessModal(renderer, options), setTheme: renderer.setTheme };
 }

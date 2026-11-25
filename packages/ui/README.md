@@ -148,6 +148,17 @@ Set only the options you want to change; the rest keep their defaults. Each
 accent comes paired with a neutral family, so leave `neutral` unset to keep the
 pairing and set it only to mix families on purpose.
 
+To change the theme later, for example when your site switches between light
+and dark, keep the ui and call `setTheme()`. It replaces the whole theme, so
+pass every option you set, and it restyles a modal or toast already on screen:
+
+```ts
+const ui = bchconnectModal({ theme: { accent: "violet", mode: "light" } });
+const client = createClient({ /* … */ ui });
+
+ui.setTheme({ accent: "violet", mode: "dark" });
+```
+
 When you create the elements yourself, set the same options as `data-bchc-*`
 attributes on the element: `data-bchc-accent`, `data-bchc-neutral`,
 `data-bchc-radius`, `data-bchc-font`, `data-bchc-blur` and `data-bchc-mode`.

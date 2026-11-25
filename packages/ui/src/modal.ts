@@ -190,6 +190,13 @@ export class BchcModal extends LitElement {
 		_copied: { state: true },
 		_linkFailed: { state: true },
 		_brokenLogos: { state: true },
+		// Observed so a theme change re-renders: the code reads its colours from computed styles.
+		_accent: { attribute: "data-bchc-accent" },
+		_neutral: { attribute: "data-bchc-neutral" },
+		_radius: { attribute: "data-bchc-radius" },
+		_font: { attribute: "data-bchc-font" },
+		_blur: { attribute: "data-bchc-blur" },
+		_mode: { attribute: "data-bchc-mode" },
 	};
 
 	/** Lit's adopted style sheets. @internal */

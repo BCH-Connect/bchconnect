@@ -53,15 +53,16 @@ function scriptedConnector() {
 
 async function clientWithModal(options?: BchconnectModalOptions) {
 	const scripted = scriptedConnector();
+	const ui = bchconnectModal(options);
 	const client = createClient({
 		connectors: [scripted.connector],
 		network: "mainnet",
 		appMetadata: { name: "Story", url: "https://example.com" },
 		storage: memory(),
-		ui: bchconnectModal(options),
+		ui,
 	});
 	await client.init();
-	return { client, ...scripted };
+	return { client, ui, ...scripted };
 }
 
 function mounted(tag: "bchc-modal" | "bchc-toast"): HTMLElement {
@@ -201,6 +202,109 @@ export const Unthemed = meta.story({
 			?.querySelector<HTMLElement>('[aria-label="Close"]')
 			?.click();
 		await expect(call).rejects.toMatchObject({ code: "ABORTED" });
+		await client.dispose();
+	},
+});
+
+function expectOnly(element: HTMLElement, theme: Record<string, string>) {
+	for (const axis of Object.keys(THEME)) {
+		expect(element.getAttribute(`data-bchc-${axis}`), axis).toBe(
+			theme[axis] ?? null,
+		);
+	}
+}
+
+const SESSION: Session = {
+	id: "story",
+	protocol: "wizardconnect",
+	wallet: { id: "cashonize", name: "Cashonize", source: "protocol" },
+	data: {},
+	status: { transport: "connected", peer: "reachable" },
+};
+
+export const ThemeSetBeforeOpen = meta.story({
+	play: async () => {
+		const { client, ui } = await clientWithModal({ theme: THEME });
+		// Replaces the whole theme: the axes it leaves out go back to their defaults.
+		ui.setTheme({ mode: "light" });
+
+		const call = client.connect();
+		await waitFor(() => mounted("bchc-modal"));
+		const modal = mounted("bchc-modal");
+		expectOnly(modal, { mode: "light" });
+		await settle();
+		modal.shadowRoot
+			?.querySelector<HTMLElement>('[aria-label="Close"]')
+			?.click();
+		await expect(call).rejects.toMatchObject({ code: "ABORTED" });
+		await client.dispose();
+	},
+});
+
+export const ThemeSetBeforeMount = meta.story({
+	play: async () => {
+		const { client, ui } = await clientWithModal({ theme: THEME });
+
+		// The modal's code is still loading, so the element does not exist yet.
+		const call = client.connect();
+		expect(document.body.querySelector("bchc-modal")).toBeNull();
+		ui.setTheme({ accent: "blue" });
+		await waitFor(() => mounted("bchc-modal"));
+		const modal = mounted("bchc-modal");
+		expectOnly(modal, { accent: "blue" });
+		await settle();
+		modal.shadowRoot
+			?.querySelector<HTMLElement>('[aria-label="Close"]')
+			?.click();
+		await expect(call).rejects.toMatchObject({ code: "ABORTED" });
+		await client.dispose();
+	},
+});
+
+export const ThemeSetWhileOpen = meta.story({
+	play: async () => {
+		const { client, ui } = await clientWithModal({
+			theme: { accent: "violet", mode: "light" },
+		});
+
+		const call = client.connect();
+		await waitFor(() => mounted("bchc-modal"));
+		await settle();
+		const modal = mounted("bchc-modal");
+		const card = modal.shadowRoot?.querySelector<HTMLElement>(".card");
+		if (card === null || card === undefined) throw new Error("card missing");
+		const lightCard = getComputedStyle(card).backgroundColor;
+
+		ui.setTheme({ mode: "dark" });
+		expectOnly(modal, { mode: "dark" });
+		expect(getComputedStyle(card).backgroundColor).not.toBe(lightCard);
+
+		modal.shadowRoot
+			?.querySelector<HTMLElement>('[aria-label="Close"]')
+			?.click();
+		await expect(call).rejects.toMatchObject({ code: "ABORTED" });
+		await client.dispose();
+	},
+});
+
+export const ThemeSetWhileToastShows = meta.story({
+	play: async () => {
+		const { client, ui, approve } = await clientWithModal({
+			theme: THEME,
+			toast: { duration: Number.POSITIVE_INFINITY },
+		});
+
+		const call = client.connect();
+		await waitFor(() => mounted("bchc-modal"));
+		await settle();
+		approve(SESSION);
+		await call;
+
+		const toast = mounted("bchc-toast");
+		ui.setTheme({ accent: "blue", mode: "light" });
+		expectOnly(toast, { accent: "blue", mode: "light" });
+		await settle();
+		toast.remove();
 		await client.dispose();
 	},
 });
