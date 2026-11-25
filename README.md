@@ -35,8 +35,9 @@ To get started, read the docs at [bchconnect.dev](https://bchconnect.dev).
 | Package | Version | What it is |
 | --- | --- | --- |
 | [`@bchconnect/core`](packages/core) | [![npm](https://img.shields.io/npm/v/@bchconnect/core?label=&color=0AC18E)](https://www.npmjs.com/package/@bchconnect/core) | The client: sessions, requests and errors. |
-| [`@bchconnect/connector-walletconnect`](packages/connector-walletconnect) | [![npm](https://img.shields.io/npm/v/@bchconnect/connector-walletconnect?label=&color=0AC18E)](https://www.npmjs.com/package/@bchconnect/connector-walletconnect) | The WalletConnect connector. |
 | [`@bchconnect/ui`](packages/ui) | [![npm](https://img.shields.io/npm/v/@bchconnect/ui?label=&color=0AC18E)](https://www.npmjs.com/package/@bchconnect/ui) | The connect modal and success toast. |
+| [`@bchconnect/connector-walletconnect`](packages/connector-walletconnect) | [![npm](https://img.shields.io/npm/v/@bchconnect/connector-walletconnect?label=&color=0AC18E)](https://www.npmjs.com/package/@bchconnect/connector-walletconnect) | The WalletConnect connector. |
+| [`@bchconnect/test-utils`](packages/test-utils) | [![npm](https://img.shields.io/npm/v/@bchconnect/test-utils?label=&color=0AC18E)](https://www.npmjs.com/package/@bchconnect/test-utils) | A fake connector and sessions for testing. |
 
 Connectors for WizardConnect and CashConnect are planned.
 
