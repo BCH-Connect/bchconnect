@@ -1,5 +1,12 @@
 # @bchconnect/test-utils
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @bchconnect/core@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
